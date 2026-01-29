@@ -20,6 +20,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n';
 
 interface NavItem {
   label: string;
@@ -30,40 +31,40 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    label: 'Dashboard',
+    label: tr.nav.dashboard,
     href: '/',
     icon: LayoutDashboard,
   },
   {
-    label: 'Team',
+    label: tr.nav.team,
     href: '/team',
     icon: Users,
     adminOnly: true,
   },
   {
-    label: 'Work Items',
+    label: tr.nav.workItems,
     href: '/work-items',
     icon: FileText,
   },
   {
-    label: 'Payments',
+    label: tr.nav.payments,
     href: '/payments',
     icon: CreditCard,
     adminOnly: true,
   },
   {
-    label: 'Finance',
+    label: tr.nav.finance,
     href: '/finance',
     icon: PiggyBank,
     adminOnly: true,
   },
   {
-    label: 'Social Stats',
+    label: tr.nav.social,
     href: '/social',
     icon: BarChart3,
   },
   {
-    label: 'Reports',
+    label: tr.nav.reports,
     href: '/reports',
     icon: FileOutput,
     adminOnly: true,

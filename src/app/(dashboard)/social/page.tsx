@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { socialMetricsService, userService } from '@/services';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n';
 import { MetricsForm } from './metrics-form';
 import { PlatformHistory } from './platform-history';
 import type { MetricsPlatform, PlatformGrowth } from '@/types';
@@ -70,14 +71,14 @@ function SummaryCards({
   return (
     <div className="mb-6 grid gap-4 sm:grid-cols-4">
       <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-        <p className="text-sm text-[var(--color-text-muted)]">Total Live Views</p>
+        <p className="text-sm text-[var(--color-text-muted)]">Toplam Canlı İzlenme</p>
         <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
           {formatNumber(totalLiveViews)}
         </p>
         <p className="text-xs text-[var(--color-text-muted)]">Twitch + YouTube</p>
       </div>
       <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-        <p className="text-sm text-[var(--color-text-muted)]">Followers Growth</p>
+        <p className="text-sm text-[var(--color-text-muted)]">Takipçi Büyümesi</p>
         <p
           className={cn(
             'text-2xl font-semibold',
@@ -88,21 +89,21 @@ function SummaryCards({
         >
           {formatGrowth(totalFollowersGrowth)}
         </p>
-        <p className="text-xs text-[var(--color-text-muted)]">vs previous month</p>
+        <p className="text-xs text-[var(--color-text-muted)]">önceki aya göre</p>
       </div>
       <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-        <p className="text-sm text-[var(--color-text-muted)]">Total Engagement</p>
+        <p className="text-sm text-[var(--color-text-muted)]">Toplam Etkileşim</p>
         <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
           {formatNumber(totalEngagement)}
         </p>
-        <p className="text-xs text-[var(--color-text-muted)]">All platforms</p>
+        <p className="text-xs text-[var(--color-text-muted)]">Tüm platformlar</p>
       </div>
       <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-        <p className="text-sm text-[var(--color-text-muted)]">Platforms</p>
+        <p className="text-sm text-[var(--color-text-muted)]">Platformlar</p>
         <p className="text-2xl font-semibold text-[var(--color-accent)]">
           {platformCount}/4
         </p>
-        <p className="text-xs text-[var(--color-text-muted)]">With data this month</p>
+        <p className="text-xs text-[var(--color-text-muted)]">Bu ay veri olan</p>
       </div>
     </div>
   );
@@ -115,19 +116,19 @@ function PlatformTable({ growthData }: { growthData: PlatformGrowth[] }) {
         <thead>
           <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              Platform
+              {tr.social.fields.platform}
             </th>
             <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-              Followers
+              {tr.social.fields.followers}
             </th>
             <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-              Views
+              {tr.social.fields.views}
             </th>
             <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-              Engagement
+              {tr.social.fields.engagement}
             </th>
             <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-              Growth
+              Büyüme
             </th>
           </tr>
         </thead>
@@ -206,7 +207,7 @@ export default async function SocialPage() {
   ]);
 
   return (
-    <PageShell title="Social Stats" description="Monthly social media performance tracking">
+    <PageShell title={tr.pages.social.title} description={tr.pages.social.subtitle}>
       {/* Summary Cards */}
       <SummaryCards
         totalLiveViews={summary.totalLiveViews}
@@ -223,7 +224,7 @@ export default async function SocialPage() {
       {/* Platform Overview Table */}
       <div className="mb-6">
         <h3 className="mb-3 text-sm font-medium text-[var(--color-text-primary)]">
-          Platform Overview (Current Month)
+          Platform Özeti (Bu Ay)
         </h3>
         <PlatformTable growthData={growthData} />
       </div>

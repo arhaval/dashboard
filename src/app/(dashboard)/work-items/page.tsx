@@ -11,11 +11,13 @@ import { PageShell } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { workItemService, userService } from '@/services';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n';
 import { Plus } from 'lucide-react';
 import { StatusControl } from './status-control';
 import { WorkItemFilters } from './filters';
 import { CreatePaymentButton } from './create-payment-button';
 import { CostEditor } from './cost-editor';
+import { WorkItemDeleteButton } from './delete-button';
 import type { WorkItem, WorkType, WorkStatus } from '@/types';
 
 function getTypeBadgeStyles(type: string) {
@@ -32,7 +34,7 @@ function getTypeBadgeStyles(type: string) {
 }
 
 function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString('tr-TR', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -67,11 +69,11 @@ function WorkItemsTable({ items, currentUserId, isAdmin }: WorkItemsTableProps) 
   if (items.length === 0) {
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] text-[var(--color-text-muted)]">
-        <p>No work items found</p>
+        <p>{tr.table.noData}</p>
         <Link href="/work-items/new">
           <Button size="sm">
             <Plus className="mr-2 h-4 w-4" />
-            Add Work Item
+            {tr.actions.addWorkItem}
           </Button>
         </Link>
       </div>
@@ -84,26 +86,26 @@ function WorkItemsTable({ items, currentUserId, isAdmin }: WorkItemsTableProps) 
         <thead>
           <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              Date
+              {tr.workItem.fields.date}
             </th>
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              Type
+              {tr.workItem.fields.type}
             </th>
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              Title
+              Başlık
             </th>
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              User
+              {tr.workItem.fields.user}
             </th>
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              Status
+              {tr.workItem.fields.status}
             </th>
             <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-              Cost
+              {tr.workItem.fields.cost}
             </th>
             {isAdmin && (
               <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-                Actions
+                {tr.table.actions}
               </th>
             )}
           </tr>
@@ -169,9 +171,14 @@ function WorkItemsTable({ items, currentUserId, isAdmin }: WorkItemsTableProps) 
               </td>
               {isAdmin && (
                 <td className="px-4 py-3 text-right">
-                  {item.status === 'APPROVED' && item.user_id !== currentUserId && item.cost && (
-                    <CreatePaymentButton workItemId={item.id} userId={item.user_id} />
-                  )}
+                  <div className="flex items-center justify-end gap-2">
+                    {item.status === 'APPROVED' && item.user_id !== currentUserId && item.cost && (
+                      <CreatePaymentButton workItemId={item.id} userId={item.user_id} />
+                    )}
+                    {item.status !== 'PAID' && (
+                      <WorkItemDeleteButton workItemId={item.id} />
+                    )}
+                  </div>
                 </td>
               )}
             </tr>
@@ -230,13 +237,13 @@ export default async function WorkItemsPage({ searchParams }: PageProps) {
 
   return (
     <PageShell
-      title="Work Items"
-      description="Track work entries"
+      title={tr.pages.workItems.title}
+      description={tr.pages.workItems.subtitle}
       actions={
         <Link href="/work-items/new">
           <Button>
             <Plus className="mr-2 h-4 w-4" />
-            Add Work Item
+            {tr.actions.addWorkItem}
           </Button>
         </Link>
       }
@@ -244,21 +251,21 @@ export default async function WorkItemsPage({ searchParams }: PageProps) {
       {/* Stats Summary */}
       <div className="mb-6 grid gap-4 sm:grid-cols-4">
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Total</p>
+          <p className="text-sm text-[var(--color-text-muted)]">Toplam</p>
           <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
             {stats.total}
           </p>
         </div>
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Draft</p>
+          <p className="text-sm text-[var(--color-text-muted)]">{tr.workItem.status.DRAFT}</p>
           <p className="text-2xl font-semibold text-[var(--color-warning)]">{stats.draft}</p>
         </div>
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Approved</p>
+          <p className="text-sm text-[var(--color-text-muted)]">{tr.workItem.status.APPROVED}</p>
           <p className="text-2xl font-semibold text-[var(--color-info)]">{stats.approved}</p>
         </div>
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Paid</p>
+          <p className="text-sm text-[var(--color-text-muted)]">{tr.workItem.status.PAID}</p>
           <p className="text-2xl font-semibold text-[var(--color-success)]">{stats.paid}</p>
         </div>
       </div>

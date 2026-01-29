@@ -8,7 +8,9 @@ import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { financeService, userService } from '@/services';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n';
 import { FinanceFilters } from './filters';
+import { TransactionDeleteButton } from './delete-button';
 import type { Transaction, TransactionType } from '@/types';
 
 function getTypeBadgeStyles(type: TransactionType) {
@@ -23,7 +25,7 @@ function getTypeBadgeStyles(type: TransactionType) {
 }
 
 function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString('tr-TR', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -45,7 +47,7 @@ function TransactionsTable({ transactions }: TransactionsTableProps) {
   if (transactions.length === 0) {
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] text-[var(--color-text-muted)]">
-        <p>No transactions found</p>
+        <p>{tr.table.noData}</p>
       </div>
     );
   }
@@ -56,19 +58,22 @@ function TransactionsTable({ transactions }: TransactionsTableProps) {
         <thead>
           <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              Date
+              {tr.transaction.fields.date}
             </th>
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              Type
+              {tr.transaction.fields.type}
             </th>
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              Category
+              {tr.transaction.fields.category}
             </th>
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              Description
+              {tr.transaction.fields.description}
             </th>
             <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-              Amount
+              {tr.transaction.fields.amount}
+            </th>
+            <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
+              {tr.table.actions}
             </th>
           </tr>
         </thead>
@@ -94,7 +99,7 @@ function TransactionsTable({ transactions }: TransactionsTableProps) {
                     getTypeBadgeStyles(transaction.type)
                   )}
                 >
-                  {transaction.type}
+                  {transaction.type === 'INCOME' ? tr.transaction.type.INCOME : tr.transaction.type.EXPENSE}
                 </span>
               </td>
               <td className="px-4 py-3 text-sm text-[var(--color-text-primary)]">
@@ -113,6 +118,11 @@ function TransactionsTable({ transactions }: TransactionsTableProps) {
               >
                 {transaction.type === 'INCOME' ? '+' : '-'}
                 {formatCurrency(transaction.amount)}
+              </td>
+              <td className="px-4 py-3 text-right">
+                {!transaction.payment_id && (
+                  <TransactionDeleteButton transactionId={transaction.id} />
+                )}
               </td>
             </tr>
           ))}
@@ -165,23 +175,23 @@ export default async function FinancePage({ searchParams }: PageProps) {
   ]);
 
   return (
-    <PageShell title="Finance" description="Income and expense ledger">
+    <PageShell title={tr.pages.finance.title} description={tr.pages.finance.subtitle}>
       {/* Stats Summary */}
       <div className="mb-6 grid gap-4 sm:grid-cols-4">
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Total Income</p>
+          <p className="text-sm text-[var(--color-text-muted)]">Toplam {tr.transaction.type.INCOME}</p>
           <p className="text-2xl font-semibold text-[var(--color-success)]">
             {formatCurrency(stats.totalIncome)}
           </p>
         </div>
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Total Expenses</p>
+          <p className="text-sm text-[var(--color-text-muted)]">Toplam {tr.transaction.type.EXPENSE}</p>
           <p className="text-2xl font-semibold text-[var(--color-error)]">
             {formatCurrency(stats.totalExpenses)}
           </p>
         </div>
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Net Balance</p>
+          <p className="text-sm text-[var(--color-text-muted)]">Net Bakiye</p>
           <p
             className={cn(
               'text-2xl font-semibold',
@@ -192,7 +202,7 @@ export default async function FinancePage({ searchParams }: PageProps) {
           </p>
         </div>
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Transactions</p>
+          <p className="text-sm text-[var(--color-text-muted)]">İşlem Sayısı</p>
           <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
             {stats.transactionCount}
           </p>

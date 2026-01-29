@@ -5,17 +5,19 @@
  * Shows monthly history for a selected platform
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n';
+import { SocialMetricDeleteButton } from './delete-button';
 import type { MetricsPlatform, SocialMonthlyMetrics } from '@/types';
 
 const PLATFORM_OPTIONS: { value: MetricsPlatform | ''; label: string }[] = [
-  { value: '', label: 'Select a platform...' },
-  { value: 'TWITCH', label: 'Twitch' },
-  { value: 'YOUTUBE', label: 'YouTube' },
-  { value: 'INSTAGRAM', label: 'Instagram' },
-  { value: 'X', label: 'X (Twitter)' },
+  { value: '', label: 'Platform seçin...' },
+  { value: 'TWITCH', label: tr.social.platforms.TWITCH },
+  { value: 'YOUTUBE', label: tr.social.platforms.YOUTUBE },
+  { value: 'INSTAGRAM', label: tr.social.platforms.INSTAGRAM },
+  { value: 'X', label: tr.social.platforms.X },
 ];
 
 function formatNumber(num: number): string {
@@ -31,53 +33,53 @@ function formatNumber(num: number): string {
 function formatMonth(month: string): string {
   const [year, monthNum] = month.split('-');
   const date = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+  return date.toLocaleDateString('tr-TR', { year: 'numeric', month: 'short' });
 }
 
 // Get display columns based on platform
 function getColumns(platform: MetricsPlatform): { key: string; label: string }[] {
-  const base = [{ key: 'month', label: 'Month' }];
+  const base = [{ key: 'month', label: tr.social.fields.month }];
 
   switch (platform) {
     case 'TWITCH':
       return [
         ...base,
-        { key: 'followers_total', label: 'Followers' },
-        { key: 'live_views', label: 'Live Views' },
-        { key: 'avg_viewers', label: 'Avg Viewers' },
-        { key: 'peak_viewers', label: 'Peak Viewers' },
-        { key: 'unique_chatters', label: 'Chatters' },
-        { key: 'subs_total', label: 'Subs' },
+        { key: 'followers_total', label: tr.social.fields.followers },
+        { key: 'live_views', label: 'Canlı İzlenme' },
+        { key: 'avg_viewers', label: tr.social.fields.avgViewers },
+        { key: 'peak_viewers', label: tr.social.fields.peakViewers },
+        { key: 'unique_chatters', label: 'Sohbet' },
+        { key: 'subs_total', label: tr.social.fields.subscribers },
       ];
     case 'YOUTUBE':
       return [
         ...base,
-        { key: 'subscribers_total', label: 'Subscribers' },
-        { key: 'video_views', label: 'Video Views' },
-        { key: 'shorts_views', label: 'Shorts Views' },
-        { key: 'live_views', label: 'Live Views' },
-        { key: 'total_likes', label: 'Likes' },
-        { key: 'total_comments', label: 'Comments' },
+        { key: 'subscribers_total', label: tr.social.fields.subscribers },
+        { key: 'video_views', label: 'Video İzlenme' },
+        { key: 'shorts_views', label: 'Shorts İzlenme' },
+        { key: 'live_views', label: 'Canlı İzlenme' },
+        { key: 'total_likes', label: 'Beğeni' },
+        { key: 'total_comments', label: 'Yorum' },
       ];
     case 'INSTAGRAM':
       return [
         ...base,
-        { key: 'followers_total', label: 'Followers' },
-        { key: 'views', label: 'Views' },
-        { key: 'likes', label: 'Likes' },
-        { key: 'comments', label: 'Comments' },
-        { key: 'saves', label: 'Saves' },
-        { key: 'shares', label: 'Shares' },
+        { key: 'followers_total', label: tr.social.fields.followers },
+        { key: 'views', label: tr.social.fields.views },
+        { key: 'likes', label: 'Beğeni' },
+        { key: 'comments', label: 'Yorum' },
+        { key: 'saves', label: 'Kaydetme' },
+        { key: 'shares', label: 'Paylaşım' },
       ];
     case 'X':
       return [
         ...base,
-        { key: 'followers_total', label: 'Followers' },
-        { key: 'impressions', label: 'Impressions' },
-        { key: 'engagement_rate', label: 'Eng. Rate' },
-        { key: 'likes', label: 'Likes' },
-        { key: 'replies', label: 'Replies' },
-        { key: 'profile_visits', label: 'Profile Visits' },
+        { key: 'followers_total', label: tr.social.fields.followers },
+        { key: 'impressions', label: 'Gösterim' },
+        { key: 'engagement_rate', label: 'Etkileşim %' },
+        { key: 'likes', label: 'Beğeni' },
+        { key: 'replies', label: 'Yanıt' },
+        { key: 'profile_visits', label: 'Profil Ziyareti' },
       ];
     default:
       return base;
@@ -89,16 +91,9 @@ export function PlatformHistory() {
   const [history, setHistory] = useState<SocialMonthlyMetrics[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!platform) {
-      setHistory([]);
-      return;
-    }
-
+  const fetchHistory = useCallback((selectedPlatform: MetricsPlatform) => {
     setLoading(true);
-
-    // Fetch history via API
-    fetch(`/api/social-metrics/history?platform=${platform}`)
+    fetch(`/api/social-metrics/history?platform=${selectedPlatform}`)
       .then((res) => res.json())
       .then((data) => {
         setHistory(data.metrics || []);
@@ -110,7 +105,21 @@ export function PlatformHistory() {
       .finally(() => {
         setLoading(false);
       });
-  }, [platform]);
+  }, []);
+
+  useEffect(() => {
+    if (!platform) {
+      setHistory([]);
+      return;
+    }
+    fetchHistory(platform);
+  }, [platform, fetchHistory]);
+
+  const handleDeleted = () => {
+    if (platform) {
+      fetchHistory(platform);
+    }
+  };
 
   const columns = platform ? getColumns(platform) : [];
 
@@ -118,7 +127,7 @@ export function PlatformHistory() {
     <div>
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
-          Platform History
+          Platform Geçmişi
         </h3>
         <Select
           value={platform}
@@ -135,19 +144,19 @@ export function PlatformHistory() {
 
       {!platform && (
         <div className="flex h-32 items-center justify-center rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] text-sm text-[var(--color-text-muted)]">
-          Select a platform to view history
+          Geçmişi görüntülemek için platform seçin
         </div>
       )}
 
       {platform && loading && (
         <div className="flex h-32 items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-border)] text-sm text-[var(--color-text-muted)]">
-          Loading...
+          {tr.table.loading}
         </div>
       )}
 
       {platform && !loading && history.length === 0 && (
         <div className="flex h-32 items-center justify-center rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] text-sm text-[var(--color-text-muted)]">
-          No history data for {platform}
+          {platform} için geçmiş verisi bulunamadı
         </div>
       )}
 
@@ -167,6 +176,9 @@ export function PlatformHistory() {
                     {col.label}
                   </th>
                 ))}
+                <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
+                  {tr.table.actions}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -203,6 +215,12 @@ export function PlatformHistory() {
                       </td>
                     );
                   })}
+                  <td className="px-4 py-3 text-right">
+                    <SocialMetricDeleteButton
+                      metricId={row.id}
+                      onDeleted={handleDeleted}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
