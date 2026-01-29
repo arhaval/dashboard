@@ -1,0 +1,163 @@
+/**
+ * Sidebar Component
+ * Main navigation sidebar for the dashboard
+ * Fixed width: 256px
+ */
+
+'use client';
+
+import * as React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  LayoutDashboard,
+  Users,
+  FileText,
+  CreditCard,
+  PiggyBank,
+  BarChart3,
+  FileOutput,
+  type LucideIcon,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface NavItem {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  adminOnly?: boolean;
+}
+
+const navItems: NavItem[] = [
+  {
+    label: 'Dashboard',
+    href: '/',
+    icon: LayoutDashboard,
+  },
+  {
+    label: 'Team',
+    href: '/team',
+    icon: Users,
+    adminOnly: true,
+  },
+  {
+    label: 'Work Items',
+    href: '/work-items',
+    icon: FileText,
+  },
+  {
+    label: 'Payments',
+    href: '/payments',
+    icon: CreditCard,
+    adminOnly: true,
+  },
+  {
+    label: 'Finance',
+    href: '/finance',
+    icon: PiggyBank,
+    adminOnly: true,
+  },
+  {
+    label: 'Social Stats',
+    href: '/social',
+    icon: BarChart3,
+  },
+  {
+    label: 'Reports',
+    href: '/reports',
+    icon: FileOutput,
+    adminOnly: true,
+  },
+];
+
+interface SidebarProps {
+  userRole?: string;
+}
+
+export function Sidebar({ userRole = 'ADMIN' }: SidebarProps) {
+  const pathname = usePathname();
+
+  // Filter nav items based on user role
+  const visibleNavItems = navItems.filter(
+    (item) => !item.adminOnly || userRole === 'ADMIN'
+  );
+
+  return (
+    <aside
+      className={cn(
+        'fixed left-0 top-0 z-40 h-screen',
+        'w-[var(--sidebar-width)] flex-shrink-0',
+        'border-r border-[var(--color-border)]',
+        'bg-[var(--color-bg-secondary)]'
+      )}
+    >
+      <div className="flex h-full flex-col">
+        {/* Logo Section */}
+        <div
+          className={cn(
+            'flex h-[var(--header-height)] items-center',
+            'border-b border-[var(--color-border)]',
+            'px-6'
+          )}
+        >
+          <Link href="/" className="flex items-center gap-2">
+            <div
+              className={cn(
+                'flex h-8 w-8 items-center justify-center',
+                'rounded-[var(--radius-md)]',
+                'bg-[var(--color-accent)]'
+              )}
+            >
+              <span className="text-sm font-bold text-white">A</span>
+            </div>
+            <span className="text-display text-lg text-[var(--color-text-primary)]">
+              Arhaval
+            </span>
+          </Link>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto p-4">
+          <ul className="space-y-1">
+            {visibleNavItems.map((item) => {
+              const isActive =
+                pathname === item.href ||
+                (item.href !== '/' && pathname.startsWith(item.href));
+              const Icon = item.icon;
+
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      'flex items-center gap-3',
+                      'rounded-[var(--radius-md)] px-3 py-2',
+                      'text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-[var(--color-accent-muted)] text-[var(--color-accent)]'
+                        : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]'
+                    )}
+                  >
+                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        {/* Footer */}
+        <div
+          className={cn(
+            'border-t border-[var(--color-border)]',
+            'p-4 text-xs text-[var(--color-text-muted)]'
+          )}
+        >
+          <p>Arhaval Dashboard</p>
+          <p>v0.1.0</p>
+        </div>
+      </div>
+    </aside>
+  );
+}
