@@ -292,7 +292,7 @@ export const paymentService = {
   /**
    * Get payment stats
    */
-  async getStats(): Promise<{
+  async getStats(userId?: string): Promise<{
     total: number;
     pending: number;
     paid: number;
@@ -301,7 +301,13 @@ export const paymentService = {
   }> {
     const supabase = await createClient();
 
-    const { data, error } = await supabase.from('payments').select('status, amount');
+    let query = supabase.from('payments').select('status, amount');
+
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query;
 
     if (error || !data) {
       return { total: 0, pending: 0, paid: 0, cancelled: 0, totalAmount: 0 };
@@ -316,5 +322,35 @@ export const paymentService = {
         .filter((p) => p.status === 'PAID')
         .reduce((sum, p) => sum + Number(p.amount), 0),
     };
+  },
+
+  /**
+   * Get payments for a specific user (their own payments)
+   */
+  async getByUserId(userId: string): Promise<Payment[]> {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from('payments')
+      .select(
+        `
+        *,
+        user:users(id, full_name, email, role),
+        payment_items(
+          id,
+          work_item_id,
+          work_item:work_items(id, work_type, work_date, match_name, content_name, cost)
+        )
+      `
+      )
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching user payments:', error.message);
+      return [];
+    }
+
+    return data || [];
   },
 };

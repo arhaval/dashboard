@@ -65,19 +65,23 @@ function getWorkItemsSummary(payment: Payment): string {
 
 interface PaymentsTableProps {
   payments: Payment[];
+  isAdmin: boolean;
+  showUserColumn?: boolean;
 }
 
-function PaymentsTable({ payments }: PaymentsTableProps) {
+function PaymentsTable({ payments, isAdmin, showUserColumn = true }: PaymentsTableProps) {
   if (payments.length === 0) {
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] text-[var(--color-text-muted)]">
         <p>{tr.table.noData}</p>
-        <Link href="/work-items?status=APPROVED">
-          <Button size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Onaylı İşleri Görüntüle
-          </Button>
-        </Link>
+        {isAdmin && (
+          <Link href="/work-items?status=APPROVED">
+            <Button size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              Onaylı İşleri Görüntüle
+            </Button>
+          </Link>
+        )}
       </div>
     );
   }
@@ -90,9 +94,11 @@ function PaymentsTable({ payments }: PaymentsTableProps) {
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
               {tr.payment.fields.date}
             </th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.payment.fields.user}
-            </th>
+            {showUserColumn && (
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
+                {tr.payment.fields.user}
+              </th>
+            )}
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
               {tr.payment.fields.items}
             </th>
@@ -102,9 +108,11 @@ function PaymentsTable({ payments }: PaymentsTableProps) {
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
               {tr.payment.fields.status}
             </th>
-            <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.table.actions}
-            </th>
+            {isAdmin && (
+              <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
+                {tr.table.actions}
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -121,9 +129,11 @@ function PaymentsTable({ payments }: PaymentsTableProps) {
               <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
                 {formatDate(payment.payment_date)}
               </td>
-              <td className="px-4 py-3 text-sm text-[var(--color-text-primary)]">
-                {payment.user?.full_name || '—'}
-              </td>
+              {showUserColumn && (
+                <td className="px-4 py-3 text-sm text-[var(--color-text-primary)]">
+                  {payment.user?.full_name || '—'}
+                </td>
+              )}
               <td className="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
                 {getWorkItemsSummary(payment)}
               </td>
@@ -143,12 +153,14 @@ function PaymentsTable({ payments }: PaymentsTableProps) {
                    tr.payment.status.CANCELLED}
                 </span>
               </td>
-              <td className="px-4 py-3 text-right">
-                <div className="flex items-center justify-end gap-2">
-                  <PaymentActions paymentId={payment.id} status={payment.status} />
-                  <PaymentDeleteButton paymentId={payment.id} />
-                </div>
-              </td>
+              {isAdmin && (
+                <td className="px-4 py-3 text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    <PaymentActions paymentId={payment.id} status={payment.status} />
+                    <PaymentDeleteButton paymentId={payment.id} />
+                  </div>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
@@ -171,23 +183,24 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const activeTab = params.tab === 'realized' ? 'realized' : 'planned';
 
-  // Get current user and verify admin access
+  // Get current user
   const currentUser = await userService.getCurrentUser();
 
   if (!currentUser) {
     redirect('/login');
   }
 
-  if (currentUser.role !== 'ADMIN') {
-    redirect('/');
-  }
+  const isAdmin = currentUser.role === 'ADMIN';
 
-  // Fetch users (needed for both tabs)
-  const users = await userService.getAll();
-
-  // Conditional data fetch based on active tab
+  // Admin only: Realized transactions tab
   if (activeTab === 'realized') {
-    // Fetch transactions for realized tab
+    // Only admins can see realized transactions
+    if (!isAdmin) {
+      redirect('/payments');
+    }
+
+    // Fetch users (needed for form)
+    const users = await userService.getAll();
     const transactions = await financeService.getAll();
     const financeStats = await financeService.getStats();
 
@@ -196,7 +209,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         title={tr.pages.payments.title}
         description={tr.pages.payments.subtitle}
       >
-        {/* Tabs */}
+        {/* Tabs - only show for admin */}
         <PaymentsTabs activeTab={activeTab} />
 
         {/* Stats Summary for Realized Transactions */}
@@ -242,46 +255,95 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   }
 
   // Default: Planned Payments tab
-  // Build filters from search params
-  const filters: {
-    status?: PaymentStatus;
-    user_id?: string;
-  } = {};
+  // For non-admin users, only show their own payments
+  if (isAdmin) {
+    // Admin view: show all payments with filters
+    const users = await userService.getAll();
 
-  if (params.status && ['PENDING', 'PAID', 'CANCELLED'].includes(params.status)) {
-    filters.status = params.status as PaymentStatus;
+    const filters: {
+      status?: PaymentStatus;
+      user_id?: string;
+    } = {};
+
+    if (params.status && ['PENDING', 'PAID', 'CANCELLED'].includes(params.status)) {
+      filters.status = params.status as PaymentStatus;
+    }
+
+    if (params.user_id) {
+      filters.user_id = params.user_id;
+    }
+
+    const [payments, stats] = await Promise.all([
+      paymentService.getAll(filters),
+      paymentService.getStats(),
+    ]);
+
+    return (
+      <PageShell
+        title={tr.pages.payments.title}
+        description={tr.pages.payments.subtitle}
+        actions={
+          <Link href="/work-items?status=APPROVED">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              {tr.actions.addPayment}
+            </Button>
+          </Link>
+        }
+      >
+        {/* Tabs */}
+        <PaymentsTabs activeTab={activeTab} />
+
+        {/* Stats Summary */}
+        <div className="mb-6 grid gap-4 sm:grid-cols-4">
+          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
+            <p className="text-sm text-[var(--color-text-muted)]">Toplam</p>
+            <p className="text-2xl font-semibold text-[var(--color-text-primary)]">{stats.total}</p>
+          </div>
+          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
+            <p className="text-sm text-[var(--color-text-muted)]">{tr.payment.status.PENDING}</p>
+            <p className="text-2xl font-semibold text-[var(--color-warning)]">{stats.pending}</p>
+          </div>
+          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
+            <p className="text-sm text-[var(--color-text-muted)]">{tr.payment.status.COMPLETED}</p>
+            <p className="text-2xl font-semibold text-[var(--color-success)]">{stats.paid}</p>
+          </div>
+          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
+            <p className="text-sm text-[var(--color-text-muted)]">Toplam Ödenen</p>
+            <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
+              {formatCurrency(stats.totalAmount)}
+            </p>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <PaymentFilters
+          currentStatus={params.status}
+          currentUserId={params.user_id}
+          users={users}
+        />
+
+        {/* Payments Table */}
+        <PaymentsTable payments={payments} isAdmin={true} />
+      </PageShell>
+    );
   }
 
-  if (params.user_id) {
-    filters.user_id = params.user_id;
-  }
-
-  // Fetch data for planned payments
+  // Non-admin user view: show only their own payments
   const [payments, stats] = await Promise.all([
-    paymentService.getAll(filters),
-    paymentService.getStats(),
+    paymentService.getByUserId(currentUser.id),
+    paymentService.getStats(currentUser.id),
   ]);
 
   return (
     <PageShell
       title={tr.pages.payments.title}
-      description={tr.pages.payments.subtitle}
-      actions={
-        <Link href="/work-items?status=APPROVED">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            {tr.actions.addPayment}
-          </Button>
-        </Link>
-      }
+      description="Ödeme geçmişinizi görüntüleyin"
     >
-      {/* Tabs */}
-      <PaymentsTabs activeTab={activeTab} />
-
-      {/* Stats Summary */}
+      {/* Stats Summary - User's own payments */}
       <div className="mb-6 grid gap-4 sm:grid-cols-4">
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Toplam</p>
+          <p className="text-sm text-[var(--color-text-muted)]">Toplam Ödeme</p>
           <p className="text-2xl font-semibold text-[var(--color-text-primary)]">{stats.total}</p>
         </div>
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
@@ -293,22 +355,15 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           <p className="text-2xl font-semibold text-[var(--color-success)]">{stats.paid}</p>
         </div>
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Toplam Ödenen</p>
-          <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
+          <p className="text-sm text-[var(--color-text-muted)]">Toplam Alınan</p>
+          <p className="text-2xl font-semibold text-[var(--color-success)]">
             {formatCurrency(stats.totalAmount)}
           </p>
         </div>
       </div>
 
-      {/* Filters */}
-      <PaymentFilters
-        currentStatus={params.status}
-        currentUserId={params.user_id}
-        users={users}
-      />
-
-      {/* Payments Table */}
-      <PaymentsTable payments={payments} />
+      {/* Payments Table - no actions, no user column for non-admin */}
+      <PaymentsTable payments={payments} isAdmin={false} showUserColumn={false} />
     </PageShell>
   );
 }
