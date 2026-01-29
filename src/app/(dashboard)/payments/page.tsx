@@ -19,7 +19,8 @@ import { PaymentDeleteButton } from './delete-button';
 import { PaymentsTabs } from './payments-tabs';
 import { RealizedTransactionForm } from './realized-transaction-form';
 import { RealizedTransactionsTable } from './realized-transactions-table';
-import type { Payment, PaymentStatus } from '@/types';
+import type { Payment, PaymentStatus, Transaction } from '@/types';
+import { ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 
 function getStatusBadgeStyles(status: PaymentStatus) {
   switch (status) {
@@ -161,6 +162,104 @@ function PaymentsTable({ payments, isAdmin, showUserColumn = true }: PaymentsTab
                   </div>
                 </td>
               )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// User's own transactions table (read-only, for non-admin users)
+interface UserTransactionsTableProps {
+  transactions: Transaction[];
+}
+
+function UserTransactionsTable({ transactions }: UserTransactionsTableProps) {
+  if (transactions.length === 0) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] text-[var(--color-text-muted)]">
+        <p>Henüz ödeme kaydı bulunmuyor</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
+              {tr.transaction.fields.type}
+            </th>
+            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
+              {tr.transaction.fields.date}
+            </th>
+            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
+              {tr.transaction.fields.category}
+            </th>
+            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
+              {tr.transaction.fields.description}
+            </th>
+            <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
+              {tr.transaction.fields.amount}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {transactions.map((transaction, index) => (
+            <tr
+              key={transaction.id}
+              className={cn(
+                'border-b border-[var(--color-border)] last:border-b-0',
+                index % 2 === 0
+                  ? 'bg-[var(--color-table-row-even)]'
+                  : 'bg-[var(--color-table-row-odd)]'
+              )}
+            >
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-2">
+                  {transaction.type === 'INCOME' ? (
+                    <ArrowUpCircle className="h-4 w-4 text-[var(--color-success)]" />
+                  ) : (
+                    <ArrowDownCircle className="h-4 w-4 text-[var(--color-error)]" />
+                  )}
+                  <span
+                    className={cn(
+                      'text-sm font-medium',
+                      transaction.type === 'INCOME'
+                        ? 'text-[var(--color-success)]'
+                        : 'text-[var(--color-error)]'
+                    )}
+                  >
+                    {transaction.type === 'INCOME'
+                      ? tr.transaction.type.INCOME
+                      : tr.transaction.type.EXPENSE}
+                  </span>
+                </div>
+              </td>
+              <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
+                {formatDate(transaction.transaction_date)}
+              </td>
+              <td className="px-4 py-3 text-sm text-[var(--color-text-primary)]">
+                {transaction.category}
+              </td>
+              <td className="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
+                {transaction.description || '—'}
+              </td>
+              <td className="px-4 py-3 text-right">
+                <span
+                  className={cn(
+                    'font-mono text-sm font-medium',
+                    transaction.type === 'INCOME'
+                      ? 'text-[var(--color-success)]'
+                      : 'text-[var(--color-error)]'
+                  )}
+                >
+                  {transaction.type === 'INCOME' ? '+' : '-'}
+                  {formatCurrency(transaction.amount)}
+                </span>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -329,10 +428,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     );
   }
 
-  // Non-admin user view: show only their own payments
-  const [payments, stats] = await Promise.all([
-    paymentService.getByUserId(currentUser.id),
-    paymentService.getStats(currentUser.id),
+  // Non-admin user view: show only their own transactions
+  const [transactions, financeStats] = await Promise.all([
+    financeService.getByUserId(currentUser.id),
+    financeService.getUserStats(currentUser.id),
   ]);
 
   return (
@@ -340,30 +439,37 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       title={tr.pages.payments.title}
       description="Ödeme geçmişinizi görüntüleyin"
     >
-      {/* Stats Summary - User's own payments */}
+      {/* Stats Summary - User's own transactions */}
       <div className="mb-6 grid gap-4 sm:grid-cols-4">
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Toplam Ödeme</p>
-          <p className="text-2xl font-semibold text-[var(--color-text-primary)]">{stats.total}</p>
+          <p className="text-sm text-[var(--color-text-muted)]">Toplam İşlem</p>
+          <p className="text-2xl font-semibold text-[var(--color-text-primary)]">{financeStats.transactionCount}</p>
         </div>
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">{tr.payment.status.PENDING}</p>
-          <p className="text-2xl font-semibold text-[var(--color-warning)]">{stats.pending}</p>
+          <p className="text-sm text-[var(--color-text-muted)]">{tr.transaction.type.INCOME}</p>
+          <p className="text-2xl font-semibold text-[var(--color-success)]">
+            {formatCurrency(financeStats.totalIncome)}
+          </p>
         </div>
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">{tr.payment.status.COMPLETED}</p>
-          <p className="text-2xl font-semibold text-[var(--color-success)]">{stats.paid}</p>
+          <p className="text-sm text-[var(--color-text-muted)]">{tr.transaction.type.EXPENSE}</p>
+          <p className="text-2xl font-semibold text-[var(--color-error)]">
+            {formatCurrency(financeStats.totalExpenses)}
+          </p>
         </div>
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
           <p className="text-sm text-[var(--color-text-muted)]">Toplam Alınan</p>
-          <p className="text-2xl font-semibold text-[var(--color-success)]">
-            {formatCurrency(stats.totalAmount)}
+          <p className={cn(
+            'text-2xl font-semibold',
+            financeStats.totalExpenses > 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-text-primary)]'
+          )}>
+            {formatCurrency(financeStats.totalExpenses)}
           </p>
         </div>
       </div>
 
-      {/* Payments Table - no actions, no user column for non-admin */}
-      <PaymentsTable payments={payments} isAdmin={false} showUserColumn={false} />
+      {/* User's Transactions Table - read only, no user column */}
+      <UserTransactionsTable transactions={transactions} />
     </PageShell>
   );
 }
