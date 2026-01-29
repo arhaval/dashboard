@@ -18,6 +18,12 @@ export interface User {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  // Contact & Payment info
+  phone: string | null;
+  iban: string | null;
+  bank_name: string | null;
+  address: string | null;
+  notes: string | null;
 }
 
 export interface AuthUser {

@@ -55,6 +55,12 @@ export default async function DashboardLayout({
     is_active: dbUser.is_active,
     created_at: dbUser.created_at,
     updated_at: dbUser.updated_at,
+    // Contact & Payment fields
+    phone: dbUser.phone,
+    iban: dbUser.iban,
+    bank_name: dbUser.bank_name,
+    address: dbUser.address,
+    notes: dbUser.notes,
   };
 
   return <DashboardShell user={user}>{children}</DashboardShell>;

@@ -18,6 +18,12 @@ export interface UpdateUserInput {
   full_name?: string;
   role?: UserRole;
   is_active?: boolean;
+  // Contact & Payment fields
+  phone?: string | null;
+  iban?: string | null;
+  bank_name?: string | null;
+  address?: string | null;
+  notes?: string | null;
 }
 
 export const userService = {
