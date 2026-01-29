@@ -50,7 +50,7 @@ const navItems: NavItem[] = [
     label: tr.nav.payments,
     href: '/payments',
     icon: CreditCard,
-    adminOnly: true,
+    // All users can see their own payments
   },
   {
     label: tr.nav.finance,
