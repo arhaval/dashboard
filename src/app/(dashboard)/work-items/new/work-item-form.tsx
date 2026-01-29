@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n';
 import type { WorkType, ContentLength } from '@/types';
 
 type FormData = {
@@ -65,24 +66,24 @@ export function WorkItemForm() {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
 
     if (!formData.work_date) {
-      newErrors.work_date = 'Work date is required';
+      newErrors.work_date = tr.work.workDateRequired;
     }
 
     if (formData.work_type === 'STREAM') {
       if (!formData.match_name.trim()) {
-        newErrors.match_name = 'Match name is required';
+        newErrors.match_name = tr.work.matchNameRequired;
       }
       if (!formData.duration_minutes || parseInt(formData.duration_minutes) < 1) {
-        newErrors.duration_minutes = 'Duration must be at least 1 minute';
+        newErrors.duration_minutes = tr.work.durationRequired;
       }
     }
 
     if (formData.work_type === 'VOICE' || formData.work_type === 'EDIT') {
       if (!formData.content_name.trim()) {
-        newErrors.content_name = 'Content name is required';
+        newErrors.content_name = tr.work.contentNameRequired;
       }
       if (!formData.content_length) {
-        newErrors.content_length = 'Content length is required';
+        newErrors.content_length = tr.work.contentLengthRequired;
       }
     }
 
@@ -107,7 +108,7 @@ export function WorkItemForm() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        setServerError('You must be logged in to create a work item');
+        setServerError(tr.messages.error.loginRequired);
         return;
       }
 
@@ -131,7 +132,7 @@ export function WorkItemForm() {
       const { error } = await supabase.from('work_items').insert(insertData);
 
       if (error) {
-        setServerError(error.message || 'Failed to create work item');
+        setServerError(error.message || tr.messages.error.failedToCreate);
         return;
       }
 
@@ -139,7 +140,7 @@ export function WorkItemForm() {
       router.push('/work-items');
       router.refresh();
     } catch {
-      setServerError('An unexpected error occurred');
+      setServerError(tr.messages.error.unexpected);
     } finally {
       setIsLoading(false);
     }
@@ -167,7 +168,7 @@ export function WorkItemForm() {
           {/* Work Type */}
           <div className="space-y-2">
             <Label htmlFor="work_type" required>
-              Work Type
+              {tr.work.workType}
             </Label>
             <select
               id="work_type"
@@ -184,16 +185,16 @@ export function WorkItemForm() {
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]'
               )}
             >
-              <option value="STREAM">Stream</option>
-              <option value="VOICE">Voice</option>
-              <option value="EDIT">Edit</option>
+              <option value="STREAM">{tr.workItem.type.STREAM}</option>
+              <option value="VOICE">{tr.workItem.type.VOICE}</option>
+              <option value="EDIT">{tr.workItem.type.EDIT}</option>
             </select>
           </div>
 
           {/* Work Date */}
           <div className="space-y-2">
             <Label htmlFor="work_date" required>
-              Work Date
+              {tr.work.workDate}
             </Label>
             <Input
               id="work_date"
@@ -214,12 +215,12 @@ export function WorkItemForm() {
             <>
               <div className="space-y-2">
                 <Label htmlFor="match_name" required>
-                  Match Name
+                  {tr.work.matchName}
                 </Label>
                 <Input
                   id="match_name"
                   name="match_name"
-                  placeholder="e.g., Team A vs Team B"
+                  placeholder={tr.work.matchNamePlaceholder}
                   value={formData.match_name}
                   onChange={handleChange}
                   error={!!errors.match_name}
@@ -232,14 +233,14 @@ export function WorkItemForm() {
 
               <div className="space-y-2">
                 <Label htmlFor="duration_minutes" required>
-                  Duration (minutes)
+                  {tr.work.duration}
                 </Label>
                 <Input
                   id="duration_minutes"
                   name="duration_minutes"
                   type="number"
                   min="1"
-                  placeholder="e.g., 90"
+                  placeholder={tr.work.durationPlaceholder}
                   value={formData.duration_minutes}
                   onChange={handleChange}
                   error={!!errors.duration_minutes}
@@ -259,12 +260,12 @@ export function WorkItemForm() {
             <>
               <div className="space-y-2">
                 <Label htmlFor="content_name" required>
-                  Content Name
+                  {tr.work.contentName}
                 </Label>
                 <Input
                   id="content_name"
                   name="content_name"
-                  placeholder="e.g., Episode 1 - Introduction"
+                  placeholder={tr.work.contentNamePlaceholder}
                   value={formData.content_name}
                   onChange={handleChange}
                   error={!!errors.content_name}
@@ -277,7 +278,7 @@ export function WorkItemForm() {
 
               <div className="space-y-2">
                 <Label htmlFor="content_length" required>
-                  Content Length
+                  {tr.work.contentLength}
                 </Label>
                 <select
                   id="content_length"
@@ -296,9 +297,9 @@ export function WorkItemForm() {
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]'
                   )}
                 >
-                  <option value="">Select length</option>
-                  <option value="SHORT">Short</option>
-                  <option value="LONG">Long</option>
+                  <option value="">{tr.work.selectLength}</option>
+                  <option value="SHORT">{tr.workItem.contentLength.SHORT}</option>
+                  <option value="LONG">{tr.workItem.contentLength.LONG}</option>
                 </select>
                 {errors.content_length && (
                   <p className="text-sm text-[var(--color-error)]">
@@ -311,12 +312,12 @@ export function WorkItemForm() {
 
           {/* Notes */}
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes (optional)</Label>
+            <Label htmlFor="notes">{tr.work.notesOptional}</Label>
             <textarea
               id="notes"
               name="notes"
               rows={3}
-              placeholder="Any additional notes..."
+              placeholder={tr.work.notesPlaceholder}
               value={formData.notes}
               onChange={handleChange}
               disabled={isLoading}
@@ -335,7 +336,7 @@ export function WorkItemForm() {
           {/* Actions */}
           <div className="flex gap-3">
             <Button type="submit" isLoading={isLoading} disabled={isLoading}>
-              Create Work Item
+              {tr.work.createItem}
             </Button>
             <Button
               type="button"
@@ -343,7 +344,7 @@ export function WorkItemForm() {
               onClick={() => router.back()}
               disabled={isLoading}
             >
-              Cancel
+              {tr.actions.cancel}
             </Button>
           </div>
         </form>

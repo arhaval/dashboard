@@ -4,11 +4,12 @@
  */
 
 import { PageShell } from '@/components/layout';
+import { tr } from '@/lib/i18n';
 import { WorkItemForm } from './work-item-form';
 
 export default function NewWorkItemPage() {
   return (
-    <PageShell title="Add Work Item" description="Create a new work entry">
+    <PageShell title={tr.work.addItem} description={tr.work.createItem}>
       <div className="mx-auto max-w-2xl">
         <WorkItemForm />
       </div>

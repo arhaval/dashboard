@@ -7,6 +7,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { LoginForm } from './login-form';
+import { tr } from '@/lib/i18n';
 
 interface LoginPageProps {
   searchParams: Promise<{
@@ -29,9 +30,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   // Get error message if any
   const errorMessages: Record<string, string> = {
-    unauthorized: 'You are not authorized to access this application.',
-    inactive: 'Your account has been deactivated. Contact an administrator.',
-    invalid_credentials: 'Invalid email or password.',
+    unauthorized: 'Bu uygulamaya erişim yetkiniz yok.',
+    inactive: 'Hesabınız devre dışı bırakıldı. Yönetici ile iletişime geçin.',
+    invalid_credentials: tr.messages.error.invalidCredentials,
   };
 
   const errorMessage = params.error ? errorMessages[params.error] : undefined;
@@ -48,7 +49,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             Arhaval
           </h1>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-            Internal Operations Dashboard
+            İç Operasyon Paneli
           </p>
         </div>
 
@@ -64,7 +65,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         {/* Footer */}
         <p className="mt-8 text-center text-xs text-[var(--color-text-muted)]">
-          Contact an administrator if you need access.
+          Erişim için yönetici ile iletişime geçin.
         </p>
       </div>
     </div>

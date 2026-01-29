@@ -9,6 +9,7 @@
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n';
 import type { User } from '@/types';
 
 interface WorkItemFiltersProps {
@@ -20,17 +21,17 @@ interface WorkItemFiltersProps {
 }
 
 const statusOptions = [
-  { value: '', label: 'All Status' },
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'APPROVED', label: 'Approved' },
-  { value: 'PAID', label: 'Paid' },
+  { value: '', label: tr.filter.allStatus },
+  { value: 'DRAFT', label: tr.filter.draft },
+  { value: 'APPROVED', label: tr.filter.approved },
+  { value: 'PAID', label: tr.filter.paid },
 ];
 
 const typeOptions = [
-  { value: '', label: 'All Types' },
-  { value: 'STREAM', label: 'Stream' },
-  { value: 'VOICE', label: 'Voice' },
-  { value: 'EDIT', label: 'Edit' },
+  { value: '', label: tr.filter.allTypes },
+  { value: 'STREAM', label: tr.workItem.type.STREAM },
+  { value: 'VOICE', label: tr.workItem.type.VOICE },
+  { value: 'EDIT', label: tr.workItem.type.EDIT },
 ];
 
 export function WorkItemFilters({
@@ -104,7 +105,7 @@ export function WorkItemFilters({
           onChange={(e) => updateFilter('user_id', e.target.value)}
           className={selectClassName}
         >
-          <option value="">All Users</option>
+          <option value="">{tr.filter.allUsers}</option>
           {users.map((user) => (
             <option key={user.id} value={user.id}>
               {user.full_name}
@@ -124,7 +125,7 @@ export function WorkItemFilters({
             'transition-colors'
           )}
         >
-          Clear filters
+          {tr.filter.clearFilters}
         </button>
       )}
     </div>

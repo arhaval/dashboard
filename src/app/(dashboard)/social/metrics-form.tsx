@@ -9,14 +9,15 @@ import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { tr } from '@/lib/i18n';
 import { upsertSocialMetrics } from './metrics-actions';
 import type { MetricsPlatform, CreateSocialMonthlyMetricsInput } from '@/types';
 
 const PLATFORM_OPTIONS: { value: MetricsPlatform; label: string }[] = [
-  { value: 'TWITCH', label: 'Twitch' },
-  { value: 'YOUTUBE', label: 'YouTube' },
-  { value: 'INSTAGRAM', label: 'Instagram' },
-  { value: 'X', label: 'X (Twitter)' },
+  { value: 'TWITCH', label: tr.social.platforms.TWITCH },
+  { value: 'YOUTUBE', label: tr.social.platforms.YOUTUBE },
+  { value: 'INSTAGRAM', label: tr.social.platforms.INSTAGRAM },
+  { value: 'X', label: tr.social.platforms.X },
 ];
 
 // Get current month in YYYY-MM format
@@ -33,37 +34,37 @@ interface FieldConfig {
 
 const PLATFORM_FIELDS: Record<MetricsPlatform, FieldConfig[]> = {
   TWITCH: [
-    { name: 'total_stream_time_minutes', label: 'Total Stream Time (minutes)', type: 'number' },
-    { name: 'avg_viewers', label: 'Average Viewers', type: 'number' },
-    { name: 'peak_viewers', label: 'Peak Viewers', type: 'number' },
-    { name: 'unique_viewers', label: 'Unique Viewers', type: 'number' },
-    { name: 'live_views', label: 'Live Views', type: 'number' },
-    { name: 'unique_chatters', label: 'Unique Chatters', type: 'number' },
-    { name: 'subs_total', label: 'Total Subscribers', type: 'number' },
+    { name: 'total_stream_time_minutes', label: tr.metricsForm.totalStreamTime, type: 'number' },
+    { name: 'avg_viewers', label: tr.metricsForm.avgViewers, type: 'number' },
+    { name: 'peak_viewers', label: tr.metricsForm.peakViewers, type: 'number' },
+    { name: 'unique_viewers', label: tr.metricsForm.uniqueViewers, type: 'number' },
+    { name: 'live_views', label: tr.metricsForm.liveViews, type: 'number' },
+    { name: 'unique_chatters', label: tr.metricsForm.uniqueChatters, type: 'number' },
+    { name: 'subs_total', label: tr.metricsForm.subsTotal, type: 'number' },
   ],
   YOUTUBE: [
-    { name: 'subscribers_total', label: 'Total Subscribers', type: 'number' },
-    { name: 'video_views', label: 'Video Views', type: 'number' },
-    { name: 'shorts_views', label: 'Shorts Views', type: 'number' },
-    { name: 'live_views', label: 'Live Views', type: 'number' },
-    { name: 'total_likes', label: 'Total Likes', type: 'number' },
-    { name: 'total_comments', label: 'Total Comments', type: 'number' },
-    { name: 'avg_live_viewers', label: 'Avg Live Viewers', type: 'number' },
-    { name: 'peak_live_viewers', label: 'Peak Live Viewers', type: 'number' },
+    { name: 'subscribers_total', label: tr.metricsForm.subscribersTotal, type: 'number' },
+    { name: 'video_views', label: tr.metricsForm.videoViews, type: 'number' },
+    { name: 'shorts_views', label: tr.metricsForm.shortsViews, type: 'number' },
+    { name: 'live_views', label: tr.metricsForm.liveViews, type: 'number' },
+    { name: 'total_likes', label: tr.metricsForm.totalLikes, type: 'number' },
+    { name: 'total_comments', label: tr.metricsForm.totalComments, type: 'number' },
+    { name: 'avg_live_viewers', label: tr.metricsForm.avgLiveViewers, type: 'number' },
+    { name: 'peak_live_viewers', label: tr.metricsForm.peakLiveViewers, type: 'number' },
   ],
   INSTAGRAM: [
-    { name: 'views', label: 'Views', type: 'number' },
-    { name: 'likes', label: 'Likes', type: 'number' },
-    { name: 'comments', label: 'Comments', type: 'number' },
-    { name: 'saves', label: 'Saves', type: 'number' },
-    { name: 'shares', label: 'Shares', type: 'number' },
+    { name: 'views', label: tr.metricsForm.views, type: 'number' },
+    { name: 'likes', label: tr.metricsForm.likes, type: 'number' },
+    { name: 'comments', label: tr.metricsForm.comments, type: 'number' },
+    { name: 'saves', label: tr.metricsForm.saves, type: 'number' },
+    { name: 'shares', label: tr.metricsForm.shares, type: 'number' },
   ],
   X: [
-    { name: 'impressions', label: 'Impressions', type: 'number' },
-    { name: 'engagement_rate', label: 'Engagement Rate (%)', type: 'decimal' },
-    { name: 'likes', label: 'Likes', type: 'number' },
-    { name: 'replies', label: 'Replies', type: 'number' },
-    { name: 'profile_visits', label: 'Profile Visits', type: 'number' },
+    { name: 'impressions', label: tr.metricsForm.impressions, type: 'number' },
+    { name: 'engagement_rate', label: tr.metricsForm.engagementRate, type: 'decimal' },
+    { name: 'likes', label: tr.metricsForm.likes, type: 'number' },
+    { name: 'replies', label: tr.metricsForm.replies, type: 'number' },
+    { name: 'profile_visits', label: tr.metricsForm.profileVisits, type: 'number' },
   ],
 };
 
@@ -114,7 +115,7 @@ export function MetricsForm() {
       const result = await upsertSocialMetrics(input);
 
       if (!result.success) {
-        setError(result.error || 'Failed to save metrics');
+        setError(result.error || tr.messages.error.failedToSave);
         return;
       }
 
@@ -131,7 +132,7 @@ export function MetricsForm() {
   return (
     <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
       <h3 className="mb-4 text-sm font-medium text-[var(--color-text-primary)]">
-        Add/Update Monthly Metrics
+        {tr.metricsForm.title}
       </h3>
 
       {error && (
@@ -142,7 +143,7 @@ export function MetricsForm() {
 
       {success && (
         <div className="mb-4 rounded-[var(--radius-sm)] bg-[var(--color-success-muted)] p-3 text-sm text-[var(--color-success)]">
-          Metrics saved successfully!
+          {tr.messages.success.metricsSaved}
         </div>
       )}
 
@@ -151,7 +152,7 @@ export function MetricsForm() {
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <label className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]">
-              Month
+              {tr.metricsForm.month}
             </label>
             <Input
               type="month"
@@ -164,7 +165,7 @@ export function MetricsForm() {
 
           <div>
             <label className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]">
-              Platform
+              {tr.metricsForm.platform}
             </label>
             <Select
               value={platform}
@@ -181,7 +182,7 @@ export function MetricsForm() {
 
           <div>
             <label className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]">
-              {platform === 'YOUTUBE' ? 'Subscribers' : 'Followers'} Total
+              {platform === 'YOUTUBE' ? tr.metricsForm.subscribersTotal : tr.metricsForm.followersTotal}
             </label>
             <Input
               type="number"
@@ -198,7 +199,7 @@ export function MetricsForm() {
         {/* Platform-specific fields */}
         <div className="border-t border-[var(--color-border)] pt-4">
           <p className="mb-3 text-xs font-medium text-[var(--color-text-muted)]">
-            {platform} Metrics
+            {platform} {tr.metricsForm.metrics}
           </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {currentFields.map((field) => (
@@ -223,7 +224,7 @@ export function MetricsForm() {
         {/* Submit */}
         <div className="flex justify-end pt-2">
           <Button type="submit" disabled={isPending}>
-            {isPending ? 'Saving...' : 'Save Metrics'}
+            {isPending ? tr.metricsForm.saving : tr.metricsForm.saveMetrics}
           </Button>
         </div>
       </form>

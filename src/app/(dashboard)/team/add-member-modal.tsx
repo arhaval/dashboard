@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { X } from 'lucide-react';
+import { tr } from '@/lib/i18n';
 import { createTeamMember } from './actions';
 import type { UserRole } from '@/types';
 
@@ -19,10 +20,10 @@ interface AddMemberModalProps {
 }
 
 const ROLE_OPTIONS = [
-  { value: 'PUBLISHER', label: 'Publisher' },
-  { value: 'EDITOR', label: 'Editor' },
-  { value: 'VOICE', label: 'Voice' },
-  { value: 'ADMIN', label: 'Admin' },
+  { value: 'PUBLISHER', label: tr.roles.PUBLISHER },
+  { value: 'EDITOR', label: tr.roles.EDITOR },
+  { value: 'VOICE', label: tr.roles.VOICE },
+  { value: 'ADMIN', label: tr.roles.ADMIN },
 ];
 
 export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
@@ -46,7 +47,7 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
       const result = await createTeamMember(formData);
 
       if (!result.success) {
-        setError(result.error || 'Failed to create member');
+        setError(result.error || tr.messages.error.failedToCreate);
         return;
       }
 
@@ -79,7 +80,7 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
-            Add Team Member
+            {tr.team.addMember}
           </h2>
           <button
             onClick={onClose}
@@ -100,13 +101,13 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">
-              Full Name
+              {tr.team.fullName}
             </label>
             <Input
               type="text"
               value={formData.full_name}
               onChange={(e) => handleChange('full_name', e.target.value)}
-              placeholder="John Doe"
+              placeholder="Ahmet Yılmaz"
               required
               disabled={isPending}
             />
@@ -114,13 +115,13 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
 
           <div>
             <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">
-              Email
+              {tr.team.email}
             </label>
             <Input
               type="email"
               value={formData.email}
               onChange={(e) => handleChange('email', e.target.value)}
-              placeholder="john@arhaval.com"
+              placeholder="ahmet@arhaval.com"
               required
               disabled={isPending}
             />
@@ -128,13 +129,13 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
 
           <div>
             <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">
-              Password
+              {tr.team.password}
             </label>
             <Input
               type="password"
               value={formData.password}
               onChange={(e) => handleChange('password', e.target.value)}
-              placeholder="Min. 8 characters"
+              placeholder={tr.team.minChars}
               required
               minLength={8}
               disabled={isPending}
@@ -143,7 +144,7 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
 
           <div>
             <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">
-              Role
+              {tr.team.role}
             </label>
             <Select
               value={formData.role}
@@ -166,10 +167,10 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
               onClick={onClose}
               disabled={isPending}
             >
-              Cancel
+              {tr.actions.cancel}
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? 'Creating...' : 'Add Member'}
+              {isPending ? tr.team.creating : tr.team.addMember}
             </Button>
           </div>
         </form>

@@ -8,6 +8,7 @@
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n';
 
 interface FinanceFiltersProps {
   currentType?: string;
@@ -16,9 +17,9 @@ interface FinanceFiltersProps {
 }
 
 const typeOptions = [
-  { value: '', label: 'All Types' },
-  { value: 'INCOME', label: 'Income' },
-  { value: 'EXPENSE', label: 'Expense' },
+  { value: '', label: tr.filter.allTypes },
+  { value: 'INCOME', label: tr.filter.income },
+  { value: 'EXPENSE', label: tr.filter.expense },
 ];
 
 export function FinanceFilters({ currentType, currentCategory, categories }: FinanceFiltersProps) {
@@ -73,7 +74,7 @@ export function FinanceFilters({ currentType, currentCategory, categories }: Fin
           onChange={(e) => updateFilter('category', e.target.value)}
           className={selectClassName}
         >
-          <option value="">All Categories</option>
+          <option value="">{tr.filter.allCategories}</option>
           {categories.map((category) => (
             <option key={category} value={category}>
               {category}
@@ -93,7 +94,7 @@ export function FinanceFilters({ currentType, currentCategory, categories }: Fin
             'transition-colors'
           )}
         >
-          Clear filters
+          {tr.filter.clearFilters}
         </button>
       )}
     </div>

@@ -14,11 +14,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n';
 
 // Validation schema
 const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
+  email: z.string().email(tr.auth.invalidEmail),
+  password: z.string().min(1, tr.auth.passwordRequired),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -75,7 +76,7 @@ export function LoginForm() {
       });
 
       if (error) {
-        setServerError(error.message || 'Invalid email or password');
+        setServerError(tr.messages.error.invalidCredentials);
         return;
       }
 
@@ -83,7 +84,7 @@ export function LoginForm() {
       router.push('/');
       router.refresh();
     } catch {
-      setServerError('An unexpected error occurred. Please try again.');
+      setServerError(tr.messages.error.unexpected);
     } finally {
       setIsLoading(false);
     }
@@ -111,13 +112,13 @@ export function LoginForm() {
           {/* Email Field */}
           <div className="space-y-2">
             <Label htmlFor="email" required>
-              Email
+              {tr.auth.email}
             </Label>
             <Input
               id="email"
               name="email"
               type="email"
-              placeholder="you@arhaval.com"
+              placeholder={tr.auth.emailPlaceholder}
               value={formData.email}
               onChange={handleChange}
               error={!!errors.email}
@@ -132,13 +133,13 @@ export function LoginForm() {
           {/* Password Field */}
           <div className="space-y-2">
             <Label htmlFor="password" required>
-              Password
+              {tr.auth.password}
             </Label>
             <Input
               id="password"
               name="password"
               type="password"
-              placeholder="Enter your password"
+              placeholder={tr.auth.passwordPlaceholder}
               value={formData.password}
               onChange={handleChange}
               error={!!errors.password}
@@ -159,7 +160,7 @@ export function LoginForm() {
             isLoading={isLoading}
             disabled={isLoading}
           >
-            Sign in
+            {tr.auth.signIn}
           </Button>
         </form>
       </CardContent>

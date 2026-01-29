@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
+import { tr } from '@/lib/i18n';
 import { AddMemberModal } from './add-member-modal';
 
 export function AddMemberButton() {
@@ -17,7 +18,7 @@ export function AddMemberButton() {
     <>
       <Button onClick={() => setIsOpen(true)}>
         <Plus className="mr-2 h-4 w-4" />
-        Add Member
+        {tr.team.addMember}
       </Button>
       <AddMemberModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
     </>

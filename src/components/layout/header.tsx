@@ -10,6 +10,7 @@ import * as React from 'react';
 import { LogOut, User as UserIcon, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { tr } from '@/lib/i18n';
 import type { User } from '@/types';
 
 interface HeaderProps {
@@ -115,7 +116,7 @@ export function Header({ user, onSignOut }: HeaderProps) {
                       getRoleBadgeColor(user.role)
                     )}
                   >
-                    {user.role}
+                    {tr.roles[user.role as keyof typeof tr.roles] || user.role}
                   </span>
                 </div>
 
@@ -161,7 +162,7 @@ export function Header({ user, onSignOut }: HeaderProps) {
                     )}
                   >
                     <UserIcon className="h-4 w-4" />
-                    Profile
+                    {tr.header.profile}
                   </button>
 
                   <div className="my-1 border-t border-[var(--color-border)]" />
@@ -180,7 +181,7 @@ export function Header({ user, onSignOut }: HeaderProps) {
                     )}
                   >
                     <LogOut className="h-4 w-4" />
-                    Sign out
+                    {tr.header.signOut}
                   </button>
                 </div>
               )}
@@ -189,7 +190,7 @@ export function Header({ user, onSignOut }: HeaderProps) {
 
           {!user && (
             <Button variant="default" size="sm">
-              Sign in
+              {tr.header.signIn}
             </Button>
           )}
         </div>

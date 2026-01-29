@@ -8,6 +8,7 @@
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n';
 import type { User } from '@/types';
 
 interface PaymentFiltersProps {
@@ -17,10 +18,10 @@ interface PaymentFiltersProps {
 }
 
 const statusOptions = [
-  { value: '', label: 'All Status' },
-  { value: 'PENDING', label: 'Pending' },
-  { value: 'PAID', label: 'Paid' },
-  { value: 'CANCELLED', label: 'Cancelled' },
+  { value: '', label: tr.filter.allStatus },
+  { value: 'PENDING', label: tr.filter.pending },
+  { value: 'PAID', label: tr.filter.paid },
+  { value: 'CANCELLED', label: tr.filter.cancelled },
 ];
 
 export function PaymentFilters({ currentStatus, currentUserId, users }: PaymentFiltersProps) {
@@ -75,7 +76,7 @@ export function PaymentFilters({ currentStatus, currentUserId, users }: PaymentF
           onChange={(e) => updateFilter('user_id', e.target.value)}
           className={selectClassName}
         >
-          <option value="">All Users</option>
+          <option value="">{tr.filter.allUsers}</option>
           {users.map((user) => (
             <option key={user.id} value={user.id}>
               {user.full_name}
@@ -95,7 +96,7 @@ export function PaymentFilters({ currentStatus, currentUserId, users }: PaymentF
             'transition-colors'
           )}
         >
-          Clear filters
+          {tr.filter.clearFilters}
         </button>
       )}
     </div>

@@ -8,6 +8,7 @@ import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n';
 import { AddMemberButton } from './add-member-button';
 import { RoleControl, StatusControl } from './member-actions';
 import type { User } from '@/types';
@@ -28,7 +29,7 @@ function getRoleBadgeStyles(role: string) {
 }
 
 function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString('tr-TR', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -45,7 +46,7 @@ function UserTable({ users, currentUserId, isAdmin }: UserTableProps) {
   if (users.length === 0) {
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] text-[var(--color-text-muted)]">
-        <p>No team members found</p>
+        <p>{tr.team.noMembers}</p>
         {isAdmin && <AddMemberButton />}
       </div>
     );
@@ -57,19 +58,19 @@ function UserTable({ users, currentUserId, isAdmin }: UserTableProps) {
         <thead>
           <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              Name
+              {tr.team.name}
             </th>
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              Email
+              {tr.team.email}
             </th>
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              Role
+              {tr.team.role}
             </th>
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              Status
+              {tr.team.status}
             </th>
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              Joined
+              {tr.team.joined}
             </th>
           </tr>
         </thead>
@@ -109,7 +110,7 @@ function UserTable({ users, currentUserId, isAdmin }: UserTableProps) {
                       </span>
                       {isCurrentUser && (
                         <span className="text-xs text-[var(--color-text-muted)]">
-                          (You)
+                          {tr.team.you}
                         </span>
                       )}
                     </div>
@@ -133,7 +134,7 @@ function UserTable({ users, currentUserId, isAdmin }: UserTableProps) {
                         getRoleBadgeStyles(user.role)
                       )}
                     >
-                      {user.role}
+                      {tr.roles[user.role as keyof typeof tr.roles] || user.role}
                     </span>
                   )}
                 </td>
@@ -154,7 +155,7 @@ function UserTable({ users, currentUserId, isAdmin }: UserTableProps) {
                           : 'bg-[var(--color-error-muted)] text-[var(--color-error)]'
                       )}
                     >
-                      {user.is_active ? 'Active' : 'Inactive'}
+                      {user.is_active ? tr.team.active : tr.team.inactive}
                     </span>
                   )}
                 </td>
@@ -182,33 +183,33 @@ export default async function TeamPage() {
 
   return (
     <PageShell
-      title="Team"
-      description="Manage team members"
+      title={tr.team.title}
+      description={tr.team.subtitle}
       actions={isAdmin ? <AddMemberButton /> : undefined}
     >
       {/* Stats Summary (Admin only) */}
       {isAdmin && (
         <div className="mb-6 grid gap-4 sm:grid-cols-4">
           <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-            <p className="text-sm text-[var(--color-text-muted)]">Total Members</p>
+            <p className="text-sm text-[var(--color-text-muted)]">{tr.team.totalMembers}</p>
             <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
               {users.length}
             </p>
           </div>
           <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-            <p className="text-sm text-[var(--color-text-muted)]">Active</p>
+            <p className="text-sm text-[var(--color-text-muted)]">{tr.team.active}</p>
             <p className="text-2xl font-semibold text-[var(--color-success)]">
               {users.filter((u) => u.is_active).length}
             </p>
           </div>
           <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-            <p className="text-sm text-[var(--color-text-muted)]">Inactive</p>
+            <p className="text-sm text-[var(--color-text-muted)]">{tr.team.inactive}</p>
             <p className="text-2xl font-semibold text-[var(--color-error)]">
               {users.filter((u) => !u.is_active).length}
             </p>
           </div>
           <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-            <p className="text-sm text-[var(--color-text-muted)]">Admins</p>
+            <p className="text-sm text-[var(--color-text-muted)]">{tr.team.admins}</p>
             <p className="text-2xl font-semibold text-[var(--color-accent)]">
               {users.filter((u) => u.role === 'ADMIN').length}
             </p>

@@ -13,34 +13,35 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n';
 
 // Placeholder stats - will be replaced with real data
 const stats = [
   {
-    title: 'Total Work Items',
+    title: tr.dashboard.totalWorkItems,
     value: '—',
-    description: 'This month',
+    description: tr.dashboard.thisMonth,
     icon: FileText,
     trend: null,
   },
   {
-    title: 'Pending Payments',
+    title: tr.dashboard.pendingPayments,
     value: '—',
-    description: 'Awaiting processing',
+    description: tr.dashboard.awaitingProcessing,
     icon: CreditCard,
     trend: null,
   },
   {
-    title: 'Team Members',
+    title: tr.dashboard.teamMembers,
     value: '—',
-    description: 'Active users',
+    description: tr.dashboard.activeUsers,
     icon: Users,
     trend: null,
   },
   {
-    title: 'Revenue',
+    title: tr.dashboard.revenue,
     value: '—',
-    description: 'This month',
+    description: tr.dashboard.thisMonth,
     icon: TrendingUp,
     trend: null,
   },
@@ -49,8 +50,8 @@ const stats = [
 export default function DashboardPage() {
   return (
     <PageShell
-      title="Dashboard"
-      description="Overview of your operations"
+      title={tr.dashboard.title}
+      description={tr.dashboard.subtitle}
     >
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -82,7 +83,7 @@ export default function DashboardPage() {
         {/* Recent Activity */}
         <Card>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+            <CardTitle>{tr.dashboard.recentActivity}</CardTitle>
           </CardHeader>
           <CardContent>
             <div
@@ -93,7 +94,7 @@ export default function DashboardPage() {
                 'text-sm text-[var(--color-text-muted)]'
               )}
             >
-              Activity feed will appear here
+              {tr.dashboard.activityPlaceholder}
             </div>
           </CardContent>
         </Card>
@@ -101,7 +102,7 @@ export default function DashboardPage() {
         {/* Quick Actions */}
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle>{tr.dashboard.quickActions}</CardTitle>
           </CardHeader>
           <CardContent>
             <div
@@ -112,7 +113,7 @@ export default function DashboardPage() {
                 'text-sm text-[var(--color-text-muted)]'
               )}
             >
-              Quick actions will appear here
+              {tr.dashboard.quickActionsPlaceholder}
             </div>
           </CardContent>
         </Card>
