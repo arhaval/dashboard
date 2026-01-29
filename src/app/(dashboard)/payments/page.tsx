@@ -2,19 +2,23 @@
  * Payments Page
  * Lists all payments (Server Component)
  * Admin-only access (enforced by RLS)
+ * Two tabs: Planned Payments & Realized Transactions
  */
 
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { Button } from '@/components/ui/button';
-import { paymentService, userService } from '@/services';
+import { paymentService, userService, financeService } from '@/services';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
 import { Plus } from 'lucide-react';
 import { PaymentFilters } from './filters';
 import { PaymentActions } from './payment-actions';
 import { PaymentDeleteButton } from './delete-button';
+import { PaymentsTabs } from './payments-tabs';
+import { RealizedTransactionForm } from './realized-transaction-form';
+import { RealizedTransactionsTable } from './realized-transactions-table';
 import type { Payment, PaymentStatus } from '@/types';
 
 function getStatusBadgeStyles(status: PaymentStatus) {
@@ -155,13 +159,17 @@ function PaymentsTable({ payments }: PaymentsTableProps) {
 
 interface PageProps {
   searchParams: Promise<{
+    tab?: string;
     status?: string;
     user_id?: string;
+    type?: string;
+    category?: string;
   }>;
 }
 
 export default async function PaymentsPage({ searchParams }: PageProps) {
   const params = await searchParams;
+  const activeTab = params.tab === 'realized' ? 'realized' : 'planned';
 
   // Get current user and verify admin access
   const currentUser = await userService.getCurrentUser();
@@ -174,6 +182,66 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     redirect('/');
   }
 
+  // Fetch users (needed for both tabs)
+  const users = await userService.getAll();
+
+  // Conditional data fetch based on active tab
+  if (activeTab === 'realized') {
+    // Fetch transactions for realized tab
+    const transactions = await financeService.getAll();
+    const financeStats = await financeService.getStats();
+
+    return (
+      <PageShell
+        title={tr.pages.payments.title}
+        description={tr.pages.payments.subtitle}
+      >
+        {/* Tabs */}
+        <PaymentsTabs activeTab={activeTab} />
+
+        {/* Stats Summary for Realized Transactions */}
+        <div className="mb-6 grid gap-4 sm:grid-cols-4">
+          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
+            <p className="text-sm text-[var(--color-text-muted)]">Toplam İşlem</p>
+            <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
+              {financeStats.transactionCount}
+            </p>
+          </div>
+          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
+            <p className="text-sm text-[var(--color-text-muted)]">{tr.transaction.type.INCOME}</p>
+            <p className="text-2xl font-semibold text-[var(--color-success)]">
+              {formatCurrency(financeStats.totalIncome)}
+            </p>
+          </div>
+          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
+            <p className="text-sm text-[var(--color-text-muted)]">{tr.transaction.type.EXPENSE}</p>
+            <p className="text-2xl font-semibold text-[var(--color-error)]">
+              {formatCurrency(financeStats.totalExpenses)}
+            </p>
+          </div>
+          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
+            <p className="text-sm text-[var(--color-text-muted)]">Net Bakiye</p>
+            <p className={cn(
+              'text-2xl font-semibold',
+              financeStats.netBalance >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'
+            )}>
+              {formatCurrency(financeStats.netBalance)}
+            </p>
+          </div>
+        </div>
+
+        {/* Add Transaction Form */}
+        <div className="mb-6">
+          <RealizedTransactionForm users={users} />
+        </div>
+
+        {/* Transactions Table */}
+        <RealizedTransactionsTable transactions={transactions} />
+      </PageShell>
+    );
+  }
+
+  // Default: Planned Payments tab
   // Build filters from search params
   const filters: {
     status?: PaymentStatus;
@@ -188,11 +256,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     filters.user_id = params.user_id;
   }
 
-  // Fetch data
-  const [payments, stats, users] = await Promise.all([
+  // Fetch data for planned payments
+  const [payments, stats] = await Promise.all([
     paymentService.getAll(filters),
     paymentService.getStats(),
-    userService.getAll(),
   ]);
 
   return (
@@ -208,6 +275,9 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         </Link>
       }
     >
+      {/* Tabs */}
+      <PaymentsTabs activeTab={activeTab} />
+
       {/* Stats Summary */}
       <div className="mb-6 grid gap-4 sm:grid-cols-4">
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">

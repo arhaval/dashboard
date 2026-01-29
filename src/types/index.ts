@@ -113,10 +113,12 @@ export interface Transaction {
   description: string | null;
   transaction_date: string;
   payment_id: string | null;
+  user_id: string | null;
   created_at: string;
 
   // Joined data
   payment?: Payment;
+  user?: User;
 }
 
 // =============================================================================
@@ -424,6 +426,7 @@ export interface CreateTransactionInput {
   amount: number;
   description?: string;
   transaction_date: string;
+  user_id?: string | null;
 }
 
 // =============================================================================

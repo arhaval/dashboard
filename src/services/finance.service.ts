@@ -16,7 +16,7 @@ export const financeService = {
 
     let query = supabase
       .from('transactions')
-      .select('*, payment:payments(id, user_id, user:users(full_name))')
+      .select('*, user:users(id, full_name, email), payment:payments(id, user_id, user:users(full_name))')
       .order('transaction_date', { ascending: false });
 
     if (filters?.type) {
@@ -53,7 +53,7 @@ export const financeService = {
 
     const { data, error } = await supabase
       .from('transactions')
-      .select('*, payment:payments(id, user_id, user:users(full_name))')
+      .select('*, user:users(id, full_name, email), payment:payments(id, user_id, user:users(full_name))')
       .eq('id', id)
       .single();
 
@@ -79,8 +79,9 @@ export const financeService = {
         amount: input.amount,
         description: input.description || null,
         transaction_date: input.transaction_date,
+        user_id: input.user_id || null,
       })
-      .select()
+      .select('*, user:users(id, full_name, email)')
       .single();
 
     if (error) {
@@ -142,5 +143,63 @@ export const financeService = {
     // Get unique categories
     const categories = [...new Set(data.map((t) => t.category))];
     return categories;
+  },
+
+  /**
+   * Get transactions for a specific user
+   * Used for team member profile pages
+   */
+  async getByUserId(userId: string): Promise<Transaction[]> {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*, user:users(id, full_name, email), payment:payments(id, user_id, user:users(full_name))')
+      .eq('user_id', userId)
+      .order('transaction_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching user transactions:', error.message);
+      return [];
+    }
+
+    return data || [];
+  },
+
+  /**
+   * Get user stats summary
+   * Total income/expenses for a specific user
+   */
+  async getUserStats(userId: string): Promise<{
+    totalIncome: number;
+    totalExpenses: number;
+    netBalance: number;
+    transactionCount: number;
+  }> {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('type, amount')
+      .eq('user_id', userId);
+
+    if (error || !data) {
+      return { totalIncome: 0, totalExpenses: 0, netBalance: 0, transactionCount: 0 };
+    }
+
+    const totalIncome = data
+      .filter((t) => t.type === 'INCOME')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const totalExpenses = data
+      .filter((t) => t.type === 'EXPENSE')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    return {
+      totalIncome,
+      totalExpenses,
+      netBalance: totalIncome - totalExpenses,
+      transactionCount: data.length,
+    };
   },
 };

@@ -140,6 +140,18 @@ export const tr = {
       notes: 'Notlar',
       items: 'Kalemler',
     },
+    tabs: {
+      planned: 'Planlanan Ödemeler',
+      realized: 'Gerçekleşen İşlemler',
+    },
+    realized: {
+      title: 'Gerçekleşen İşlemler',
+      subtitle: 'Gelir ve gider işlemlerini kaydedin',
+      addTransaction: 'İşlem Ekle',
+      noTransactions: 'Gerçekleşen işlem bulunamadı',
+      selectUser: 'Kullanıcı Seçin (Opsiyonel)',
+      userOptional: 'İlgili Ekip Üyesi (Opsiyonel)',
+    },
   },
 
   // Transaction (Finance)

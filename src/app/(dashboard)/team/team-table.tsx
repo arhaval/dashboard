@@ -6,9 +6,10 @@
  */
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
-import { Pencil, Phone, CreditCard } from 'lucide-react';
+import { Pencil, Phone, CreditCard, Eye } from 'lucide-react';
 import { RoleControl, StatusControl } from './member-actions';
 import { EditMemberModal } from './edit-member-modal';
 import { AddMemberButton } from './add-member-button';
@@ -186,19 +187,34 @@ export function TeamTable({ users, currentUserId, isAdmin }: TeamTableProps) {
                   </td>
                   {isAdmin && (
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => setEditingUser(user)}
-                        className={cn(
-                          'inline-flex items-center justify-center',
-                          'h-8 w-8 rounded-[var(--radius-sm)]',
-                          'text-[var(--color-text-muted)]',
-                          'hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]',
-                          'transition-colors'
-                        )}
-                        title={tr.team.editMember}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Link
+                          href={`/team/${user.id}`}
+                          className={cn(
+                            'inline-flex items-center justify-center',
+                            'h-8 w-8 rounded-[var(--radius-sm)]',
+                            'text-[var(--color-text-muted)]',
+                            'hover:bg-[var(--color-info-muted)] hover:text-[var(--color-info)]',
+                            'transition-colors'
+                          )}
+                          title={tr.team.viewDetails}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                        <button
+                          onClick={() => setEditingUser(user)}
+                          className={cn(
+                            'inline-flex items-center justify-center',
+                            'h-8 w-8 rounded-[var(--radius-sm)]',
+                            'text-[var(--color-text-muted)]',
+                            'hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]',
+                            'transition-colors'
+                          )}
+                          title={tr.team.editMember}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>
