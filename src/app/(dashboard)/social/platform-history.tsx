@@ -86,7 +86,11 @@ function getColumns(platform: MetricsPlatform): { key: string; label: string }[]
   }
 }
 
-export function PlatformHistory() {
+interface PlatformHistoryProps {
+  isReadOnly?: boolean;
+}
+
+export function PlatformHistory({ isReadOnly = false }: PlatformHistoryProps) {
   const [platform, setPlatform] = useState<MetricsPlatform | ''>('');
   const [history, setHistory] = useState<SocialMonthlyMetrics[]>([]);
   const [loading, setLoading] = useState(false);
@@ -176,9 +180,11 @@ export function PlatformHistory() {
                     {col.label}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-                  {tr.table.actions}
-                </th>
+                {!isReadOnly && (
+                  <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
+                    {tr.table.actions}
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -215,12 +221,14 @@ export function PlatformHistory() {
                       </td>
                     );
                   })}
-                  <td className="px-4 py-3 text-right">
-                    <SocialMetricDeleteButton
-                      metricId={row.id}
-                      onDeleted={handleDeleted}
-                    />
-                  </td>
+                  {!isReadOnly && (
+                    <td className="px-4 py-3 text-right">
+                      <SocialMetricDeleteButton
+                        metricId={row.id}
+                        onDeleted={handleDeleted}
+                      />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

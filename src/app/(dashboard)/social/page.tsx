@@ -1,6 +1,8 @@
 /**
  * Social Stats Page
- * Admin-only dashboard for social media metrics
+ * Dashboard for social media metrics
+ * Admin: Full access (view + edit)
+ * Team members: Read-only view
  */
 
 import { redirect } from 'next/navigation';
@@ -196,10 +198,7 @@ export default async function SocialPage() {
     redirect('/login');
   }
 
-  // Only admins can access this page
-  if (currentUser.role !== 'ADMIN') {
-    redirect('/');
-  }
+  const isAdmin = currentUser.role === 'ADMIN';
 
   const [summary, growthData] = await Promise.all([
     socialMetricsService.getDashboardSummary(),
@@ -207,7 +206,10 @@ export default async function SocialPage() {
   ]);
 
   return (
-    <PageShell title={tr.pages.social.title} description={tr.pages.social.subtitle}>
+    <PageShell
+      title={tr.pages.social.title}
+      description={isAdmin ? tr.pages.social.subtitle : 'Sosyal medya performansını görüntüle'}
+    >
       {/* Summary Cards */}
       <SummaryCards
         totalLiveViews={summary.totalLiveViews}
@@ -216,10 +218,12 @@ export default async function SocialPage() {
         platformCount={summary.platformCount}
       />
 
-      {/* Entry Form */}
-      <div className="mb-6">
-        <MetricsForm />
-      </div>
+      {/* Entry Form - Admin only */}
+      {isAdmin && (
+        <div className="mb-6">
+          <MetricsForm />
+        </div>
+      )}
 
       {/* Platform Overview Table */}
       <div className="mb-6">
@@ -230,7 +234,7 @@ export default async function SocialPage() {
       </div>
 
       {/* Platform History */}
-      <PlatformHistory />
+      <PlatformHistory isReadOnly={!isAdmin} />
     </PageShell>
   );
 }
