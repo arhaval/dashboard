@@ -48,6 +48,7 @@ async function verifyAdmin(): Promise<{ isAdmin: boolean; userId?: string; error
 
 /**
  * Create a payment from approved work items
+ * Business logic is in RPC - this action only handles auth and revalidation
  */
 export async function createPaymentFromWorkItems(
   userId: string,
@@ -56,18 +57,19 @@ export async function createPaymentFromWorkItems(
 ): Promise<ActionResult> {
   const adminCheck = await verifyAdmin();
 
-  if (!adminCheck.isAdmin) {
+  if (!adminCheck.isAdmin || !adminCheck.userId) {
     return { success: false, error: adminCheck.error };
   }
 
-  // Prevent admin from creating payment for themselves
-  if (userId === adminCheck.userId) {
-    return { success: false, error: 'Cannot create payment for yourself' };
-  }
+  // RPC handles: admin check, self-payment prevention, idempotency, atomic operation
+  const result = await paymentService.createFromWorkItems(
+    userId,
+    workItemIds,
+    adminCheck.userId,
+    notes
+  );
 
-  const result = await paymentService.createFromWorkItems(userId, workItemIds, notes);
-
-  if (!result.payment) {
+  if (!result.paymentId) {
     return { success: false, error: result.error };
   }
 
@@ -79,15 +81,17 @@ export async function createPaymentFromWorkItems(
 
 /**
  * Mark a payment as paid (creates transaction record)
+ * Business logic is in RPC - atomic operation
  */
 export async function markPaymentAsPaid(paymentId: string): Promise<ActionResult> {
   const adminCheck = await verifyAdmin();
 
-  if (!adminCheck.isAdmin) {
+  if (!adminCheck.isAdmin || !adminCheck.userId) {
     return { success: false, error: adminCheck.error };
   }
 
-  const result = await paymentService.markAsPaid(paymentId);
+  // RPC handles: admin check, self-payment prevention, status validation, atomic update
+  const result = await paymentService.markAsPaid(paymentId, adminCheck.userId);
 
   if (!result.success) {
     return { success: false, error: result.error };
@@ -102,21 +106,24 @@ export async function markPaymentAsPaid(paymentId: string): Promise<ActionResult
 
 /**
  * Cancel a pending payment
+ * Business logic is in RPC - atomic operation, reverts work items if needed
  */
 export async function cancelPayment(paymentId: string): Promise<ActionResult> {
   const adminCheck = await verifyAdmin();
 
-  if (!adminCheck.isAdmin) {
+  if (!adminCheck.isAdmin || !adminCheck.userId) {
     return { success: false, error: adminCheck.error };
   }
 
-  const result = await paymentService.cancel(paymentId);
+  // RPC handles: admin check, status validation, work item reversion
+  const result = await paymentService.cancel(paymentId, adminCheck.userId);
 
   if (!result.success) {
     return { success: false, error: result.error };
   }
 
   revalidatePath('/payments');
+  revalidatePath('/work-items');
 
   return { success: true };
 }

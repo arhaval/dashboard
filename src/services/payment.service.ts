@@ -108,147 +108,49 @@ export const paymentService = {
 
   /**
    * Create a payment from approved work items
-   * Idempotent: won't create if work item already has a payment
+   * Uses atomic RPC - idempotent and race-condition safe
    */
   async createFromWorkItems(
     userId: string,
     workItemIds: string[],
+    adminUserId: string,
     notes?: string
-  ): Promise<{ payment: Payment | null; error?: string }> {
+  ): Promise<{ paymentId: string | null; error?: string }> {
     const supabase = await createClient();
 
-    // 1. Verify work items exist, are APPROVED, and belong to the user
-    const { data: workItems, error: workItemsError } = await supabase
-      .from('work_items')
-      .select('*')
-      .in('id', workItemIds)
-      .eq('user_id', userId)
-      .eq('status', 'APPROVED');
+    const { data, error } = await supabase.rpc('rpc_create_payment_from_work_items', {
+      p_admin_user_id: adminUserId,
+      p_target_user_id: userId,
+      p_work_item_ids: workItemIds,
+      p_notes: notes || null,
+    });
 
-    if (workItemsError || !workItems || workItems.length === 0) {
-      return { payment: null, error: 'No approved work items found' };
+    if (error) {
+      console.error('Error creating payment:', error.message);
+      return { paymentId: null, error: error.message };
     }
 
-    if (workItems.length !== workItemIds.length) {
-      return { payment: null, error: 'Some work items are not approved or do not belong to the user' };
-    }
-
-    // 2. Check none of these work items already have payments
-    const { data: existingPaymentItems } = await supabase
-      .from('payment_items')
-      .select('work_item_id')
-      .in('work_item_id', workItemIds);
-
-    if (existingPaymentItems && existingPaymentItems.length > 0) {
-      return { payment: null, error: 'One or more work items already have payments' };
-    }
-
-    // 3. Calculate total amount
-    const totalAmount = workItems.reduce((sum, item) => sum + (item.cost || 0), 0);
-
-    if (totalAmount <= 0) {
-      return { payment: null, error: 'Total payment amount must be greater than 0' };
-    }
-
-    // 4. Create payment record
-    const { data: payment, error: paymentError } = await supabase
-      .from('payments')
-      .insert({
-        user_id: userId,
-        amount: totalAmount,
-        status: 'PENDING',
-        payment_date: new Date().toISOString().split('T')[0],
-        notes: notes || null,
-      })
-      .select()
-      .single();
-
-    if (paymentError || !payment) {
-      console.error('Error creating payment:', paymentError?.message);
-      return { payment: null, error: 'Failed to create payment' };
-    }
-
-    // 5. Create payment items (links to work items)
-    const paymentItems = workItemIds.map((workItemId) => ({
-      payment_id: payment.id,
-      work_item_id: workItemId,
-    }));
-
-    const { error: paymentItemsError } = await supabase
-      .from('payment_items')
-      .insert(paymentItems);
-
-    if (paymentItemsError) {
-      console.error('Error creating payment items:', paymentItemsError.message);
-      // Rollback: delete the payment
-      await supabase.from('payments').delete().eq('id', payment.id);
-      return { payment: null, error: 'Failed to link work items to payment' };
-    }
-
-    return { payment };
+    return { paymentId: data as string };
   },
 
   /**
    * Mark payment as paid and create transaction record
+   * Uses atomic RPC - all-or-nothing operation
    */
-  async markAsPaid(paymentId: string): Promise<{ success: boolean; error?: string }> {
+  async markAsPaid(
+    paymentId: string,
+    adminUserId: string
+  ): Promise<{ success: boolean; error?: string }> {
     const supabase = await createClient();
 
-    // 1. Get payment with user info and verify it's PENDING
-    const { data: payment, error: paymentError } = await supabase
-      .from('payments')
-      .select('*, user:users(full_name), payment_items(work_item_id)')
-      .eq('id', paymentId)
-      .single();
-
-    if (paymentError || !payment) {
-      return { success: false, error: 'Payment not found' };
-    }
-
-    if (payment.status !== 'PENDING') {
-      return { success: false, error: `Payment is ${payment.status}, cannot mark as paid` };
-    }
-
-    // 2. Update payment status to PAID
-    const { error: updateError } = await supabase
-      .from('payments')
-      .update({ status: 'PAID' })
-      .eq('id', paymentId);
-
-    if (updateError) {
-      console.error('Error updating payment:', updateError.message);
-      return { success: false, error: 'Failed to update payment status' };
-    }
-
-    // 3. Update all linked work items to PAID status
-    const workItemIds = payment.payment_items?.map((pi: { work_item_id: string }) => pi.work_item_id) || [];
-
-    if (workItemIds.length > 0) {
-      const { error: workItemsError } = await supabase
-        .from('work_items')
-        .update({ status: 'PAID' })
-        .in('id', workItemIds);
-
-      if (workItemsError) {
-        console.error('Error updating work items:', workItemsError.message);
-        // Don't rollback, payment is already marked paid
-      }
-    }
-
-    // 4. Create transaction record (EXPENSE for team payment)
-    const userName = (payment.user as { full_name: string } | null)?.full_name || 'team member';
-    const { error: transactionError } = await supabase.from('transactions').insert({
-      type: 'EXPENSE',
-      category: 'Team Payments',
-      amount: payment.amount,
-      description: `Payment to ${userName}`,
-      transaction_date: new Date().toISOString().split('T')[0],
-      payment_id: paymentId,
+    const { error } = await supabase.rpc('rpc_mark_payment_paid', {
+      p_admin_user_id: adminUserId,
+      p_payment_id: paymentId,
     });
 
-    if (transactionError) {
-      console.error('Error creating transaction:', transactionError.message);
-      // Don't rollback, this is a secondary action
+    if (error) {
+      console.error('Error marking payment as paid:', error.message);
+      return { success: false, error: error.message };
     }
 
     return { success: true };
@@ -256,34 +158,22 @@ export const paymentService = {
 
   /**
    * Cancel a pending payment
+   * Uses atomic RPC - reverts work items if needed
    */
-  async cancel(paymentId: string): Promise<{ success: boolean; error?: string }> {
+  async cancel(
+    paymentId: string,
+    adminUserId: string
+  ): Promise<{ success: boolean; error?: string }> {
     const supabase = await createClient();
 
-    // 1. Verify payment is PENDING
-    const { data: payment, error: paymentError } = await supabase
-      .from('payments')
-      .select('status')
-      .eq('id', paymentId)
-      .single();
+    const { error } = await supabase.rpc('rpc_cancel_payment', {
+      p_admin_user_id: adminUserId,
+      p_payment_id: paymentId,
+    });
 
-    if (paymentError || !payment) {
-      return { success: false, error: 'Payment not found' };
-    }
-
-    if (payment.status !== 'PENDING') {
-      return { success: false, error: `Payment is ${payment.status}, cannot cancel` };
-    }
-
-    // 2. Update status to CANCELLED
-    const { error: updateError } = await supabase
-      .from('payments')
-      .update({ status: 'CANCELLED' })
-      .eq('id', paymentId);
-
-    if (updateError) {
-      console.error('Error cancelling payment:', updateError.message);
-      return { success: false, error: 'Failed to cancel payment' };
+    if (error) {
+      console.error('Error cancelling payment:', error.message);
+      return { success: false, error: error.message };
     }
 
     return { success: true };
