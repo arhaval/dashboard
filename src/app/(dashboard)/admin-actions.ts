@@ -35,23 +35,37 @@ async function verifyAdmin(): Promise<{ isAdmin: boolean; userId: string | null 
 // ============================================
 
 export async function deleteWorkItem(id: string): Promise<{ success: boolean; error?: string }> {
-  const { isAdmin } = await verifyAdmin();
+  const { isAdmin, userId } = await verifyAdmin();
 
-  if (!isAdmin) {
+  if (!userId) {
     return { success: false, error: 'Yetkisiz erişim' };
   }
 
   const adminClient = createAdminClient();
 
-  // Check if work item exists and is not paid
+  // Check if work item exists and get details
   const { data: workItem, error: fetchError } = await adminClient
     .from('work_items')
-    .select('status')
+    .select('status, user_id')
     .eq('id', id)
     .single();
 
   if (fetchError || !workItem) {
     return { success: false, error: 'İş kaydı bulunamadı' };
+  }
+
+  // Check permissions:
+  // - Admins can delete any non-PAID work item
+  // - Users can only delete their OWN DRAFT work items
+  const isOwnItem = workItem.user_id === userId;
+
+  if (!isAdmin) {
+    if (!isOwnItem) {
+      return { success: false, error: 'Sadece kendi kayıtlarınızı silebilirsiniz' };
+    }
+    if (workItem.status !== 'DRAFT') {
+      return { success: false, error: 'Sadece taslak kayıtları silebilirsiniz' };
+    }
   }
 
   if (workItem.status === 'PAID') {
