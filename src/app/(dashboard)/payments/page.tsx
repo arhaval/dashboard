@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { Button } from '@/components/ui/button';
-import { paymentService, userService, financeService } from '@/services';
+import { paymentService, userService, financeService, workItemService } from '@/services';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
 import { Plus } from 'lucide-react';
@@ -428,48 +428,141 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     );
   }
 
-  // Non-admin user view: show only their own transactions
-  const [transactions, financeStats] = await Promise.all([
-    financeService.getByUserId(currentUser.id),
-    financeService.getUserStats(currentUser.id),
+  // Non-admin user view: show their earnings (Ödenen + Alacak)
+
+  const [paidWorkItems, approvedWorkItems, userPayments] = await Promise.all([
+    // Ödenen işler (PAID status)
+    workItemService.getAll({ user_id: currentUser.id, status: 'PAID' }),
+    // Alacak işler (APPROVED status - onaylandı ama henüz ödenmedi)
+    workItemService.getAll({ user_id: currentUser.id, status: 'APPROVED' }),
+    // Kullanıcının ödemeleri
+    paymentService.getByUserId(currentUser.id),
   ]);
+
+  // Calculate totals
+  const totalPaid = paidWorkItems.reduce((sum, item) => sum + (item.cost || 0), 0);
+  const totalPending = approvedWorkItems.reduce((sum, item) => sum + (item.cost || 0), 0);
+  const paidPaymentsList = userPayments.filter(p => p.status === 'PAID');
 
   return (
     <PageShell
       title={tr.pages.payments.title}
-      description="Ödeme geçmişinizi görüntüleyin"
+      description="Ödeme durumunuzu görüntüleyin"
     >
-      {/* Stats Summary - User's own transactions */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-4">
+      {/* Stats Summary - User's earnings */}
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Toplam İşlem</p>
-          <p className="text-2xl font-semibold text-[var(--color-text-primary)]">{financeStats.transactionCount}</p>
-        </div>
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">{tr.transaction.type.INCOME}</p>
+          <p className="text-sm text-[var(--color-text-muted)]">Toplam Ödenen</p>
           <p className="text-2xl font-semibold text-[var(--color-success)]">
-            {formatCurrency(financeStats.totalIncome)}
+            {formatCurrency(totalPaid)}
           </p>
+          <p className="text-xs text-[var(--color-text-muted)]">{paidWorkItems.length} iş kalemi</p>
         </div>
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">{tr.transaction.type.EXPENSE}</p>
-          <p className="text-2xl font-semibold text-[var(--color-error)]">
-            {formatCurrency(financeStats.totalExpenses)}
+          <p className="text-sm text-[var(--color-text-muted)]">Alacak (Bekleyen)</p>
+          <p className="text-2xl font-semibold text-[var(--color-warning)]">
+            {formatCurrency(totalPending)}
           </p>
+          <p className="text-xs text-[var(--color-text-muted)]">{approvedWorkItems.length} onaylı iş</p>
         </div>
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Toplam Alınan</p>
-          <p className={cn(
-            'text-2xl font-semibold',
-            financeStats.totalExpenses > 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-text-primary)]'
-          )}>
-            {formatCurrency(financeStats.totalExpenses)}
+          <p className="text-sm text-[var(--color-text-muted)]">Toplam Kazanç</p>
+          <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
+            {formatCurrency(totalPaid + totalPending)}
           </p>
+          <p className="text-xs text-[var(--color-text-muted)]">Ödenen + Alacak</p>
         </div>
       </div>
 
-      {/* User's Transactions Table - read only, no user column */}
-      <UserTransactionsTable transactions={transactions} />
+      {/* Alacak Section - Approved but not paid */}
+      {approvedWorkItems.length > 0 && (
+        <div className="mb-6">
+          <h3 className="mb-3 text-sm font-medium text-[var(--color-text-primary)]">
+            Alacak (Onaylandı, Ödeme Bekliyor)
+          </h3>
+          <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">Tarih</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">İş Türü</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">Açıklama</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">Tutar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {approvedWorkItems.map((item, index) => (
+                  <tr
+                    key={item.id}
+                    className={cn(
+                      'border-b border-[var(--color-border)] last:border-b-0',
+                      index % 2 === 0 ? 'bg-[var(--color-table-row-even)]' : 'bg-[var(--color-table-row-odd)]'
+                    )}
+                  >
+                    <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
+                      {formatDate(item.work_date)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-[var(--color-text-primary)]">
+                      {item.work_type === 'STREAM' ? 'Yayın' : item.work_type === 'VOICE' ? 'Seslendirme' : 'Montaj'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
+                      {item.match_name || item.content_name || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-sm font-medium text-[var(--color-warning)]">
+                      {formatCurrency(item.cost || 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Ödenen Section - Paid payments */}
+      <div>
+        <h3 className="mb-3 text-sm font-medium text-[var(--color-text-primary)]">
+          Ödenen (Tamamlanan Ödemeler)
+        </h3>
+        {paidPaymentsList.length === 0 ? (
+          <div className="flex h-32 items-center justify-center rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] text-sm text-[var(--color-text-muted)]">
+            Henüz ödeme yapılmamış
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">Tarih</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">İş Kalemleri</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">Tutar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paidPaymentsList.map((payment, index) => (
+                  <tr
+                    key={payment.id}
+                    className={cn(
+                      'border-b border-[var(--color-border)] last:border-b-0',
+                      index % 2 === 0 ? 'bg-[var(--color-table-row-even)]' : 'bg-[var(--color-table-row-odd)]'
+                    )}
+                  >
+                    <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
+                      {formatDate(payment.payment_date)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
+                      {getWorkItemsSummary(payment)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-sm font-medium text-[var(--color-success)]">
+                      +{formatCurrency(payment.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </PageShell>
   );
 }
