@@ -8,6 +8,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -101,18 +102,16 @@ export function Sidebar({ userRole = 'ADMIN' }: SidebarProps) {
             'px-6'
           )}
         >
-          <Link href="/" className="flex items-center gap-2">
-            <div
-              className={cn(
-                'flex h-8 w-8 items-center justify-center',
-                'rounded-[var(--radius-md)]',
-                'bg-[var(--color-accent)]'
-              )}
-            >
-              <span className="text-sm font-bold text-white">A</span>
-            </div>
-            <span className="text-display text-lg text-[var(--color-text-primary)]">
-              Arhaval
+          <Link href="/" className="flex items-center gap-3">
+            <Image
+              src="/logo.svg"
+              alt="Arhaval Logo"
+              width={32}
+              height={32}
+              className="h-8 w-8"
+            />
+            <span className="text-display text-base font-semibold text-[var(--color-text-primary)]">
+              Yönetim Paneli
             </span>
           </Link>
         </div>
@@ -155,7 +154,7 @@ export function Sidebar({ userRole = 'ADMIN' }: SidebarProps) {
             'p-4 text-xs text-[var(--color-text-muted)]'
           )}
         >
-          <p>Arhaval Dashboard</p>
+          <p>Arhaval Yönetim Paneli</p>
           <p>v0.1.0</p>
         </div>
       </div>

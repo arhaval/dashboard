@@ -31,10 +31,10 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Arhaval Dashboard',
+    default: 'Arhaval Yönetim Paneli',
     template: '%s | Arhaval',
   },
-  description: 'Internal operations panel for team management, work tracking, payments, financials, and social media performance.',
+  description: 'Ekip yönetimi, iş takibi, ödemeler ve finansal işlemler için dahili yönetim paneli.',
   robots: {
     index: false,
     follow: false,
@@ -54,7 +54,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="tr"
       className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${dmSans.variable}`}
     >
       <body className="min-h-screen antialiased">

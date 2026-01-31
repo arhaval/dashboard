@@ -4,6 +4,7 @@
  * No self-registration - users are managed by admin
  */
 
+import Image from 'next/image';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { LoginForm } from './login-form';
@@ -42,14 +43,18 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-accent)]">
-            <span className="text-xl font-bold text-white">A</span>
-          </div>
+          <Image
+            src="/logo.svg"
+            alt="Arhaval Logo"
+            width={64}
+            height={64}
+            className="mx-auto mb-4 h-16 w-16"
+          />
           <h1 className="text-display text-2xl text-[var(--color-text-primary)]">
-            Arhaval
+            Arhaval Yönetim Paneli
           </h1>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-            İç Operasyon Paneli
+            Ekip Yönetim Sistemi
           </p>
         </div>
 
