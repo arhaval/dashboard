@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
-import { userService, workItemService, paymentService } from '@/services';
+import { userService, workItemService, paymentService, financeService } from '@/services';
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('tr-TR', {
@@ -149,9 +149,10 @@ export default async function DashboardPage() {
   }
 
   // Non-Admin (Team Member) Dashboard
-  const [userWorkItems, userPayments] = await Promise.all([
+  const [userWorkItems, userPayments, userTransactions] = await Promise.all([
     workItemService.getAll({ user_id: currentUser.id }),
     paymentService.getByUserId(currentUser.id),
+    financeService.getByUserId(currentUser.id),
   ]);
 
   // Calculate stats
@@ -164,8 +165,17 @@ export default async function DashboardPage() {
   const approvedItems = userWorkItems.filter((item) => item.status === 'APPROVED');
   const paidItems = userWorkItems.filter((item) => item.status === 'PAID');
 
-  const totalEarned = paidItems.reduce((sum, item) => sum + (item.cost || 0), 0);
+  // Earnings from work items
+  const totalEarnedFromWorkItems = paidItems.reduce((sum, item) => sum + (item.cost || 0), 0);
   const pendingAmount = approvedItems.reduce((sum, item) => sum + (item.cost || 0), 0);
+
+  // Earnings from transactions (admin-added payments)
+  const userExpenseTransactions = userTransactions.filter(t => t.type === 'EXPENSE');
+  const totalFromTransactions = userExpenseTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
+
+  // Total earned = work items + transactions
+  const totalEarned = totalEarnedFromWorkItems + totalFromTransactions;
+  const totalPaidCount = paidItems.length + userExpenseTransactions.length;
 
   const stats = [
     {
@@ -192,7 +202,7 @@ export default async function DashboardPage() {
     {
       title: 'Toplam Kazanç',
       value: formatCurrency(totalEarned),
-      description: `${paidItems.length} ödenen iş`,
+      description: `${totalPaidCount} ödenen iş`,
       icon: CheckCircle,
       color: 'text-[var(--color-success)]',
     },
@@ -281,42 +291,68 @@ export default async function DashboardPage() {
             <CardTitle>Son Ödemeler</CardTitle>
           </CardHeader>
           <CardContent>
-            {userPayments.filter((p) => p.status === 'PAID').length === 0 ? (
-              <div
-                className={cn(
-                  'flex h-32 items-center justify-center',
-                  'rounded-[var(--radius-md)]',
-                  'border border-dashed border-[var(--color-border)]',
-                  'text-sm text-[var(--color-text-muted)]'
-                )}
-              >
-                Henüz ödeme yapılmamış
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {userPayments
-                  .filter((p) => p.status === 'PAID')
-                  .slice(0, 3)
-                  .map((payment) => (
+            {(() => {
+              // Combine payments and transactions, sort by date
+              const paidPayments = userPayments
+                .filter((p) => p.status === 'PAID')
+                .map((p) => ({
+                  id: `payment-${p.id}`,
+                  date: p.payment_date,
+                  category: 'İş Ödemesi',
+                  amount: p.amount,
+                  type: 'payment' as const,
+                }));
+
+              const expenseTransactions = userExpenseTransactions.map((t) => ({
+                id: `transaction-${t.id}`,
+                date: t.transaction_date,
+                category: t.category,
+                amount: Number(t.amount),
+                type: 'transaction' as const,
+              }));
+
+              const allPayments = [...paidPayments, ...expenseTransactions]
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .slice(0, 5);
+
+              if (allPayments.length === 0) {
+                return (
+                  <div
+                    className={cn(
+                      'flex h-32 items-center justify-center',
+                      'rounded-[var(--radius-md)]',
+                      'border border-dashed border-[var(--color-border)]',
+                      'text-sm text-[var(--color-text-muted)]'
+                    )}
+                  >
+                    Henüz ödeme yapılmamış
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2">
+                  {allPayments.map((item) => (
                     <div
-                      key={payment.id}
+                      key={item.id}
                       className="flex items-center justify-between rounded-[var(--radius-sm)] bg-[var(--color-bg-tertiary)] p-3"
                     >
                       <div>
                         <p className="text-sm font-medium text-[var(--color-text-primary)]">
-                          Ödeme
+                          {item.category}
                         </p>
                         <p className="text-xs text-[var(--color-text-muted)]">
-                          {new Date(payment.payment_date).toLocaleDateString('tr-TR')}
+                          {new Date(item.date).toLocaleDateString('tr-TR')}
                         </p>
                       </div>
                       <span className="font-mono text-sm font-medium text-[var(--color-success)]">
-                        +{formatCurrency(payment.amount)}
+                        +{formatCurrency(item.amount)}
                       </span>
                     </div>
                   ))}
-              </div>
-            )}
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>
