@@ -28,6 +28,7 @@ export interface PlatformReportData {
   growth: number;
   growthPercent: number;
   status: 'growing' | 'stable' | 'declining';
+  isFirstRecord: boolean;
 }
 
 // Work items summary
@@ -361,17 +362,23 @@ export const reportsService = {
 
       const followers = current?.followers_total || 0;
       const prevFollowers = previous?.followers_total || 0;
-      const growth = followers - prevFollowers;
+
+      // If no previous data exists, this is the first record - growth should be 0
+      const isFirstRecord = !previous && !!current;
+      const growth = isFirstRecord ? 0 : (followers - prevFollowers);
       const growthPercent = prevFollowers > 0 ? (growth / prevFollowers) * 100 : 0;
       const views = getViews(current);
       const engagement = getEngagement(current);
 
-      // Accumulate totals
+      // Accumulate totals (only add growth if not first record)
       if (platform === 'TWITCH' || platform === 'YOUTUBE') {
         totalLiveViews += current?.live_views || 0;
         previousLiveViews += previous?.live_views || 0;
       }
-      totalFollowersGrowth += growth;
+      // Don't count first records as growth
+      if (!isFirstRecord) {
+        totalFollowersGrowth += (followers - prevFollowers);
+      }
       totalEngagement += engagement;
       previousEngagement += getEngagement(previous);
 
@@ -382,7 +389,8 @@ export const reportsService = {
         engagement,
         growth,
         growthPercent: Math.round(growthPercent * 100) / 100,
-        status: growth > 0 ? 'growing' : growth < 0 ? 'declining' : 'stable',
+        status: isFirstRecord ? 'stable' : (growth > 0 ? 'growing' : growth < 0 ? 'declining' : 'stable'),
+        isFirstRecord,
       });
     }
 

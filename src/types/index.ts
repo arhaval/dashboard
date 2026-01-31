@@ -312,6 +312,7 @@ export interface PlatformReportData {
   growth: number;
   growthPercent: number;
   status: 'growing' | 'stable' | 'declining';
+  isFirstRecord: boolean;
 }
 
 export interface WorkItemsSummary {

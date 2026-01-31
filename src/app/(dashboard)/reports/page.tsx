@@ -215,28 +215,38 @@ function PlatformTable({ platformData }: { platformData: PlatformReportData[] })
                     {formatNumber(data.engagement)}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <span
-                      className={cn(
-                        'font-mono text-sm',
-                        data.growth >= 0
-                          ? 'text-[var(--color-success)]'
-                          : 'text-[var(--color-error)]'
-                      )}
-                    >
-                      {data.growth >= 0 ? '+' : ''}
-                      {formatNumber(data.growth)}
-                    </span>
-                    {data.growthPercent !== 0 && (
-                      <span className="ml-1 text-xs text-[var(--color-text-muted)]">
-                        ({data.growthPercent > 0 ? '+' : ''}
-                        {data.growthPercent.toFixed(1)}%)
-                      </span>
+                    {data.isFirstRecord ? (
+                      <span className="text-sm text-[var(--color-text-muted)]">—</span>
+                    ) : (
+                      <>
+                        <span
+                          className={cn(
+                            'font-mono text-sm',
+                            data.growth >= 0
+                              ? 'text-[var(--color-success)]'
+                              : 'text-[var(--color-error)]'
+                          )}
+                        >
+                          {data.growth >= 0 ? '+' : ''}
+                          {formatNumber(data.growth)}
+                        </span>
+                        {data.growthPercent !== 0 && (
+                          <span className="ml-1 text-xs text-[var(--color-text-muted)]">
+                            ({data.growthPercent > 0 ? '+' : ''}
+                            {data.growthPercent.toFixed(1)}%)
+                          </span>
+                        )}
+                      </>
                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={cn('text-sm', statusBadge.className)}>
-                      {statusBadge.emoji} {statusBadge.text}
-                    </span>
+                    {data.isFirstRecord ? (
+                      <span className="text-sm text-[var(--color-text-muted)]">İlk Kayıt</span>
+                    ) : (
+                      <span className={cn('text-sm', statusBadge.className)}>
+                        {statusBadge.emoji} {statusBadge.text}
+                      </span>
+                    )}
                   </td>
                 </tr>
               );
