@@ -48,9 +48,10 @@ export async function createRealizedTransaction(
       return { error: 'İşlem oluşturulamadı' };
     }
 
-    // Revalidate paths
+    // Revalidate all related paths
     revalidatePath('/payments');
     revalidatePath('/finance');
+    revalidatePath('/');  // Dashboard - for team member profiles
 
     return { success: true };
   } catch (error) {
@@ -82,9 +83,10 @@ export async function deleteRealizedTransaction(
       return { error: 'İşlem silinemedi' };
     }
 
-    // Revalidate paths
+    // Revalidate all related paths
     revalidatePath('/payments');
     revalidatePath('/finance');
+    revalidatePath('/');  // Dashboard - for team member profiles
 
     return { success: true };
   } catch (error) {
