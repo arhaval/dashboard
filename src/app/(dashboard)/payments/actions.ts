@@ -73,8 +73,10 @@ export async function createPaymentFromWorkItems(
     return { success: false, error: result.error };
   }
 
+  // Revalidate all related pages
   revalidatePath('/payments');
   revalidatePath('/work-items');
+  revalidatePath('/');  // Dashboard - for team member profiles
 
   return { success: true };
 }
@@ -97,9 +99,11 @@ export async function markPaymentAsPaid(paymentId: string): Promise<ActionResult
     return { success: false, error: result.error };
   }
 
+  // Revalidate all related pages
   revalidatePath('/payments');
   revalidatePath('/work-items');
   revalidatePath('/finance');
+  revalidatePath('/');  // Dashboard - for team member profiles
 
   return { success: true };
 }
@@ -122,8 +126,10 @@ export async function cancelPayment(paymentId: string): Promise<ActionResult> {
     return { success: false, error: result.error };
   }
 
+  // Revalidate all related pages
   revalidatePath('/payments');
   revalidatePath('/work-items');
+  revalidatePath('/');  // Dashboard - for team member profiles
 
   return { success: true };
 }
