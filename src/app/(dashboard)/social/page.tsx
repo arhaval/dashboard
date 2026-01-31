@@ -81,16 +81,20 @@ function SummaryCards({
       </div>
       <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
         <p className="text-sm text-[var(--color-text-muted)]">Takipçi Büyümesi</p>
-        <p
-          className={cn(
-            'text-2xl font-semibold',
-            totalFollowersGrowth >= 0
-              ? 'text-[var(--color-success)]'
-              : 'text-[var(--color-error)]'
-          )}
-        >
-          {formatGrowth(totalFollowersGrowth)}
-        </p>
+        {totalFollowersGrowth === 0 ? (
+          <p className="text-2xl font-semibold text-[var(--color-text-muted)]">—</p>
+        ) : (
+          <p
+            className={cn(
+              'text-2xl font-semibold',
+              totalFollowersGrowth >= 0
+                ? 'text-[var(--color-success)]'
+                : 'text-[var(--color-error)]'
+            )}
+          >
+            {formatGrowth(totalFollowersGrowth)}
+          </p>
+        )}
         <p className="text-xs text-[var(--color-text-muted)]">önceki aya göre</p>
       </div>
       <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
@@ -166,21 +170,29 @@ function PlatformTable({ growthData }: { growthData: PlatformGrowth[] }) {
                 {formatNumber(data.engagement_current)}
               </td>
               <td className="px-4 py-3 text-right">
-                <span
-                  className={cn(
-                    'font-mono text-sm',
-                    data.followers_growth >= 0
-                      ? 'text-[var(--color-success)]'
-                      : 'text-[var(--color-error)]'
-                  )}
-                >
-                  {formatGrowth(data.followers_growth)}
-                </span>
-                {data.followers_growth_percent !== 0 && (
-                  <span className="ml-1 text-xs text-[var(--color-text-muted)]">
-                    ({data.followers_growth_percent > 0 ? '+' : ''}
-                    {data.followers_growth_percent.toFixed(1)}%)
+                {data.isFirstRecord ? (
+                  <span className="text-sm text-[var(--color-text-muted)]">
+                    İlk Kayıt
                   </span>
+                ) : (
+                  <>
+                    <span
+                      className={cn(
+                        'font-mono text-sm',
+                        data.followers_growth >= 0
+                          ? 'text-[var(--color-success)]'
+                          : 'text-[var(--color-error)]'
+                      )}
+                    >
+                      {formatGrowth(data.followers_growth)}
+                    </span>
+                    {data.followers_growth_percent !== 0 && (
+                      <span className="ml-1 text-xs text-[var(--color-text-muted)]">
+                        ({data.followers_growth_percent > 0 ? '+' : ''}
+                        {data.followers_growth_percent.toFixed(1)}%)
+                      </span>
+                    )}
+                  </>
                 )}
               </td>
             </tr>

@@ -217,7 +217,10 @@ export const socialMetricsService = {
 
       const followers_current = current?.followers_total || 0;
       const followers_previous = previous?.followers_total || 0;
-      const followers_growth = followers_current - followers_previous;
+
+      // If no previous data exists, growth should be 0 (first record)
+      const isFirstRecord = !previous && !!current;
+      const followers_growth = isFirstRecord ? 0 : (followers_current - followers_previous);
       const followers_growth_percent =
         followers_previous > 0
           ? ((followers_growth / followers_previous) * 100)
@@ -229,6 +232,10 @@ export const socialMetricsService = {
       const views_current = current ? getViews(current) : 0;
       const views_previous = previous ? getViews(previous) : 0;
 
+      // If first record, set growth to 0
+      const engagement_growth = isFirstRecord ? 0 : (engagement_current - engagement_previous);
+      const views_growth = isFirstRecord ? 0 : (views_current - views_previous);
+
       growthData.push({
         platform,
         followers_current,
@@ -237,10 +244,11 @@ export const socialMetricsService = {
         followers_growth_percent: Math.round(followers_growth_percent * 100) / 100,
         engagement_current,
         engagement_previous,
-        engagement_growth: engagement_current - engagement_previous,
+        engagement_growth,
         views_current,
         views_previous,
-        views_growth: views_current - views_previous,
+        views_growth,
+        isFirstRecord: isFirstRecord || false,
       });
     }
 

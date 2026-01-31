@@ -297,6 +297,7 @@ export interface PlatformGrowth {
   views_current: number;
   views_previous: number;
   views_growth: number;
+  isFirstRecord: boolean;
 }
 
 // =============================================================================
