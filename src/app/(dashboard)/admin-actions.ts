@@ -183,7 +183,10 @@ export async function deleteTransaction(id: string): Promise<{ success: boolean;
     return { success: false, error: 'Silme işlemi başarısız' };
   }
 
+  // Revalidate all related pages
   revalidatePath('/finance');
+  revalidatePath('/payments');
+  revalidatePath('/');  // Dashboard
   return { success: true };
 }
 
