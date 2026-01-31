@@ -103,9 +103,11 @@ function WorkItemsTable({ items, currentUserId, isAdmin }: WorkItemsTableProps) 
             <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
               {tr.workItem.fields.cost}
             </th>
-            <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.table.actions}
-            </th>
+            {isAdmin && (
+              <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
+                {tr.table.actions}
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -167,19 +169,18 @@ function WorkItemsTable({ items, currentUserId, isAdmin }: WorkItemsTableProps) 
                   canEdit={isAdmin && item.user_id !== currentUserId && item.status === 'DRAFT'}
                 />
               </td>
-              <td className="px-4 py-3 text-right">
-                <div className="flex items-center justify-end gap-2">
-                  {/* Admin: Create payment for approved items */}
-                  {isAdmin && item.status === 'APPROVED' && item.user_id !== currentUserId && item.cost && (
-                    <CreatePaymentButton workItemId={item.id} userId={item.user_id} />
-                  )}
-                  {/* Delete button: Admin can delete non-PAID, users can delete own DRAFT */}
-                  {(isAdmin && item.status !== 'PAID') ||
-                   (!isAdmin && item.user_id === currentUserId && item.status === 'DRAFT') ? (
-                    <WorkItemDeleteButton workItemId={item.id} />
-                  ) : null}
-                </div>
-              </td>
+              {isAdmin && (
+                <td className="px-4 py-3 text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    {item.status === 'APPROVED' && item.user_id !== currentUserId && item.cost && (
+                      <CreatePaymentButton workItemId={item.id} userId={item.user_id} />
+                    )}
+                    {item.status !== 'PAID' && (
+                      <WorkItemDeleteButton workItemId={item.id} />
+                    )}
+                  </div>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
