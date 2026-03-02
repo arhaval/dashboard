@@ -112,6 +112,49 @@ export async function markPaymentAsPaid(paymentId: string): Promise<ActionResult
  * Cancel a pending payment
  * Business logic is in RPC - atomic operation, reverts work items if needed
  */
+/**
+ * Mark multiple payments as paid in sequence
+ * Each payment is processed atomically via RPC
+ */
+export async function bulkMarkPaymentsAsPaid(
+  paymentIds: string[]
+): Promise<{ success: boolean; paidCount: number; failedCount: number; errors: string[] }> {
+  const adminCheck = await verifyAdmin();
+
+  if (!adminCheck.isAdmin || !adminCheck.userId) {
+    return { success: false, paidCount: 0, failedCount: paymentIds.length, errors: [adminCheck.error || 'Yetkisiz'] };
+  }
+
+  let paidCount = 0;
+  const errors: string[] = [];
+
+  for (const paymentId of paymentIds) {
+    const result = await paymentService.markAsPaid(paymentId, adminCheck.userId);
+    if (result.success) {
+      paidCount++;
+    } else {
+      errors.push(result.error || `Ödeme ${paymentId} başarısız`);
+    }
+  }
+
+  // Revalidate all related pages
+  revalidatePath('/payments');
+  revalidatePath('/work-items');
+  revalidatePath('/finance');
+  revalidatePath('/');
+
+  return {
+    success: errors.length === 0,
+    paidCount,
+    failedCount: errors.length,
+    errors,
+  };
+}
+
+/**
+ * Cancel a pending payment
+ * Business logic is in RPC - atomic operation, reverts work items if needed
+ */
 export async function cancelPayment(paymentId: string): Promise<ActionResult> {
   const adminCheck = await verifyAdmin();
 

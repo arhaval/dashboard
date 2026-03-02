@@ -1,6 +1,7 @@
 /**
  * Payment Filters Component
  * Client component for filter controls
+ * Supports hiding status filter (for completed tab)
  */
 
 'use client';
@@ -15,6 +16,7 @@ interface PaymentFiltersProps {
   currentStatus?: string;
   currentUserId?: string;
   users: User[];
+  showStatusFilter?: boolean;
 }
 
 const statusOptions = [
@@ -24,7 +26,7 @@ const statusOptions = [
   { value: 'CANCELLED', label: tr.filter.cancelled },
 ];
 
-export function PaymentFilters({ currentStatus, currentUserId, users }: PaymentFiltersProps) {
+export function PaymentFilters({ currentStatus, currentUserId, users, showStatusFilter = true }: PaymentFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -41,10 +43,14 @@ export function PaymentFilters({ currentStatus, currentUserId, users }: PaymentF
   };
 
   const clearFilters = () => {
-    router.push('/payments');
+    // Preserve tab param when clearing filters
+    const params = new URLSearchParams();
+    const tab = searchParams.get('tab');
+    if (tab) params.set('tab', tab);
+    router.push(`/payments?${params.toString()}`);
   };
 
-  const hasActiveFilters = currentStatus || currentUserId;
+  const hasActiveFilters = (showStatusFilter && currentStatus) || currentUserId;
 
   const selectClassName = cn(
     'h-9 rounded-[var(--radius-md)] border bg-[var(--color-bg-secondary)]',
@@ -57,17 +63,19 @@ export function PaymentFilters({ currentStatus, currentUserId, users }: PaymentF
   return (
     <div className="mb-6 flex flex-wrap items-center gap-3">
       {/* Status Filter */}
-      <select
-        value={currentStatus || ''}
-        onChange={(e) => updateFilter('status', e.target.value)}
-        className={selectClassName}
-      >
-        {statusOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      {showStatusFilter && (
+        <select
+          value={currentStatus || ''}
+          onChange={(e) => updateFilter('status', e.target.value)}
+          className={selectClassName}
+        >
+          {statusOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      )}
 
       {/* User Filter */}
       {users.length > 0 && (

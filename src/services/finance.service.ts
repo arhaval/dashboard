@@ -6,6 +6,14 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Transaction, TransactionFilters, TransactionType, CreateTransactionInput } from '@/types';
 
+/** Get current month in YYYY-MM format */
+function getCurrentMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+export { getCurrentMonth };
+
 export const financeService = {
   /**
    * Get all transactions with optional filters
@@ -201,5 +209,66 @@ export const financeService = {
       netBalance: totalIncome - totalExpenses,
       transactionCount: data.length,
     };
+  },
+
+  /**
+   * Get financial stats for a specific month (YYYY-MM)
+   */
+  async getStatsByMonth(month: string): Promise<{
+    totalIncome: number;
+    totalExpenses: number;
+    netBalance: number;
+    transactionCount: number;
+  }> {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('type, amount')
+      .gte('transaction_date', `${month}-01`)
+      .lt('transaction_date', `${month}-32`);
+
+    if (error || !data) {
+      return { totalIncome: 0, totalExpenses: 0, netBalance: 0, transactionCount: 0 };
+    }
+
+    const totalIncome = data
+      .filter((t) => t.type === 'INCOME')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const totalExpenses = data
+      .filter((t) => t.type === 'EXPENSE')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    return {
+      totalIncome,
+      totalExpenses,
+      netBalance: totalIncome - totalExpenses,
+      transactionCount: data.length,
+    };
+  },
+
+  /**
+   * Get all months that have transaction data (YYYY-MM format, descending)
+   */
+  async getAvailableMonths(): Promise<string[]> {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('transaction_date')
+      .order('transaction_date', { ascending: false });
+
+    if (error || !data) return [getCurrentMonth()];
+
+    const months = new Set<string>();
+    for (const t of data) {
+      const d = new Date(t.transaction_date);
+      months.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+    // Always include current month
+    months.add(getCurrentMonth());
+
+    return Array.from(months).sort((a, b) => b.localeCompare(a));
   },
 };

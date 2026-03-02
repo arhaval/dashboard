@@ -2,15 +2,18 @@
  * Finance Page
  * Shows financial summary and transaction history
  * Admin-only access (enforced by RLS)
+ * Grouped by month with month picker
  */
 
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { financeService, userService } from '@/services';
+import { getCurrentMonth } from '@/services/finance.service';
 import { cn, formatDate, formatCurrency, getTransactionTypeLabel, getTransactionTypeBadgeClass } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
 import { TRANSACTION_TYPES } from '@/constants';
 import { FinanceFilters } from './filters';
+import { FinanceMonthPicker } from './month-picker';
 import { TransactionDeleteButton } from './delete-button';
 import type { Transaction, TransactionType } from '@/types';
 
@@ -111,6 +114,7 @@ interface PageProps {
   searchParams: Promise<{
     type?: string;
     category?: string;
+    month?: string;
   }>;
 }
 
@@ -128,11 +132,19 @@ export default async function FinancePage({ searchParams }: PageProps) {
     redirect('/');
   }
 
+  // Determine active month (default to current month)
+  const activeMonth = params.month || getCurrentMonth();
+
   // Build filters from search params
   const filters: {
     type?: TransactionType;
     category?: string;
-  } = {};
+    date_from?: string;
+    date_to?: string;
+  } = {
+    date_from: `${activeMonth}-01`,
+    date_to: `${activeMonth}-31`,
+  };
 
   if (params.type && (TRANSACTION_TYPES as readonly string[]).includes(params.type)) {
     filters.type = params.type as TransactionType;
@@ -143,14 +155,21 @@ export default async function FinancePage({ searchParams }: PageProps) {
   }
 
   // Fetch data
-  const [transactions, stats, categories] = await Promise.all([
+  const [transactions, stats, categories, availableMonths] = await Promise.all([
     financeService.getAll(filters),
-    financeService.getStats(),
+    financeService.getStatsByMonth(activeMonth),
     financeService.getCategories(),
+    financeService.getAvailableMonths(),
   ]);
 
   return (
-    <PageShell title={tr.pages.finance.title} description={tr.pages.finance.subtitle}>
+    <PageShell
+      title={tr.pages.finance.title}
+      description={tr.pages.finance.subtitle}
+      actions={
+        <FinanceMonthPicker months={availableMonths} currentMonth={activeMonth} />
+      }
+    >
       {/* Stats Summary */}
       <div className="mb-6 grid gap-4 sm:grid-cols-4">
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
@@ -188,6 +207,7 @@ export default async function FinancePage({ searchParams }: PageProps) {
       <FinanceFilters
         currentType={params.type}
         currentCategory={params.category}
+        currentMonth={activeMonth}
         categories={categories}
       />
 

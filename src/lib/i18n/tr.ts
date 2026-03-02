@@ -44,6 +44,7 @@ export const tr = {
     addMember: 'Üye Ekle',
     addWorkItem: 'İş Ekle',
     addPayment: 'Ödeme Ekle',
+    bulkPay: 'Toplu Öde',
     addTransaction: 'İşlem Ekle',
     createPayment: 'Ödeme Oluştur',
   },
@@ -142,6 +143,7 @@ export const tr = {
     },
     tabs: {
       planned: 'Planlanan Ödemeler',
+      completed: 'Yapılan Ödemeler',
       realized: 'Gerçekleşen İşlemler',
     },
     realized: {

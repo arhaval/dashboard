@@ -1,6 +1,7 @@
 /**
  * Finance Filters Component
  * Client component for filter controls
+ * Preserves month param when changing type/category filters
  */
 
 'use client';
@@ -13,6 +14,7 @@ import { tr } from '@/lib/i18n';
 interface FinanceFiltersProps {
   currentType?: string;
   currentCategory?: string;
+  currentMonth: string;
   categories: string[];
 }
 
@@ -22,7 +24,7 @@ const typeOptions = [
   { value: 'EXPENSE', label: tr.filter.expense },
 ];
 
-export function FinanceFilters({ currentType, currentCategory, categories }: FinanceFiltersProps) {
+export function FinanceFilters({ currentType, currentCategory, currentMonth, categories }: FinanceFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -35,11 +37,17 @@ export function FinanceFilters({ currentType, currentCategory, categories }: Fin
       params.delete(key);
     }
 
+    // Always preserve month
+    if (!params.has('month')) {
+      params.set('month', currentMonth);
+    }
+
     router.push(`/finance?${params.toString()}`);
   };
 
   const clearFilters = () => {
-    router.push('/finance');
+    // Clear type/category but keep month
+    router.push(`/finance?month=${currentMonth}`);
   };
 
   const hasActiveFilters = currentType || currentCategory;

@@ -2,15 +2,15 @@
 
 /**
  * Payments Tabs Component
- * Switches between Planned Payments and Realized Transactions
+ * Switches between Planned Payments, Completed Payments, and Realized Transactions
  */
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
-import { CreditCard, Receipt } from 'lucide-react';
+import { CreditCard, CheckCircle, Receipt } from 'lucide-react';
 
-type TabType = 'planned' | 'realized';
+type TabType = 'planned' | 'completed' | 'realized';
 
 interface PaymentsTabsProps {
   activeTab: TabType;
@@ -36,6 +36,11 @@ export function PaymentsTabs({ activeTab }: PaymentsTabsProps) {
       id: 'planned' as TabType,
       label: tr.payment.tabs.planned,
       icon: CreditCard,
+    },
+    {
+      id: 'completed' as TabType,
+      label: tr.payment.tabs.completed,
+      icon: CheckCircle,
     },
     {
       id: 'realized' as TabType,
