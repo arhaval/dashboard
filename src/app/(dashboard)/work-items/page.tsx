@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { Button } from '@/components/ui/button';
-import { workItemService, userService } from '@/services';
+import { workItemService, userService, paymentService } from '@/services';
 import { cn, formatDate, formatCurrency, getWorkTypeLabel } from '@/lib/utils';
 import { WORK_TYPES, WORK_STATUSES } from '@/constants';
 import { tr } from '@/lib/i18n';
@@ -19,23 +19,8 @@ import { WorkItemFilters } from './filters';
 import { CreatePaymentButton } from './create-payment-button';
 import { CostEditor } from './cost-editor';
 import { WorkItemDeleteButton } from './delete-button';
-import type { WorkItem, WorkType, WorkStatus, PaymentStatus } from '@/types';
+import type { WorkItem, WorkType, WorkStatus } from '@/types';
 
-/**
- * Check if a work item already has a payment (PENDING or PAID).
- * Returns the payment status if found, null otherwise.
- */
-function getExistingPaymentStatus(item: WorkItem): PaymentStatus | null {
-  if (!item.payment_items || item.payment_items.length === 0) return null;
-  // Find the most relevant payment (PAID > PENDING > CANCELLED)
-  for (const pi of item.payment_items) {
-    if (pi.payment?.status === 'PAID') return 'PAID';
-  }
-  for (const pi of item.payment_items) {
-    if (pi.payment?.status === 'PENDING') return 'PENDING';
-  }
-  return null;
-}
 
 function getTypeBadgeStyles(type: string) {
   switch (type) {
@@ -64,9 +49,10 @@ interface WorkItemsTableProps {
   items: WorkItem[];
   currentUserId: string;
   isAdmin: boolean;
+  paymentStatuses: Record<string, string>;
 }
 
-function WorkItemsTable({ items, currentUserId, isAdmin }: WorkItemsTableProps) {
+function WorkItemsTable({ items, currentUserId, isAdmin, paymentStatuses }: WorkItemsTableProps) {
   if (items.length === 0) {
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] text-[var(--color-text-muted)]">
@@ -173,33 +159,28 @@ function WorkItemsTable({ items, currentUserId, isAdmin }: WorkItemsTableProps) 
               {isAdmin && (
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    {item.status === 'APPROVED' && item.user_id !== currentUserId && item.cost && (() => {
-                      const paymentStatus = getExistingPaymentStatus(item);
-                      if (paymentStatus === 'PENDING') {
-                        return (
-                          <span className={cn(
-                            'inline-block rounded-full px-2 py-0.5',
-                            'text-xs font-medium',
-                            'bg-[var(--color-warning-muted)] text-[var(--color-warning)]'
-                          )}>
-                            Ödeme Bekliyor
-                          </span>
-                        );
-                      }
-                      if (paymentStatus === 'PAID') {
-                        return (
-                          <span className={cn(
-                            'inline-block rounded-full px-2 py-0.5',
-                            'text-xs font-medium',
-                            'bg-[var(--color-success-muted)] text-[var(--color-success)]'
-                          )}>
-                            Ödendi
-                          </span>
-                        );
-                      }
-                      return <CreatePaymentButton workItemId={item.id} userId={item.user_id} />;
-                    })()}
-                    {item.status !== 'PAID' && !getExistingPaymentStatus(item) && (
+                    {item.status === 'APPROVED' && item.user_id !== currentUserId && item.cost && (
+                      paymentStatuses[item.id] === 'PENDING' ? (
+                        <span className={cn(
+                          'inline-block rounded-full px-2 py-0.5',
+                          'text-xs font-medium',
+                          'bg-[var(--color-warning-muted)] text-[var(--color-warning)]'
+                        )}>
+                          Ödeme Bekliyor
+                        </span>
+                      ) : paymentStatuses[item.id] === 'PAID' ? (
+                        <span className={cn(
+                          'inline-block rounded-full px-2 py-0.5',
+                          'text-xs font-medium',
+                          'bg-[var(--color-success-muted)] text-[var(--color-success)]'
+                        )}>
+                          Ödendi
+                        </span>
+                      ) : (
+                        <CreatePaymentButton workItemId={item.id} userId={item.user_id} />
+                      )
+                    )}
+                    {item.status !== 'PAID' && !paymentStatuses[item.id] && (
                       <WorkItemDeleteButton workItemId={item.id} />
                     )}
                   </div>
@@ -259,6 +240,14 @@ export default async function WorkItemsPage({ searchParams }: PageProps) {
     isAdmin ? userService.getAll() : Promise.resolve([]),
   ]);
 
+  // Get payment statuses for approved items (separate query to avoid join issues)
+  const approvedItemIds = isAdmin
+    ? items.filter((i) => i.status === 'APPROVED' && i.cost).map((i) => i.id)
+    : [];
+  const paymentStatuses = approvedItemIds.length > 0
+    ? await paymentService.getPaymentStatusesForWorkItems(approvedItemIds)
+    : {};
+
   return (
     <PageShell
       title={tr.pages.workItems.title}
@@ -304,7 +293,7 @@ export default async function WorkItemsPage({ searchParams }: PageProps) {
       />
 
       {/* Work Items Table */}
-      <WorkItemsTable items={items} currentUserId={currentUser.id} isAdmin={isAdmin} />
+      <WorkItemsTable items={items} currentUserId={currentUser.id} isAdmin={isAdmin} paymentStatuses={paymentStatuses} />
     </PageShell>
   );
 }

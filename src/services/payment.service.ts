@@ -107,6 +107,42 @@ export const paymentService = {
   },
 
   /**
+   * Get payment statuses for multiple work items at once.
+   * Returns a map of work_item_id → PaymentStatus (PENDING, PAID, etc.)
+   */
+  async getPaymentStatusesForWorkItems(
+    workItemIds: string[]
+  ): Promise<Record<string, string>> {
+    if (workItemIds.length === 0) return {};
+
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from('payment_items')
+      .select('work_item_id, payment:payments(status)')
+      .in('work_item_id', workItemIds);
+
+    if (error || !data) {
+      return {};
+    }
+
+    const statusMap: Record<string, string> = {};
+    for (const item of data) {
+      const payment = item.payment as unknown as { status: string } | null;
+      if (!payment?.status) continue;
+      const existing = statusMap[item.work_item_id];
+      // Priority: PAID > PENDING > others
+      if (payment.status === 'PAID' || !existing) {
+        statusMap[item.work_item_id] = payment.status;
+      } else if (payment.status === 'PENDING' && existing !== 'PAID') {
+        statusMap[item.work_item_id] = payment.status;
+      }
+    }
+
+    return statusMap;
+  },
+
+  /**
    * Create a payment from approved work items
    * Uses atomic RPC - idempotent and race-condition safe
    */

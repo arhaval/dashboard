@@ -16,7 +16,7 @@ export const workItemService = {
 
     let query = supabase
       .from('work_items')
-      .select('*, user:users(id, full_name, email, role), payment_items(payment_id, payment:payments(id, status))')
+      .select('*, user:users(id, full_name, email, role)')
       .order('work_date', { ascending: false });
 
     if (filters?.user_id) {
