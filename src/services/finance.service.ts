@@ -12,7 +12,15 @@ function getCurrentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-export { getCurrentMonth };
+/** Get the first day of the next month (for date range queries) */
+function getNextMonthStart(month: string): string {
+  const [year, m] = month.split('-').map(Number);
+  const nextMonth = m === 12 ? 1 : m + 1;
+  const nextYear = m === 12 ? year + 1 : year;
+  return `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+}
+
+export { getCurrentMonth, getNextMonthStart };
 
 export const financeService = {
   /**
@@ -41,6 +49,10 @@ export const financeService = {
 
     if (filters?.date_to) {
       query = query.lte('transaction_date', filters.date_to);
+    }
+
+    if (filters?.date_before) {
+      query = query.lt('transaction_date', filters.date_before);
     }
 
     const { data, error } = await query;
@@ -226,7 +238,7 @@ export const financeService = {
       .from('transactions')
       .select('type, amount')
       .gte('transaction_date', `${month}-01`)
-      .lt('transaction_date', `${month}-32`);
+      .lt('transaction_date', getNextMonthStart(month));
 
     if (error || !data) {
       return { totalIncome: 0, totalExpenses: 0, netBalance: 0, transactionCount: 0 };

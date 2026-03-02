@@ -8,7 +8,7 @@
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { financeService, userService } from '@/services';
-import { getCurrentMonth } from '@/services/finance.service';
+import { getCurrentMonth, getNextMonthStart } from '@/services/finance.service';
 import { cn, formatDate, formatCurrency, getTransactionTypeLabel, getTransactionTypeBadgeClass } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
 import { TRANSACTION_TYPES } from '@/constants';
@@ -142,10 +142,10 @@ export default async function FinancePage({ searchParams }: PageProps) {
     type?: TransactionType;
     category?: string;
     date_from?: string;
-    date_to?: string;
+    date_before?: string;
   } = {
     date_from: `${activeMonth}-01`,
-    date_to: `${activeMonth}-31`,
+    date_before: getNextMonthStart(activeMonth),
   };
 
   if (params.type && (TRANSACTION_TYPES as readonly string[]).includes(params.type)) {

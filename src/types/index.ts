@@ -456,4 +456,6 @@ export interface TransactionFilters {
   category?: string;
   date_from?: string;
   date_to?: string;
+  /** Exclusive upper bound (lt instead of lte) - use for month ranges */
+  date_before?: string;
 }
