@@ -104,11 +104,11 @@ export function Sidebar({ userRole = 'ADMIN' }: SidebarProps) {
         >
           <Link href="/" className="flex items-center gap-3">
             <Image
-              src="/logo.svg"
+              src="/logo.png"
               alt="Arhaval Logo"
               width={32}
               height={32}
-              className="h-8 w-8"
+              className="h-8 w-8 rounded-[var(--radius-sm)]"
             />
             <span className="text-display text-base font-semibold text-[var(--color-text-primary)]">
               Yönetim Paneli

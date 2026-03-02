@@ -35,6 +35,10 @@ export const metadata: Metadata = {
     template: '%s | Arhaval',
   },
   description: 'Ekip yönetimi, iş takibi, ödemeler ve finansal işlemler için dahili yönetim paneli.',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
   robots: {
     index: false,
     follow: false,
