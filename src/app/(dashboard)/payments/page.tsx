@@ -10,8 +10,9 @@ import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { paymentService, userService, financeService, workItemService } from '@/services';
-import { cn } from '@/lib/utils';
+import { cn, formatDate, formatCurrency, getPaymentStatusBadgeClass } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
+import { PAYMENT_STATUSES } from '@/constants';
 import { Plus } from 'lucide-react';
 import { PaymentFilters } from './filters';
 import { PaymentActions } from './payment-actions';
@@ -19,36 +20,8 @@ import { PaymentDeleteButton } from './delete-button';
 import { PaymentsTabs } from './payments-tabs';
 import { RealizedTransactionForm } from './realized-transaction-form';
 import { RealizedTransactionsTable } from './realized-transactions-table';
-import type { Payment, PaymentStatus, Transaction } from '@/types';
-import { ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
-
-function getStatusBadgeStyles(status: PaymentStatus) {
-  switch (status) {
-    case 'PENDING':
-      return 'bg-[var(--color-warning-muted)] text-[var(--color-warning)]';
-    case 'PAID':
-      return 'bg-[var(--color-success-muted)] text-[var(--color-success)]';
-    case 'CANCELLED':
-      return 'bg-[var(--color-error-muted)] text-[var(--color-error)]';
-    default:
-      return 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]';
-  }
-}
-
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('tr-TR', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-  }).format(amount);
-}
+import { UserPaymentsView } from './user-payments-view';
+import type { Payment, PaymentStatus } from '@/types';
 
 function getWorkItemsSummary(payment: Payment): string {
   if (!payment.payment_items || payment.payment_items.length === 0) {
@@ -146,7 +119,7 @@ function PaymentsTable({ payments, isAdmin, showUserColumn = true }: PaymentsTab
                   className={cn(
                     'inline-block rounded-full px-2 py-0.5',
                     'text-xs font-medium',
-                    getStatusBadgeStyles(payment.status)
+                    getPaymentStatusBadgeClass(payment.status)
                   )}
                 >
                   {payment.status === 'PENDING' ? tr.payment.status.PENDING :
@@ -162,104 +135,6 @@ function PaymentsTable({ payments, isAdmin, showUserColumn = true }: PaymentsTab
                   </div>
                 </td>
               )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// User's own transactions table (read-only, for non-admin users)
-interface UserTransactionsTableProps {
-  transactions: Transaction[];
-}
-
-function UserTransactionsTable({ transactions }: UserTransactionsTableProps) {
-  if (transactions.length === 0) {
-    return (
-      <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] text-[var(--color-text-muted)]">
-        <p>Henüz ödeme kaydı bulunmuyor</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.transaction.fields.type}
-            </th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.transaction.fields.date}
-            </th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.transaction.fields.category}
-            </th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.transaction.fields.description}
-            </th>
-            <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.transaction.fields.amount}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {transactions.map((transaction, index) => (
-            <tr
-              key={transaction.id}
-              className={cn(
-                'border-b border-[var(--color-border)] last:border-b-0',
-                index % 2 === 0
-                  ? 'bg-[var(--color-table-row-even)]'
-                  : 'bg-[var(--color-table-row-odd)]'
-              )}
-            >
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
-                  {transaction.type === 'INCOME' ? (
-                    <ArrowUpCircle className="h-4 w-4 text-[var(--color-success)]" />
-                  ) : (
-                    <ArrowDownCircle className="h-4 w-4 text-[var(--color-error)]" />
-                  )}
-                  <span
-                    className={cn(
-                      'text-sm font-medium',
-                      transaction.type === 'INCOME'
-                        ? 'text-[var(--color-success)]'
-                        : 'text-[var(--color-error)]'
-                    )}
-                  >
-                    {transaction.type === 'INCOME'
-                      ? tr.transaction.type.INCOME
-                      : tr.transaction.type.EXPENSE}
-                  </span>
-                </div>
-              </td>
-              <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
-                {formatDate(transaction.transaction_date)}
-              </td>
-              <td className="px-4 py-3 text-sm text-[var(--color-text-primary)]">
-                {transaction.category}
-              </td>
-              <td className="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                {transaction.description || '—'}
-              </td>
-              <td className="px-4 py-3 text-right">
-                <span
-                  className={cn(
-                    'font-mono text-sm font-medium',
-                    transaction.type === 'INCOME'
-                      ? 'text-[var(--color-success)]'
-                      : 'text-[var(--color-error)]'
-                  )}
-                >
-                  {transaction.type === 'INCOME' ? '+' : '-'}
-                  {formatCurrency(transaction.amount)}
-                </span>
-              </td>
             </tr>
           ))}
         </tbody>
@@ -364,7 +239,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       user_id?: string;
     } = {};
 
-    if (params.status && ['PENDING', 'PAID', 'CANCELLED'].includes(params.status)) {
+    if (params.status && (PAYMENT_STATUSES as readonly string[]).includes(params.status)) {
       filters.status = params.status as PaymentStatus;
     }
 
@@ -428,188 +303,21 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     );
   }
 
-  // Non-admin user view: show their earnings (Ödenen + Alacak)
-
+  // Non-admin user view: show their earnings
   const [paidWorkItems, approvedWorkItems, userPayments, userTransactions] = await Promise.all([
-    // Ödenen işler (PAID status)
     workItemService.getAll({ user_id: currentUser.id, status: 'PAID' }),
-    // Alacak işler (APPROVED status - onaylandı ama henüz ödenmedi)
     workItemService.getAll({ user_id: currentUser.id, status: 'APPROVED' }),
-    // Kullanıcının ödemeleri (payments tablosu)
     paymentService.getByUserId(currentUser.id),
-    // Kullanıcının işlemleri (transactions tablosu - admin'in eklediği)
     financeService.getByUserId(currentUser.id),
   ]);
 
-  // Calculate totals from work items
-  const totalPaidFromWorkItems = paidWorkItems.reduce((sum, item) => sum + (item.cost || 0), 0);
-  const totalPending = approvedWorkItems.reduce((sum, item) => sum + (item.cost || 0), 0);
-  const paidPaymentsList = userPayments.filter(p => p.status === 'PAID');
-
-  // Calculate totals from transactions (admin'in Gerçekleşen İşlemlerden eklediği)
-  const userExpenseTransactions = userTransactions.filter(t => t.type === 'EXPENSE');
-  const totalFromTransactions = userExpenseTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
-
-  // Total paid = payments + transactions
-  const totalPaid = totalPaidFromWorkItems + totalFromTransactions;
-
   return (
-    <PageShell
-      title={tr.pages.payments.title}
-      description="Ödeme durumunuzu görüntüleyin"
-    >
-      {/* Stats Summary - User's earnings */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Toplam Ödenen</p>
-          <p className="text-2xl font-semibold text-[var(--color-success)]">
-            {formatCurrency(totalPaid)}
-          </p>
-          <p className="text-xs text-[var(--color-text-muted)]">{paidWorkItems.length} iş kalemi</p>
-        </div>
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Alacak (Bekleyen)</p>
-          <p className="text-2xl font-semibold text-[var(--color-warning)]">
-            {formatCurrency(totalPending)}
-          </p>
-          <p className="text-xs text-[var(--color-text-muted)]">{approvedWorkItems.length} onaylı iş</p>
-        </div>
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Toplam Kazanç</p>
-          <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
-            {formatCurrency(totalPaid + totalPending)}
-          </p>
-          <p className="text-xs text-[var(--color-text-muted)]">Ödenen + Alacak</p>
-        </div>
-      </div>
-
-      {/* Alacak Section - Approved but not paid */}
-      {approvedWorkItems.length > 0 && (
-        <div className="mb-6">
-          <h3 className="mb-3 text-sm font-medium text-[var(--color-text-primary)]">
-            Alacak (Onaylandı, Ödeme Bekliyor)
-          </h3>
-          <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">Tarih</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">İş Türü</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">Açıklama</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">Tutar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {approvedWorkItems.map((item, index) => (
-                  <tr
-                    key={item.id}
-                    className={cn(
-                      'border-b border-[var(--color-border)] last:border-b-0',
-                      index % 2 === 0 ? 'bg-[var(--color-table-row-even)]' : 'bg-[var(--color-table-row-odd)]'
-                    )}
-                  >
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
-                      {formatDate(item.work_date)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-primary)]">
-                      {item.work_type === 'STREAM' ? 'Yayın' : item.work_type === 'VOICE' ? 'Seslendirme' : 'Montaj'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                      {item.match_name || item.content_name || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-sm font-medium text-[var(--color-warning)]">
-                      {formatCurrency(item.cost || 0)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Ödenen Section - Paid payments + Transactions */}
-      <div>
-        <h3 className="mb-3 text-sm font-medium text-[var(--color-text-primary)]">
-          Ödenen (Tamamlanan Ödemeler)
-        </h3>
-        {paidPaymentsList.length === 0 && userExpenseTransactions.length === 0 ? (
-          <div className="flex h-32 items-center justify-center rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] text-sm text-[var(--color-text-muted)]">
-            Henüz ödeme yapılmamış
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">Tarih</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">Kategori</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">Açıklama</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">Tutar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Payments (iş takibinden ödenenler) */}
-                {paidPaymentsList.map((payment, index) => (
-                  <tr
-                    key={`payment-${payment.id}`}
-                    className={cn(
-                      'border-b border-[var(--color-border)] last:border-b-0',
-                      index % 2 === 0 ? 'bg-[var(--color-table-row-even)]' : 'bg-[var(--color-table-row-odd)]'
-                    )}
-                  >
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
-                      {formatDate(payment.payment_date)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-primary)]">
-                      İş Ödemesi
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                      {getWorkItemsSummary(payment)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <ArrowUpCircle className="h-4 w-4 text-[var(--color-success)]" />
-                        <span className="font-mono text-sm font-medium text-[var(--color-success)]">
-                          +{formatCurrency(payment.amount)}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {/* Transactions (admin'in eklediği - Gerçekleşen İşlemler) */}
-                {userExpenseTransactions.map((transaction, index) => (
-                  <tr
-                    key={`transaction-${transaction.id}`}
-                    className={cn(
-                      'border-b border-[var(--color-border)] last:border-b-0',
-                      (paidPaymentsList.length + index) % 2 === 0 ? 'bg-[var(--color-table-row-even)]' : 'bg-[var(--color-table-row-odd)]'
-                    )}
-                  >
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
-                      {formatDate(transaction.transaction_date)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-primary)]">
-                      {transaction.category}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                      {transaction.description || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <ArrowUpCircle className="h-4 w-4 text-[var(--color-success)]" />
-                        <span className="font-mono text-sm font-medium text-[var(--color-success)]">
-                          +{formatCurrency(transaction.amount)}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </PageShell>
+    <UserPaymentsView
+      currentUser={currentUser}
+      paidWorkItems={paidWorkItems}
+      approvedWorkItems={approvedWorkItems}
+      userPayments={userPayments}
+      userTransactions={userTransactions}
+    />
   );
 }

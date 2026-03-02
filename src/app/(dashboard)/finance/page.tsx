@@ -7,37 +7,12 @@
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { financeService, userService } from '@/services';
-import { cn } from '@/lib/utils';
+import { cn, formatDate, formatCurrency, getTransactionTypeLabel, getTransactionTypeBadgeClass } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
+import { TRANSACTION_TYPES } from '@/constants';
 import { FinanceFilters } from './filters';
 import { TransactionDeleteButton } from './delete-button';
 import type { Transaction, TransactionType } from '@/types';
-
-function getTypeBadgeStyles(type: TransactionType) {
-  switch (type) {
-    case 'INCOME':
-      return 'bg-[var(--color-success-muted)] text-[var(--color-success)]';
-    case 'EXPENSE':
-      return 'bg-[var(--color-error-muted)] text-[var(--color-error)]';
-    default:
-      return 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]';
-  }
-}
-
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('tr-TR', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-  }).format(amount);
-}
 
 interface TransactionsTableProps {
   transactions: Transaction[];
@@ -96,10 +71,10 @@ function TransactionsTable({ transactions }: TransactionsTableProps) {
                   className={cn(
                     'inline-block rounded-full px-2 py-0.5',
                     'text-xs font-medium',
-                    getTypeBadgeStyles(transaction.type)
+                    getTransactionTypeBadgeClass(transaction.type)
                   )}
                 >
-                  {transaction.type === 'INCOME' ? tr.transaction.type.INCOME : tr.transaction.type.EXPENSE}
+                  {getTransactionTypeLabel(transaction.type)}
                 </span>
               </td>
               <td className="px-4 py-3 text-sm text-[var(--color-text-primary)]">
@@ -159,7 +134,7 @@ export default async function FinancePage({ searchParams }: PageProps) {
     category?: string;
   } = {};
 
-  if (params.type && ['INCOME', 'EXPENSE'].includes(params.type)) {
+  if (params.type && (TRANSACTION_TYPES as readonly string[]).includes(params.type)) {
     filters.type = params.type as TransactionType;
   }
 

@@ -30,13 +30,19 @@ export function CreatePaymentButton({ workItemId, userId }: CreatePaymentButtonP
     if (result.success) {
       setSuccess(true);
     } else {
-      setError(result.error || 'Failed to create payment');
+      setError(result.error || 'Ödeme oluşturulamadı');
     }
   };
 
   if (success) {
     return (
-      <span className="text-xs text-[var(--color-success)]">Payment created</span>
+      <span className={[
+        'inline-block rounded-full px-2 py-0.5',
+        'text-xs font-medium',
+        'bg-[var(--color-warning-muted)] text-[var(--color-warning)]'
+      ].join(' ')}>
+        Ödeme Bekliyor
+      </span>
     );
   }
 
@@ -55,7 +61,7 @@ export function CreatePaymentButton({ workItemId, userId }: CreatePaymentButtonP
           'disabled:opacity-50 disabled:cursor-not-allowed'
         )}
       >
-        {isPending ? '...' : 'Create Payment'}
+        {isPending ? '...' : 'Ödeme Oluştur'}
       </button>
       {error && (
         <span className="absolute left-0 top-full mt-1 whitespace-nowrap text-xs text-[var(--color-error)]">

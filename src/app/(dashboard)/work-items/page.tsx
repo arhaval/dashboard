@@ -10,7 +10,8 @@ import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { workItemService, userService } from '@/services';
-import { cn } from '@/lib/utils';
+import { cn, formatDate, formatCurrency, getWorkTypeLabel } from '@/lib/utils';
+import { WORK_TYPES, WORK_STATUSES } from '@/constants';
 import { tr } from '@/lib/i18n';
 import { Plus } from 'lucide-react';
 import { StatusControl } from './status-control';
@@ -18,7 +19,23 @@ import { WorkItemFilters } from './filters';
 import { CreatePaymentButton } from './create-payment-button';
 import { CostEditor } from './cost-editor';
 import { WorkItemDeleteButton } from './delete-button';
-import type { WorkItem, WorkType, WorkStatus } from '@/types';
+import type { WorkItem, WorkType, WorkStatus, PaymentStatus } from '@/types';
+
+/**
+ * Check if a work item already has a payment (PENDING or PAID).
+ * Returns the payment status if found, null otherwise.
+ */
+function getExistingPaymentStatus(item: WorkItem): PaymentStatus | null {
+  if (!item.payment_items || item.payment_items.length === 0) return null;
+  // Find the most relevant payment (PAID > PENDING > CANCELLED)
+  for (const pi of item.payment_items) {
+    if (pi.payment?.status === 'PAID') return 'PAID';
+  }
+  for (const pi of item.payment_items) {
+    if (pi.payment?.status === 'PENDING') return 'PENDING';
+  }
+  return null;
+}
 
 function getTypeBadgeStyles(type: string) {
   switch (type) {
@@ -31,22 +48,6 @@ function getTypeBadgeStyles(type: string) {
     default:
       return 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]';
   }
-}
-
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('tr-TR', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-function formatCurrency(amount: number | null) {
-  if (amount === null) return '—';
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-  }).format(amount);
 }
 
 function getWorkItemTitle(item: WorkItem) {
@@ -132,7 +133,7 @@ function WorkItemsTable({ items, currentUserId, isAdmin }: WorkItemsTableProps) 
                     getTypeBadgeStyles(item.work_type)
                   )}
                 >
-                  {item.work_type}
+                  {getWorkTypeLabel(item.work_type)}
                 </span>
               </td>
               <td className="px-4 py-3">
@@ -172,10 +173,33 @@ function WorkItemsTable({ items, currentUserId, isAdmin }: WorkItemsTableProps) 
               {isAdmin && (
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    {item.status === 'APPROVED' && item.user_id !== currentUserId && item.cost && (
-                      <CreatePaymentButton workItemId={item.id} userId={item.user_id} />
-                    )}
-                    {item.status !== 'PAID' && (
+                    {item.status === 'APPROVED' && item.user_id !== currentUserId && item.cost && (() => {
+                      const paymentStatus = getExistingPaymentStatus(item);
+                      if (paymentStatus === 'PENDING') {
+                        return (
+                          <span className={cn(
+                            'inline-block rounded-full px-2 py-0.5',
+                            'text-xs font-medium',
+                            'bg-[var(--color-warning-muted)] text-[var(--color-warning)]'
+                          )}>
+                            Ödeme Bekliyor
+                          </span>
+                        );
+                      }
+                      if (paymentStatus === 'PAID') {
+                        return (
+                          <span className={cn(
+                            'inline-block rounded-full px-2 py-0.5',
+                            'text-xs font-medium',
+                            'bg-[var(--color-success-muted)] text-[var(--color-success)]'
+                          )}>
+                            Ödendi
+                          </span>
+                        );
+                      }
+                      return <CreatePaymentButton workItemId={item.id} userId={item.user_id} />;
+                    })()}
+                    {item.status !== 'PAID' && !getExistingPaymentStatus(item) && (
                       <WorkItemDeleteButton workItemId={item.id} />
                     )}
                   </div>
@@ -216,11 +240,11 @@ export default async function WorkItemsPage({ searchParams }: PageProps) {
     user_id?: string;
   } = {};
 
-  if (params.status && ['DRAFT', 'APPROVED', 'PAID'].includes(params.status)) {
+  if (params.status && (WORK_STATUSES as readonly string[]).includes(params.status)) {
     filters.status = params.status as WorkStatus;
   }
 
-  if (params.type && ['STREAM', 'VOICE', 'EDIT'].includes(params.type)) {
+  if (params.type && (WORK_TYPES as readonly string[]).includes(params.type)) {
     filters.work_type = params.type as WorkType;
   }
 

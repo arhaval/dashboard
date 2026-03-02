@@ -68,6 +68,7 @@ export interface WorkItem {
 
   // Joined data
   user?: User;
+  payment_items?: { payment_id: string; payment: { id: string; status: PaymentStatus } | null }[];
 }
 
 // =============================================================================

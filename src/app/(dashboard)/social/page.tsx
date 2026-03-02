@@ -8,55 +8,15 @@
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { socialMetricsService, userService } from '@/services';
-import { cn } from '@/lib/utils';
+import { cn, formatNumber, getPlatformLabel, getPlatformBadgeClass } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
 import { MetricsForm } from './metrics-form';
 import { PlatformHistory } from './platform-history';
-import type { MetricsPlatform, PlatformGrowth } from '@/types';
-
-function formatNumber(num: number): string {
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M';
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K';
-  }
-  return num.toLocaleString();
-}
+import type { PlatformGrowth } from '@/types';
 
 function formatGrowth(num: number): string {
   const prefix = num >= 0 ? '+' : '';
   return prefix + formatNumber(num);
-}
-
-function getPlatformLabel(platform: MetricsPlatform): string {
-  switch (platform) {
-    case 'TWITCH':
-      return 'Twitch';
-    case 'YOUTUBE':
-      return 'YouTube';
-    case 'INSTAGRAM':
-      return 'Instagram';
-    case 'X':
-      return 'X';
-    default:
-      return platform;
-  }
-}
-
-function getPlatformStyles(platform: MetricsPlatform): string {
-  switch (platform) {
-    case 'TWITCH':
-      return 'bg-purple-500/10 text-purple-400';
-    case 'YOUTUBE':
-      return 'bg-red-500/10 text-red-400';
-    case 'INSTAGRAM':
-      return 'bg-pink-500/10 text-pink-400';
-    case 'X':
-      return 'bg-blue-500/10 text-blue-400';
-    default:
-      return 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]';
-  }
 }
 
 function SummaryCards({
@@ -154,7 +114,7 @@ function PlatformTable({ growthData }: { growthData: PlatformGrowth[] }) {
                   className={cn(
                     'inline-block rounded-full px-2 py-0.5',
                     'text-xs font-medium',
-                    getPlatformStyles(data.platform)
+                    getPlatformBadgeClass(data.platform)
                   )}
                 >
                   {getPlatformLabel(data.platform)}

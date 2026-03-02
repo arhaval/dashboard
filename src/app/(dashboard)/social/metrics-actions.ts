@@ -8,6 +8,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { socialMetricsService } from '@/services';
+import { METRICS_PLATFORMS } from '@/constants';
 import type { CreateSocialMonthlyMetricsInput, MetricsPlatform } from '@/types';
 
 interface ActionResult {
@@ -70,7 +71,7 @@ export async function upsertSocialMetrics(
     return { success: false, error: 'Invalid month format. Use YYYY-MM' };
   }
 
-  const validPlatforms: MetricsPlatform[] = ['TWITCH', 'YOUTUBE', 'INSTAGRAM', 'X'];
+  const validPlatforms = METRICS_PLATFORMS;
   if (!validPlatforms.includes(input.platform)) {
     return { success: false, error: 'Invalid platform' };
   }

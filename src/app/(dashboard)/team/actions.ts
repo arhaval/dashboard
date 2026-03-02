@@ -8,6 +8,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { userService, type CreateUserInput, type UpdateUserInput } from '@/services';
+import { USER_ROLES } from '@/constants';
 import type { UserRole } from '@/types';
 
 interface ActionResult {
@@ -72,7 +73,7 @@ export async function createTeamMember(input: {
     return { success: false, error: 'Password must be at least 8 characters' };
   }
 
-  const validRoles: UserRole[] = ['ADMIN', 'PUBLISHER', 'EDITOR', 'VOICE'];
+  const validRoles = USER_ROLES;
   if (!validRoles.includes(input.role)) {
     return { success: false, error: 'Invalid role' };
   }
@@ -104,7 +105,7 @@ export async function updateTeamMemberRole(
   }
 
   // 2. Validate role
-  const validRoles: UserRole[] = ['ADMIN', 'PUBLISHER', 'EDITOR', 'VOICE'];
+  const validRoles = USER_ROLES;
   if (!validRoles.includes(newRole)) {
     return { success: false, error: 'Invalid role' };
   }
@@ -184,7 +185,7 @@ export async function updateTeamMember(
   }
 
   if (input.role !== undefined) {
-    const validRoles: UserRole[] = ['ADMIN', 'PUBLISHER', 'EDITOR', 'VOICE'];
+    const validRoles = USER_ROLES;
     if (!validRoles.includes(input.role)) {
       return { success: false, error: 'Invalid role' };
     }

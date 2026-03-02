@@ -8,6 +8,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { workItemService } from '@/services';
+import { WORK_STATUS_TRANSITIONS } from '@/constants';
 import type { WorkStatus } from '@/types';
 
 interface UpdateStatusResult {
@@ -64,13 +65,7 @@ export async function updateWorkItemStatus(
   }
 
   // 6. Validate status transition
-  const validTransitions: Record<WorkStatus, WorkStatus[]> = {
-    DRAFT: ['APPROVED'],
-    APPROVED: ['DRAFT', 'PAID'],
-    PAID: [], // Cannot change from PAID
-  };
-
-  if (!validTransitions[workItem.status].includes(newStatus)) {
+  if (!WORK_STATUS_TRANSITIONS[workItem.status].includes(newStatus)) {
     return {
       success: false,
       error: `Invalid status transition: ${workItem.status} → ${newStatus}`,

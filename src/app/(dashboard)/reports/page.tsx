@@ -8,77 +8,12 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { PageShell } from '@/components/layout';
 import { reportsService, userService } from '@/services';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency, getPlatformLabel, getPlatformBadgeClass, getGrowthBadge } from '@/lib/utils';
 import { MonthPicker } from './month-picker';
-import type { PlatformReportData, MonthlyReport, MetricsPlatform } from '@/types';
+import type { PlatformReportData, MonthlyReport } from '@/types';
 
 interface PageProps {
   searchParams: Promise<{ month?: string }>;
-}
-
-// Format number with Turkish locale
-function formatNumber(num: number): string {
-  return num.toLocaleString('tr-TR');
-}
-
-// Format currency with Turkish locale
-function formatCurrency(num: number): string {
-  return num.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
-}
-
-// Get platform label
-function getPlatformLabel(platform: MetricsPlatform): string {
-  const labels: Record<MetricsPlatform, string> = {
-    TWITCH: 'Twitch',
-    YOUTUBE: 'YouTube',
-    INSTAGRAM: 'Instagram',
-    X: 'X',
-  };
-  return labels[platform];
-}
-
-// Get platform badge styles
-function getPlatformStyles(platform: MetricsPlatform): string {
-  switch (platform) {
-    case 'TWITCH':
-      return 'bg-purple-500/10 text-purple-400';
-    case 'YOUTUBE':
-      return 'bg-red-500/10 text-red-400';
-    case 'INSTAGRAM':
-      return 'bg-pink-500/10 text-pink-400';
-    case 'X':
-      return 'bg-blue-500/10 text-blue-400';
-    default:
-      return 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]';
-  }
-}
-
-// Get status badge
-function getStatusBadge(status: 'growing' | 'stable' | 'declining'): {
-  emoji: string;
-  text: string;
-  className: string;
-} {
-  switch (status) {
-    case 'growing':
-      return {
-        emoji: '🟢',
-        text: 'Büyüyor',
-        className: 'text-[var(--color-success)]',
-      };
-    case 'stable':
-      return {
-        emoji: '🟡',
-        text: 'Sabit',
-        className: 'text-[var(--color-warning)]',
-      };
-    case 'declining':
-      return {
-        emoji: '🔴',
-        text: 'Düşüş',
-        className: 'text-[var(--color-error)]',
-      };
-  }
 }
 
 // Summary Cards Component
@@ -89,7 +24,7 @@ function SummaryCards({ report }: { report: MonthlyReport }) {
       <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
         <p className="text-sm text-[var(--color-text-muted)]">Toplam Canlı İzlenme</p>
         <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
-          {formatNumber(report.socialSummary.totalLiveViews)}
+          {report.socialSummary.totalLiveViews.toLocaleString('tr-TR')}
         </p>
         <p className="text-xs text-[var(--color-text-muted)]">Twitch + YouTube</p>
       </div>
@@ -106,7 +41,7 @@ function SummaryCards({ report }: { report: MonthlyReport }) {
           )}
         >
           {report.socialSummary.totalFollowersGrowth >= 0 ? '+' : ''}
-          {formatNumber(report.socialSummary.totalFollowersGrowth)}
+          {report.socialSummary.totalFollowersGrowth.toLocaleString('tr-TR')}
         </p>
         <p className="text-xs text-[var(--color-text-muted)]">Geçen aya göre</p>
       </div>
@@ -115,7 +50,7 @@ function SummaryCards({ report }: { report: MonthlyReport }) {
       <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
         <p className="text-sm text-[var(--color-text-muted)]">Toplam Etkileşim</p>
         <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
-          {formatNumber(report.socialSummary.totalEngagement)}
+          {report.socialSummary.totalEngagement.toLocaleString('tr-TR')}
         </p>
         <p className="text-xs text-[var(--color-text-muted)]">Tüm platformlar</p>
       </div>
@@ -183,7 +118,7 @@ function PlatformTable({ platformData }: { platformData: PlatformReportData[] })
           </thead>
           <tbody>
             {platformData.map((data, index) => {
-              const statusBadge = getStatusBadge(data.status);
+              const statusBadge = getGrowthBadge(data.status);
               return (
                 <tr
                   key={data.platform}
@@ -199,20 +134,20 @@ function PlatformTable({ platformData }: { platformData: PlatformReportData[] })
                       className={cn(
                         'inline-block rounded-full px-2 py-0.5',
                         'text-xs font-medium',
-                        getPlatformStyles(data.platform)
+                        getPlatformBadgeClass(data.platform)
                       )}
                     >
                       {getPlatformLabel(data.platform)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-sm text-[var(--color-text-primary)]">
-                    {formatNumber(data.followers)}
+                    {data.followers.toLocaleString('tr-TR')}
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-sm text-[var(--color-text-primary)]">
-                    {formatNumber(data.views)}
+                    {data.views.toLocaleString('tr-TR')}
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-sm text-[var(--color-text-primary)]">
-                    {formatNumber(data.engagement)}
+                    {data.engagement.toLocaleString('tr-TR')}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {data.isFirstRecord ? (
@@ -228,7 +163,7 @@ function PlatformTable({ platformData }: { platformData: PlatformReportData[] })
                           )}
                         >
                           {data.growth >= 0 ? '+' : ''}
-                          {formatNumber(data.growth)}
+                          {data.growth.toLocaleString('tr-TR')}
                         </span>
                         {data.growthPercent !== 0 && (
                           <span className="ml-1 text-xs text-[var(--color-text-muted)]">
@@ -244,7 +179,7 @@ function PlatformTable({ platformData }: { platformData: PlatformReportData[] })
                       <span className="text-sm text-[var(--color-text-muted)]">İlk Kayıt</span>
                     ) : (
                       <span className={cn('text-sm', statusBadge.className)}>
-                        {statusBadge.emoji} {statusBadge.text}
+                        {statusBadge.icon} {statusBadge.label}
                       </span>
                     )}
                   </td>
