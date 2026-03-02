@@ -11,6 +11,7 @@ import { socialMetricsService, userService } from '@/services';
 import { cn, formatNumber, getPlatformLabel, getPlatformBadgeClass } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
 import { MetricsForm } from './metrics-form';
+import { SyncButtons } from './sync-buttons';
 import { PlatformHistory } from './platform-history';
 import type { PlatformGrowth } from '@/types';
 
@@ -190,9 +191,10 @@ export default async function SocialPage() {
         platformCount={summary.platformCount}
       />
 
-      {/* Entry Form - Admin only */}
+      {/* API Sync + Manual Entry - Admin only */}
       {isAdmin && (
-        <div className="mb-6">
+        <div className="mb-6 space-y-4">
+          <SyncButtons />
           <MetricsForm />
         </div>
       )}

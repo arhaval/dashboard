@@ -14,6 +14,7 @@ import { tr } from '@/lib/i18n';
 import { TRANSACTION_TYPES } from '@/constants';
 import { FinanceFilters } from './filters';
 import { FinanceMonthPicker } from './month-picker';
+import { FinanceExportButtons } from './export-buttons';
 import { TransactionDeleteButton } from './delete-button';
 import type { Transaction, TransactionType } from '@/types';
 
@@ -169,7 +170,14 @@ export default async function FinancePage({ searchParams }: PageProps) {
       title={tr.pages.finance.title}
       description={tr.pages.finance.subtitle}
       actions={
-        <FinanceMonthPicker months={availableMonths} currentMonth={activeMonth} />
+        <div className="flex items-center gap-3">
+          <FinanceExportButtons
+            transactions={transactions}
+            stats={stats}
+            currentMonth={activeMonth}
+          />
+          <FinanceMonthPicker months={availableMonths} currentMonth={activeMonth} />
+        </div>
       }
     >
       {/* Stats Summary */}

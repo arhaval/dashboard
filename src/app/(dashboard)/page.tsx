@@ -20,10 +20,11 @@ export default async function DashboardPage() {
   const isAdmin = currentUser.role === 'ADMIN';
 
   if (isAdmin) {
-    const [allWorkItems, allUsers, paymentStats] = await Promise.all([
+    const [allWorkItems, allUsers, paymentStats, financeStats] = await Promise.all([
       workItemService.getAll(),
       userService.getAll(),
       paymentService.getStats(),
+      financeService.getStats(),
     ]);
 
     return (
@@ -31,6 +32,7 @@ export default async function DashboardPage() {
         allWorkItems={allWorkItems}
         allUsers={allUsers}
         paymentStats={paymentStats}
+        financeStats={financeStats}
       />
     );
   }
