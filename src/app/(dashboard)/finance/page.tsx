@@ -132,8 +132,10 @@ export default async function FinancePage({ searchParams }: PageProps) {
     redirect('/');
   }
 
-  // Determine active month (default to current month)
-  const activeMonth = params.month || getCurrentMonth();
+  // Determine active month
+  // If no month param, prefer the most recent month with data (fallback to current month)
+  const availableMonthsList = await financeService.getAvailableMonths();
+  const activeMonth = params.month || (availableMonthsList.length > 0 ? availableMonthsList[0] : getCurrentMonth());
 
   // Build filters from search params
   const filters: {
@@ -154,13 +156,13 @@ export default async function FinancePage({ searchParams }: PageProps) {
     filters.category = params.category;
   }
 
-  // Fetch data
-  const [transactions, stats, categories, availableMonths] = await Promise.all([
+  // Fetch data (availableMonths already fetched above)
+  const [transactions, stats, categories] = await Promise.all([
     financeService.getAll(filters),
     financeService.getStatsByMonth(activeMonth),
     financeService.getCategories(),
-    financeService.getAvailableMonths(),
   ]);
+  const availableMonths = availableMonthsList;
 
   return (
     <PageShell
