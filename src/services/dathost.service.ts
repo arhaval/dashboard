@@ -243,4 +243,83 @@ export const dathostService = {
     }
     return true;
   },
+
+  // ==========================================================================
+  // DatHost File API (server files access)
+  // ==========================================================================
+
+  /** List files in a directory on the game server */
+  async listServerFiles(
+    dathostServerId: string,
+    path: string = '',
+  ): Promise<string[]> {
+    try {
+      const encodedPath = encodeURIComponent(path);
+      const res = await fetch(
+        `${DATHOST_API_BASE}/game-servers/${dathostServerId}/files/${encodedPath}`,
+        {
+          headers: { Authorization: getAuthHeader() },
+        },
+      );
+      if (!res.ok) return [];
+      return (await res.json()) as string[];
+    } catch {
+      return [];
+    }
+  },
+
+  /** Download a file from the game server as text */
+  async downloadServerFile(
+    dathostServerId: string,
+    path: string,
+  ): Promise<string | null> {
+    try {
+      const encodedPath = encodeURIComponent(path);
+      const res = await fetch(
+        `${DATHOST_API_BASE}/game-servers/${dathostServerId}/files/${encodedPath}`,
+        {
+          headers: { Authorization: getAuthHeader() },
+        },
+      );
+      if (!res.ok) return null;
+      return await res.text();
+    } catch {
+      return null;
+    }
+  },
+
+  /** Scan MatchZy_Stats folder for CSV files */
+  async scanMatchZyStats(
+    dathostServerId: string,
+  ): Promise<{ matchId: string; csvPath: string; csvName: string }[]> {
+    const results: { matchId: string; csvPath: string; csvName: string }[] = [];
+
+    // List match folders in MatchZy_Stats
+    const matchFolders = await this.listServerFiles(
+      dathostServerId,
+      'csgo/MatchZy_Stats',
+    );
+
+    for (const folder of matchFolders) {
+      // Only process numeric folders (MatchZy match IDs)
+      if (!/^\d+$/.test(folder)) continue;
+
+      const files = await this.listServerFiles(
+        dathostServerId,
+        `csgo/MatchZy_Stats/${folder}`,
+      );
+
+      for (const file of files) {
+        if (file.endsWith('.csv')) {
+          results.push({
+            matchId: folder,
+            csvPath: `csgo/MatchZy_Stats/${folder}/${file}`,
+            csvName: file,
+          });
+        }
+      }
+    }
+
+    return results;
+  },
 };

@@ -366,6 +366,212 @@ export async function uploadMapCSV(matchId: string, formData: FormData) {
 }
 
 // ===========================================================================
+// Auto-Import from CSV (creates teams + players + match + stats automatically)
+// ===========================================================================
+
+/** Import CSV and auto-create everything: teams, players, match, map, stats */
+export async function importFromCSV(formData: FormData) {
+  const auth = await requireAdmin();
+  if ('error' in auth) return auth;
+
+  const mapName = formData.get('map') as string;
+  const team1Score = parseInt(formData.get('team1_score') as string, 10);
+  const team2Score = parseInt(formData.get('team2_score') as string, 10);
+  const team1Name = (formData.get('team1_name') as string) || '';
+  const team2Name = (formData.get('team2_name') as string) || '';
+  const matchId = (formData.get('match_id') as string) || ''; // optional — append to existing match
+
+  if (!mapName) return { error: 'Harita seçin' };
+  if (isNaN(team1Score) || isNaN(team2Score) || team1Score < 0 || team2Score < 0) {
+    return { error: 'Geçersiz skor değeri' };
+  }
+
+  // Get CSV content (either from file upload or from server fetch)
+  let csvText = formData.get('csv_text') as string | null;
+  if (!csvText) {
+    const csvFile = formData.get('csv_file') as File | null;
+    if (!csvFile || csvFile.size === 0) {
+      return { error: 'CSV dosyası seçilmedi' };
+    }
+    csvText = await csvFile.text();
+  }
+
+  const rows = parseCSV(csvText);
+  if (rows.length === 0) {
+    return { error: 'CSV dosyasında oyuncu verisi bulunamadı' };
+  }
+
+  // Group players by csv_team column
+  const teamGroups = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const csvTeam = (row.csv_team || 'unknown').trim();
+    if (!teamGroups.has(csvTeam)) teamGroups.set(csvTeam, []);
+    teamGroups.get(csvTeam)!.push(row);
+  }
+
+  // We expect exactly 2 teams
+  const teamKeys = Array.from(teamGroups.keys());
+  if (teamKeys.length < 2) {
+    return { error: 'CSV dosyasında en az 2 takım bulunamadı. "team" sütunu kontrol edin.' };
+  }
+
+  // Determine team names: user-provided > csv team column value
+  const cleanTeamName = (csvKey: string) =>
+    csvKey.replace(/^team_/i, '').trim() || csvKey;
+
+  const t1Name = team1Name || cleanTeamName(teamKeys[0]);
+  const t2Name = team2Name || cleanTeamName(teamKeys[1]);
+
+  // Auto-create teams
+  const team1 = await cs2Service.findOrCreateTeam(t1Name);
+  const team2 = await cs2Service.findOrCreateTeam(t2Name);
+  if (!team1 || !team2) return { error: 'Takımlar oluşturulamadı' };
+
+  // Auto-create players for each team
+  const team1Rows = teamGroups.get(teamKeys[0]) || [];
+  const team2Rows = teamGroups.get(teamKeys[1]) || [];
+
+  for (const row of team1Rows) {
+    const steamId = (row.steam_id || '').trim();
+    const name = (row.player_name || steamId || 'Unknown').trim();
+    if (steamId) await cs2Service.findOrCreatePlayer(steamId, name, team1.id);
+  }
+  for (const row of team2Rows) {
+    const steamId = (row.steam_id || '').trim();
+    const name = (row.player_name || steamId || 'Unknown').trim();
+    if (steamId) await cs2Service.findOrCreatePlayer(steamId, name, team2.id);
+  }
+
+  // Get or create match
+  let match;
+  if (matchId) {
+    match = await cs2Service.getMatchById(matchId);
+    if (!match) return { error: 'Maç bulunamadı' };
+  } else {
+    match = await cs2Service.createMatch({
+      team1_id: team1.id,
+      team2_id: team2.id,
+      match_date: new Date().toISOString(),
+    });
+    if (!match) return { error: 'Maç oluşturulamadı' };
+  }
+
+  // Create map entry
+  const roundsPlayed = team1Score + team2Score;
+  let mapWinner: string | null = null;
+  if (team1Score > team2Score) mapWinner = team1.id;
+  else if (team2Score > team1Score) mapWinner = team2.id;
+
+  const mapNumber = await cs2Service.getNextMapNumber(match.id);
+  const matchMap = await cs2Service.createMatchMap({
+    match_id: match.id,
+    map: mapName,
+    map_number: mapNumber,
+    team1_score: team1Score,
+    team2_score: team2Score,
+    rounds_played: roundsPlayed,
+    winner_team_id: mapWinner,
+  });
+  if (!matchMap) return { error: 'Map kaydı oluşturulamadı' };
+
+  // Build player lookup (refreshed after auto-create)
+  const allPlayers = [
+    ...(await cs2Service.getPlayersByTeam(team1.id)),
+    ...(await cs2Service.getPlayersByTeam(team2.id)),
+  ];
+  const playerBySteamId = new Map(allPlayers.map((p) => [p.steam_id, p]));
+
+  // Map CSV rows to player stats
+  const mapPlayers = rows.map((row) => {
+    const csvSteamId = (row.steam_id || '').trim();
+    const csvTeam = (row.csv_team || '').trim();
+    const registered = csvSteamId ? playerBySteamId.get(csvSteamId) : undefined;
+    const teamId = csvTeam === teamKeys[0] ? team1.id : team2.id;
+
+    const kills = parseInt(row.kills || '0', 10) || 0;
+    const deaths = parseInt(row.deaths || '0', 10) || 0;
+    const assists = parseInt(row.assists || '0', 10) || 0;
+    const headshots = parseInt(row.headshots || '0', 10) || 0;
+    const mvps = parseInt(row.mvps || '0', 10) || 0;
+    const score = parseInt(row.score || '0', 10) || 0;
+    const damage_dealt = parseInt(row.damage_dealt || '0', 10) || 0;
+    const entry_attempts = parseInt(row.entry_attempts || '0', 10) || 0;
+    const entry_successes = parseInt(row.entry_successes || '0', 10) || 0;
+    const clutch_attempts = parseInt(row.clutch_attempts || '0', 10) || 0;
+    const clutch_wins = parseInt(row.clutch_wins || '0', 10) || 0;
+    const kills_pistol = parseInt(row.kills_pistol || '0', 10) || 0;
+    const kills_sniper = parseInt(row.kills_sniper || '0', 10) || 0;
+
+    let adr = parseFloat(row.adr || '0') || 0;
+    if (adr === 0 && damage_dealt > 0 && roundsPlayed > 0) {
+      adr = Math.round((damage_dealt / roundsPlayed) * 10) / 10;
+    }
+
+    return {
+      map_id: matchMap.id,
+      player_id: registered?.id || null,
+      team_id: teamId,
+      steam_id: registered?.steam_id || csvSteamId || row.player_name,
+      player_name: registered?.name || row.player_name,
+      kills, deaths, assists, headshots, mvps, score,
+      damage_dealt, entry_attempts, entry_successes,
+      clutch_attempts, clutch_wins, kills_pistol, kills_sniper,
+      adr,
+    };
+  });
+
+  const statsOk = await cs2Service.upsertMapPlayers(matchMap.id, mapPlayers);
+  if (!statsOk) return { error: 'Oyuncu istatistikleri kaydedilemedi' };
+
+  if (match.status === 'PENDING') {
+    await cs2Service.updateMatch(match.id, { status: 'LIVE' });
+  }
+
+  revalidatePath(`/matches/${match.id}`);
+  revalidatePath('/matches');
+  revalidatePath('/matches/teams');
+  return {
+    success: true,
+    matchId: match.id,
+    team1Name: t1Name,
+    team2Name: t2Name,
+    playersCount: mapPlayers.length,
+    mapNumber,
+  };
+}
+
+/** Scan DatHost server for MatchZy CSV files and auto-import */
+export async function scanServerCSVs(formData: FormData) {
+  const auth = await requireAdmin();
+  if ('error' in auth) return auth;
+
+  const dathostServerId = formData.get('dathost_server_id') as string;
+  if (!dathostServerId) return { error: 'Sunucu ID gerekli' };
+
+  const csvFiles = await dathostService.scanMatchZyStats(dathostServerId);
+  if (csvFiles.length === 0) {
+    return { error: 'Sunucuda MatchZy CSV dosyası bulunamadı' };
+  }
+
+  return { success: true, files: csvFiles };
+}
+
+/** Fetch a specific CSV from DatHost server and return its content */
+export async function fetchServerCSV(formData: FormData) {
+  const auth = await requireAdmin();
+  if ('error' in auth) return auth;
+
+  const dathostServerId = formData.get('dathost_server_id') as string;
+  const csvPath = formData.get('csv_path') as string;
+  if (!dathostServerId || !csvPath) return { error: 'Eksik parametre' };
+
+  const csvText = await dathostService.downloadServerFile(dathostServerId, csvPath);
+  if (!csvText) return { error: 'CSV dosyası indirilemedi' };
+
+  return { success: true, csvText };
+}
+
+// ===========================================================================
 // DatHost Integration Actions
 // ===========================================================================
 
