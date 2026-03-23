@@ -288,33 +288,39 @@ export const dathostService = {
     }
   },
 
-  /** Scan MatchZy_Stats folder for CSV files */
+  /** Scan MatchZy_Stats folder for CSV files — tries cs2/ then csgo/ paths */
   async scanMatchZyStats(
     dathostServerId: string,
   ): Promise<{ matchId: string; csvPath: string; csvName: string }[]> {
     const results: { matchId: string; csvPath: string; csvName: string }[] = [];
 
-    const matchFolders = await this.listServerFiles(
-      dathostServerId,
-      'csgo/MatchZy_Stats',
-    );
+    // Try both cs2/ and csgo/ paths (DatHost uses different roots)
+    const basePaths = ['cs2/MatchZy_Stats', 'csgo/MatchZy_Stats'];
+    let activePath = '';
 
-    for (const folder of matchFolders) {
-      if (!/^\d+$/.test(folder)) continue;
+    for (const basePath of basePaths) {
+      const matchFolders = await this.listServerFiles(dathostServerId, basePath);
+      if (matchFolders.length > 0) {
+        activePath = basePath;
+        for (const folder of matchFolders) {
+          if (!/^\d+$/.test(folder)) continue;
 
-      const files = await this.listServerFiles(
-        dathostServerId,
-        `csgo/MatchZy_Stats/${folder}`,
-      );
+          const files = await this.listServerFiles(
+            dathostServerId,
+            `${basePath}/${folder}`,
+          );
 
-      for (const file of files) {
-        if (file.endsWith('.csv')) {
-          results.push({
-            matchId: folder,
-            csvPath: `csgo/MatchZy_Stats/${folder}/${file}`,
-            csvName: file,
-          });
+          for (const file of files) {
+            if (file.endsWith('.csv')) {
+              results.push({
+                matchId: folder,
+                csvPath: `${basePath}/${folder}/${file}`,
+                csvName: file,
+              });
+            }
+          }
         }
+        break; // Found files, stop searching
       }
     }
 
@@ -341,14 +347,20 @@ export const dathostService = {
     }
   },
 
-  /** Read MatchZy SQLite database and return match data */
+  /** Read MatchZy SQLite database and return match data — tries cs2/ then csgo/ */
   async readMatchZyDatabase(
     dathostServerId: string,
   ): Promise<MatchZyMatch[]> {
-    const dbBuffer = await this.downloadServerFileBinary(
-      dathostServerId,
+    const dbPaths = [
+      'cs2/addons/counterstrikesharp/plugins/MatchZy/matchzy.db',
       'csgo/addons/counterstrikesharp/plugins/MatchZy/matchzy.db',
-    );
+    ];
+
+    let dbBuffer: ArrayBuffer | null = null;
+    for (const p of dbPaths) {
+      dbBuffer = await this.downloadServerFileBinary(dathostServerId, p);
+      if (dbBuffer) break;
+    }
     if (!dbBuffer) return [];
 
     try {
