@@ -254,7 +254,7 @@ export const dathostService = {
     path: string = '',
   ): Promise<string[]> {
     try {
-      const encodedPath = encodeURIComponent(path);
+      const encodedPath = path.split('/').map(encodeURIComponent).join('/');
       const res = await fetch(
         `${DATHOST_API_BASE}/game-servers/${dathostServerId}/files/${encodedPath}`,
         {
@@ -274,7 +274,7 @@ export const dathostService = {
     path: string,
   ): Promise<string | null> {
     try {
-      const encodedPath = encodeURIComponent(path);
+      const encodedPath = path.split('/').map(encodeURIComponent).join('/');
       const res = await fetch(
         `${DATHOST_API_BASE}/game-servers/${dathostServerId}/files/${encodedPath}`,
         {
@@ -333,7 +333,7 @@ export const dathostService = {
     path: string,
   ): Promise<ArrayBuffer | null> {
     try {
-      const encodedPath = encodeURIComponent(path);
+      const encodedPath = path.split('/').map(encodeURIComponent).join('/');
       const res = await fetch(
         `${DATHOST_API_BASE}/game-servers/${dathostServerId}/files/${encodedPath}`,
         {
