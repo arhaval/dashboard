@@ -9,7 +9,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { socialMetricsService } from '@/services';
 import { METRICS_PLATFORMS } from '@/constants';
-import type { CreateSocialMonthlyMetricsInput, MetricsPlatform } from '@/types';
+import type { CreateSocialMonthlyMetricsInput, CreateSocialGoalInput, MetricsPlatform } from '@/types';
 
 interface ActionResult {
   success: boolean;
@@ -90,6 +90,77 @@ export async function upsertSocialMetrics(
   // 4. Revalidate
   revalidatePath('/social');
 
+  return { success: true };
+}
+
+/**
+ * Create or update monthly note (admin only)
+ */
+export async function upsertMonthlyNote(
+  month: string,
+  notes: string
+): Promise<ActionResult> {
+  const { isAdmin, error: adminError } = await verifyAdmin();
+  if (!isAdmin) {
+    return { success: false, error: adminError };
+  }
+
+  const monthRegex = /^\d{4}-\d{2}$/;
+  if (!monthRegex.test(month)) {
+    return { success: false, error: 'Invalid month format' };
+  }
+
+  const result = await socialMetricsService.upsertNote(month, notes);
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath('/social');
+  return { success: true };
+}
+
+/**
+ * Create or update a social goal (admin only)
+ */
+export async function upsertSocialGoal(
+  input: CreateSocialGoalInput
+): Promise<ActionResult> {
+  const { isAdmin, error: adminError } = await verifyAdmin();
+  if (!isAdmin) {
+    return { success: false, error: adminError };
+  }
+
+  if (!input.month || !input.platform || !input.metric_key || input.target_value <= 0) {
+    return { success: false, error: 'Invalid goal data' };
+  }
+
+  const result = await socialMetricsService.upsertGoal(input);
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath('/social');
+  return { success: true };
+}
+
+/**
+ * Delete a social goal (admin only)
+ */
+export async function deleteSocialGoal(id: string): Promise<ActionResult> {
+  const { isAdmin, error: adminError } = await verifyAdmin();
+  if (!isAdmin) {
+    return { success: false, error: adminError };
+  }
+
+  const result = await socialMetricsService.deleteGoal(id);
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath('/social');
   return { success: true };
 }
 

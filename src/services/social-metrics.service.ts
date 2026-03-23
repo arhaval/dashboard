@@ -4,11 +4,16 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import { GOAL_METRICS_BY_PLATFORM } from '@/constants';
 import type {
   SocialMonthlyMetrics,
   CreateSocialMonthlyMetricsInput,
   MetricsPlatform,
   PlatformGrowth,
+  SocialMonthlyNote,
+  SocialGoal,
+  CreateSocialGoalInput,
+  GoalProgress,
 } from '@/types';
 
 // Helper to get previous month in YYYY-MM format
@@ -200,7 +205,14 @@ export const socialMetricsService = {
    * Get growth data for all platforms
    */
   async getGrowthData(month?: string): Promise<PlatformGrowth[]> {
-    const currentMonth = month || getCurrentMonth();
+    // If no month specified, use the most recent month with data (not necessarily current month)
+    let currentMonth = month || getCurrentMonth();
+    if (!month) {
+      const availableMonths = await this.getAvailableMonths();
+      if (availableMonths.length > 0) {
+        currentMonth = availableMonths[0]; // Most recent month with data
+      }
+    }
     const previousMonth = getPreviousMonth(currentMonth);
 
     const [currentData, previousData] = await Promise.all([
@@ -266,13 +278,17 @@ export const socialMetricsService = {
   }> {
     const growthData = await this.getGrowthData(month);
 
-    // Total live views (Twitch + YouTube)
-    const twitchData = growthData.find((g) => g.platform === 'TWITCH');
-    const youtubeData = growthData.find((g) => g.platform === 'YOUTUBE');
+    // Use the most recent month with data
+    let activeMonth = month || getCurrentMonth();
+    if (!month) {
+      const availableMonths = await this.getAvailableMonths();
+      if (availableMonths.length > 0) {
+        activeMonth = availableMonths[0];
+      }
+    }
 
-    // Get actual live views from current month data
-    const currentMonth = month || getCurrentMonth();
-    const currentData = await this.getByMonth(currentMonth);
+    // Get actual live views from active month data
+    const currentData = await this.getByMonth(activeMonth);
     const twitchMetrics = currentData.find((m) => m.platform === 'TWITCH');
     const youtubeMetrics = currentData.find((m) => m.platform === 'YOUTUBE');
 
@@ -321,5 +337,199 @@ export const socialMetricsService = {
     // Get unique months
     const months = [...new Set(data?.map((d) => d.month) || [])];
     return months;
+  },
+
+  // =========================================================================
+  // Trend Data
+  // =========================================================================
+
+  /**
+   * Get metrics for last N months across all platforms (for trend charts)
+   */
+  async getTrendData(): Promise<SocialMonthlyMetrics[]> {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from('social_monthly_metrics')
+      .select('*')
+      .order('month', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching trend data:', error.message);
+      return [];
+    }
+
+    return data || [];
+  },
+
+  // =========================================================================
+  // Monthly Notes
+  // =========================================================================
+
+  /**
+   * Get note for a specific month
+   */
+  async getNoteForMonth(month: string): Promise<SocialMonthlyNote | null> {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from('social_monthly_notes')
+      .select('*')
+      .eq('month', month)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      console.error('Error fetching note:', error.message);
+      return null;
+    }
+
+    return data;
+  },
+
+  /**
+   * Create or update monthly note
+   */
+  async upsertNote(month: string, notes: string): Promise<{ success: boolean; error?: string }> {
+    const supabase = await createClient();
+
+    const existing = await this.getNoteForMonth(month);
+
+    if (existing) {
+      const { error } = await supabase
+        .from('social_monthly_notes')
+        .update({ notes, updated_at: new Date().toISOString() })
+        .eq('id', existing.id);
+
+      if (error) {
+        console.error('Error updating note:', error.message);
+        return { success: false, error: error.message };
+      }
+    } else {
+      const { error } = await supabase
+        .from('social_monthly_notes')
+        .insert({ month, notes });
+
+      if (error) {
+        console.error('Error creating note:', error.message);
+        return { success: false, error: error.message };
+      }
+    }
+
+    return { success: true };
+  },
+
+  // =========================================================================
+  // Goals
+  // =========================================================================
+
+  /**
+   * Get all goals for a specific month
+   */
+  async getGoalsByMonth(month: string): Promise<SocialGoal[]> {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from('social_goals')
+      .select('*')
+      .eq('month', month)
+      .order('platform');
+
+    if (error) {
+      console.error('Error fetching goals:', error.message);
+      return [];
+    }
+
+    return data || [];
+  },
+
+  /**
+   * Create or update a goal
+   */
+  async upsertGoal(input: CreateSocialGoalInput): Promise<{ success: boolean; error?: string }> {
+    const supabase = await createClient();
+
+    const { data: existing } = await supabase
+      .from('social_goals')
+      .select('id')
+      .eq('month', input.month)
+      .eq('platform', input.platform)
+      .eq('metric_key', input.metric_key)
+      .single();
+
+    if (existing) {
+      const { error } = await supabase
+        .from('social_goals')
+        .update({ target_value: input.target_value, updated_at: new Date().toISOString() })
+        .eq('id', existing.id);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+    } else {
+      const { error } = await supabase
+        .from('social_goals')
+        .insert(input);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+    }
+
+    return { success: true };
+  },
+
+  /**
+   * Delete a goal
+   */
+  async deleteGoal(id: string): Promise<{ success: boolean; error?: string }> {
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from('social_goals')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  },
+
+  /**
+   * Get goal progress for a specific month (goals + actual values)
+   */
+  async getGoalProgress(month: string): Promise<GoalProgress[]> {
+    const [goals, metrics] = await Promise.all([
+      this.getGoalsByMonth(month),
+      this.getByMonth(month),
+    ]);
+
+    if (goals.length === 0) return [];
+
+    return goals.map((goal) => {
+      const metric = metrics.find((m) => m.platform === goal.platform);
+      const actual = metric
+        ? (metric[goal.metric_key as keyof SocialMonthlyMetrics] as number) || 0
+        : 0;
+
+      const percentage = goal.target_value > 0
+        ? Math.round((actual / goal.target_value) * 100)
+        : 0;
+
+      // Find label from constants
+      const platformMetrics = GOAL_METRICS_BY_PLATFORM[goal.platform];
+      const metricDef = platformMetrics?.find((m) => m.key === goal.metric_key);
+
+      return {
+        platform: goal.platform,
+        metric_key: goal.metric_key,
+        metric_label: metricDef?.label || goal.metric_key,
+        target: goal.target_value,
+        actual,
+        percentage,
+      };
+    });
   },
 };

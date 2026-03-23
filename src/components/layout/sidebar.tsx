@@ -18,6 +18,8 @@ import {
   PiggyBank,
   BarChart3,
   FileOutput,
+  Crosshair,
+  Radio,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -63,6 +65,17 @@ const navItems: NavItem[] = [
     label: tr.nav.social,
     href: '/social',
     icon: BarChart3,
+  },
+  {
+    label: tr.cs2.nav,
+    href: '/matches',
+    icon: Crosshair,
+  },
+  {
+    label: tr.cs2.dathost.operations,
+    href: '/matches/operations',
+    icon: Radio,
+    adminOnly: true,
   },
   {
     label: tr.nav.reports,

@@ -193,6 +193,57 @@ function PlatformTable({ platformData }: { platformData: PlatformReportData[] })
   );
 }
 
+// Platform Detail Cards (detailed metrics per platform)
+function PlatformDetails({ platformData }: { platformData: PlatformReportData[] }) {
+  const activePlatforms = platformData.filter((p) => p.followers > 0 || p.views > 0);
+  if (activePlatforms.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <h3 className="mb-3 text-sm font-medium text-[var(--color-text-primary)]">
+        Platform Detayları
+      </h3>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {activePlatforms.map((data) => (
+          <div
+            key={data.platform}
+            className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4"
+          >
+            <div className="mb-3">
+              <span
+                className={cn(
+                  'inline-block rounded-full px-2 py-0.5 text-xs font-medium',
+                  getPlatformBadgeClass(data.platform)
+                )}
+              >
+                {getPlatformLabel(data.platform)}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {data.detailMetrics
+                .filter((m) => m.value > 0)
+                .map((metric) => (
+                  <div key={metric.label} className="flex items-center justify-between">
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      {metric.label}
+                    </span>
+                    <span className="font-mono text-sm text-[var(--color-text-primary)]">
+                      {metric.format === 'hours'
+                        ? `${Math.round(metric.value / 60)} saat`
+                        : metric.format === 'percent'
+                        ? `%${metric.value.toFixed(1)}`
+                        : metric.value.toLocaleString('tr-TR')}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Smart Report Text
 function ReportText({ report }: { report: MonthlyReport }) {
   return (
@@ -262,6 +313,9 @@ export default async function ReportsPage({ searchParams }: PageProps) {
 
       {/* Platform Performance Table */}
       <PlatformTable platformData={report.platformData} />
+
+      {/* Platform Details (detailed metrics per platform) */}
+      <PlatformDetails platformData={report.platformData} />
 
       {/* Smart Report Text */}
       <ReportText report={report} />

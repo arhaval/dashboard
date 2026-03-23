@@ -302,6 +302,44 @@ export interface PlatformGrowth {
 }
 
 // =============================================================================
+// Social Notes & Goals Types
+// =============================================================================
+
+export interface SocialMonthlyNote {
+  id: string;
+  month: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SocialGoal {
+  id: string;
+  month: string;
+  platform: MetricsPlatform;
+  metric_key: string;
+  target_value: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateSocialGoalInput {
+  month: string;
+  platform: MetricsPlatform;
+  metric_key: string;
+  target_value: number;
+}
+
+export interface GoalProgress {
+  platform: MetricsPlatform;
+  metric_key: string;
+  metric_label: string;
+  target: number;
+  actual: number;
+  percentage: number;
+}
+
+// =============================================================================
 // Reports Types
 // =============================================================================
 
@@ -314,6 +352,7 @@ export interface PlatformReportData {
   growthPercent: number;
   status: 'growing' | 'stable' | 'declining';
   isFirstRecord: boolean;
+  detailMetrics: { label: string; value: number; format?: 'hours' | 'percent' }[];
 }
 
 export interface WorkItemsSummary {
@@ -458,4 +497,245 @@ export interface TransactionFilters {
   date_to?: string;
   /** Exclusive upper bound (lt instead of lte) - use for month ranges */
   date_before?: string;
+}
+
+// =============================================================================
+// CS2 Match Types
+// =============================================================================
+
+export type CS2MatchStatus = 'PENDING' | 'LIVE' | 'FINISHED' | 'CANCELLED';
+
+export interface CS2Team {
+  id: string;
+  name: string;
+  tag: string;
+  logo_url: string | null;
+  created_at: string;
+  players?: CS2Player[];
+}
+
+export interface CS2Player {
+  id: string;
+  team_id: string;
+  name: string;
+  steam_id: string;
+  is_active: boolean;
+  created_at: string;
+  team?: CS2Team;
+}
+
+export interface CS2Match {
+  id: string;
+  team1_id: string;
+  team2_id: string;
+  status: CS2MatchStatus;
+  winner_team_id: string | null;
+  match_date: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  team1?: CS2Team;
+  team2?: CS2Team;
+  maps?: CS2MatchMap[];
+}
+
+export type DatHostMapStatus =
+  | 'CREATED'
+  | 'WAITING_PLAYERS'
+  | 'LIVE'
+  | 'FINISHED'
+  | 'CANCELLED'
+  | 'FAILED';
+
+export type DatHostServerStatus = 'IDLE' | 'IN_MATCH' | 'OFFLINE';
+
+export interface CS2MatchMap {
+  id: string;
+  match_id: string;
+  map_number: number;
+  map: string;
+  team1_score: number;
+  team2_score: number;
+  rounds_played: number;
+  winner_team_id: string | null;
+  created_at: string;
+  // DatHost integration
+  dathost_match_id?: string | null;
+  dathost_status?: DatHostMapStatus | null;
+  ended_at?: string | null;
+  // Joined
+  players?: CS2MatchPlayer[];
+}
+
+export interface CS2MatchPlayer {
+  id: string;
+  map_id: string;
+  player_id: string | null;
+  team_id: string;
+  steam_id: string;
+  player_name: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+  mvps: number;
+  score: number;
+  headshots: number;
+  kills_pistol: number;
+  kills_sniper: number;
+  damage_dealt: number;
+  entry_attempts: number;
+  entry_successes: number;
+  clutch_attempts: number;
+  clutch_wins: number;
+  adr: number;
+  // Joined
+  team?: CS2Team;
+  player?: CS2Player;
+}
+
+export interface CreateCS2TeamInput {
+  name: string;
+  tag: string;
+  logo_url?: string;
+}
+
+export interface CreateCS2PlayerInput {
+  team_id: string;
+  name: string;
+  steam_id: string;
+}
+
+export interface CreateCS2MatchInput {
+  team1_id: string;
+  team2_id: string;
+  match_date?: string;
+  notes?: string;
+}
+
+export interface CreateCS2MatchMapInput {
+  match_id: string;
+  map: string;
+  map_number: number;
+  team1_score: number;
+  team2_score: number;
+  // DatHost integration (optional)
+  dathost_match_id?: string;
+  dathost_status?: DatHostMapStatus;
+}
+
+// ---- DatHost Types ----
+
+export interface DatHostServer {
+  id: string;
+  dathost_server_id: string;
+  name: string;
+  is_active: boolean;
+  server_status: DatHostServerStatus;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+/** DatHost API match response */
+export interface DatHostMatchResponse {
+  id: string;
+  finished: boolean;
+  cancel_reason: string | null;
+  rounds_played: number;
+  team1_stats: { score: number };
+  team2_stats: { score: number };
+  players: DatHostPlayerResponse[];
+  settings: {
+    map: string;
+    team1_name: string | null;
+    team2_name: string | null;
+  };
+}
+
+export interface DatHostPlayerResponse {
+  steam_id_64: string;
+  team: 'team1' | 'team2';
+  nickname_override: string | null;
+  connected: boolean;
+  kicked: boolean;
+  stats: {
+    kills: number;
+    assists: number;
+    deaths: number;
+    mvps: number;
+    score: number;
+    '2ks': number;
+    '3ks': number;
+    '4ks': number;
+    '5ks': number;
+    kills_with_headshot: number;
+    kills_with_pistol: number;
+    kills_with_sniper: number;
+    damage_dealt: number;
+    utility_damage: number;
+    flashes_thrown: number;
+    flashes_successful: number;
+    flashes_enemies_blinded: number;
+    utility_thrown: number;
+    entry_attempts: number;
+    entry_successes: number;
+    '1vX_attempts': number;
+    '1vX_wins': number;
+  };
+}
+
+/** Live score data returned by polling */
+export interface DatHostLiveScore {
+  dathost_match_id: string;
+  map: string;
+  team1_score: number;
+  team2_score: number;
+  rounds_played: number;
+  finished: boolean;
+  cancelled: boolean;
+  players: {
+    steam_id: string;
+    team: string;
+    kills: number;
+    deaths: number;
+    assists: number;
+  }[];
+}
+
+export interface DatHostEventLog {
+  id: string;
+  dathost_match_id: string;
+  event_type: string;
+  payload: Record<string, unknown>;
+  processed: boolean;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface CS2MatchFilters {
+  status?: CS2MatchStatus;
+  team_id?: string;
+}
+
+/** Aggregated player stats across all maps (leaderboard) */
+export interface CS2PlayerLeaderboardEntry {
+  steam_id: string;
+  player_name: string;
+  team_id: string;
+  team_tag: string;
+  team_name: string;
+  maps_played: number;
+  total_kills: number;
+  total_deaths: number;
+  total_assists: number;
+  total_headshots: number;
+  total_mvps: number;
+  total_entry_attempts: number;
+  total_entry_successes: number;
+  total_clutch_attempts: number;
+  total_clutch_wins: number;
+  avg_adr: number;
+  avg_kd: number;
+  avg_kda: number;
+  hs_percent: number;
 }

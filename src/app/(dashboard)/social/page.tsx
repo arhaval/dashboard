@@ -1,6 +1,6 @@
 /**
  * Social Stats Page
- * Dashboard for social media metrics
+ * Dashboard for social media metrics with trends, goals, and notes
  * Admin: Full access (view + edit)
  * Team members: Read-only view
  */
@@ -8,160 +8,23 @@
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { socialMetricsService, userService } from '@/services';
-import { cn, formatNumber, getPlatformLabel, getPlatformBadgeClass } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
 import { MetricsForm } from './metrics-form';
-import { SyncButtons } from './sync-buttons';
 import { PlatformHistory } from './platform-history';
-import type { PlatformGrowth } from '@/types';
+import { TrendCharts } from './trend-charts';
+import { MonthlyNotes } from './monthly-notes';
+import { GoalProgress } from './goal-progress';
+import { PlatformDetailCards } from './platform-details';
 
-function formatGrowth(num: number): string {
-  const prefix = num >= 0 ? '+' : '';
-  return prefix + formatNumber(num);
+function getCurrentMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function SummaryCards({
-  totalLiveViews,
-  totalFollowersGrowth,
-  totalEngagement,
-  platformCount,
-}: {
-  totalLiveViews: number;
-  totalFollowersGrowth: number;
-  totalEngagement: number;
-  platformCount: number;
-}) {
-  return (
-    <div className="mb-6 grid gap-4 sm:grid-cols-4">
-      <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-        <p className="text-sm text-[var(--color-text-muted)]">Toplam Canlı İzlenme</p>
-        <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
-          {formatNumber(totalLiveViews)}
-        </p>
-        <p className="text-xs text-[var(--color-text-muted)]">Twitch + YouTube</p>
-      </div>
-      <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-        <p className="text-sm text-[var(--color-text-muted)]">Takipçi Büyümesi</p>
-        {totalFollowersGrowth === 0 ? (
-          <p className="text-2xl font-semibold text-[var(--color-text-muted)]">—</p>
-        ) : (
-          <p
-            className={cn(
-              'text-2xl font-semibold',
-              totalFollowersGrowth >= 0
-                ? 'text-[var(--color-success)]'
-                : 'text-[var(--color-error)]'
-            )}
-          >
-            {formatGrowth(totalFollowersGrowth)}
-          </p>
-        )}
-        <p className="text-xs text-[var(--color-text-muted)]">önceki aya göre</p>
-      </div>
-      <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-        <p className="text-sm text-[var(--color-text-muted)]">Toplam Etkileşim</p>
-        <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
-          {formatNumber(totalEngagement)}
-        </p>
-        <p className="text-xs text-[var(--color-text-muted)]">Tüm platformlar</p>
-      </div>
-      <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-        <p className="text-sm text-[var(--color-text-muted)]">Platformlar</p>
-        <p className="text-2xl font-semibold text-[var(--color-accent)]">
-          {platformCount}/4
-        </p>
-        <p className="text-xs text-[var(--color-text-muted)]">Bu ay veri olan</p>
-      </div>
-    </div>
-  );
-}
-
-function PlatformTable({ growthData }: { growthData: PlatformGrowth[] }) {
-  return (
-    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.social.fields.platform}
-            </th>
-            <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.social.fields.followers}
-            </th>
-            <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.social.fields.views}
-            </th>
-            <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.social.fields.engagement}
-            </th>
-            <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-              Büyüme
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {growthData.map((data, index) => (
-            <tr
-              key={data.platform}
-              className={cn(
-                'border-b border-[var(--color-border)] last:border-b-0',
-                index % 2 === 0
-                  ? 'bg-[var(--color-table-row-even)]'
-                  : 'bg-[var(--color-table-row-odd)]'
-              )}
-            >
-              <td className="px-4 py-3">
-                <span
-                  className={cn(
-                    'inline-block rounded-full px-2 py-0.5',
-                    'text-xs font-medium',
-                    getPlatformBadgeClass(data.platform)
-                  )}
-                >
-                  {getPlatformLabel(data.platform)}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-right font-mono text-sm text-[var(--color-text-primary)]">
-                {formatNumber(data.followers_current)}
-              </td>
-              <td className="px-4 py-3 text-right font-mono text-sm text-[var(--color-text-primary)]">
-                {formatNumber(data.views_current)}
-              </td>
-              <td className="px-4 py-3 text-right font-mono text-sm text-[var(--color-text-primary)]">
-                {formatNumber(data.engagement_current)}
-              </td>
-              <td className="px-4 py-3 text-right">
-                {data.isFirstRecord ? (
-                  <span className="text-sm text-[var(--color-text-muted)]">
-                    İlk Kayıt
-                  </span>
-                ) : (
-                  <>
-                    <span
-                      className={cn(
-                        'font-mono text-sm',
-                        data.followers_growth >= 0
-                          ? 'text-[var(--color-success)]'
-                          : 'text-[var(--color-error)]'
-                      )}
-                    >
-                      {formatGrowth(data.followers_growth)}
-                    </span>
-                    {data.followers_growth_percent !== 0 && (
-                      <span className="ml-1 text-xs text-[var(--color-text-muted)]">
-                        ({data.followers_growth_percent > 0 ? '+' : ''}
-                        {data.followers_growth_percent.toFixed(1)}%)
-                      </span>
-                    )}
-                  </>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+function getPreviousMonth(month: string): string {
+  const [year, monthNum] = month.split('-').map(Number);
+  const date = new Date(year, monthNum - 2, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
 export default async function SocialPage() {
@@ -172,10 +35,26 @@ export default async function SocialPage() {
   }
 
   const isAdmin = currentUser.role === 'ADMIN';
+  const currentMonth = getCurrentMonth();
 
-  const [summary, growthData] = await Promise.all([
-    socialMetricsService.getDashboardSummary(),
-    socialMetricsService.getGrowthData(),
+  // Determine the active month (most recent with REAL data, skip empty months)
+  const availableMonths = await socialMetricsService.getAvailableMonths();
+  let activeMonth = availableMonths.length > 0 ? availableMonths[0] : currentMonth;
+  let currentMetrics = await socialMetricsService.getByMonth(activeMonth);
+
+  // If most recent month has all-zero data, fall back to the next month
+  const hasRealData = currentMetrics.some((m) => (m.followers_total || 0) > 0);
+  if (!hasRealData && availableMonths.length > 1) {
+    activeMonth = availableMonths[1];
+    currentMetrics = await socialMetricsService.getByMonth(activeMonth);
+  }
+
+  const prevMonth = getPreviousMonth(activeMonth);
+  const [previousMetrics, trendData, monthNote, goalProgress] = await Promise.all([
+    socialMetricsService.getByMonth(prevMonth),
+    socialMetricsService.getTrendData(),
+    socialMetricsService.getNoteForMonth(activeMonth),
+    socialMetricsService.getGoalProgress(activeMonth),
   ]);
 
   return (
@@ -183,29 +62,36 @@ export default async function SocialPage() {
       title={tr.pages.social.title}
       description={isAdmin ? tr.pages.social.subtitle : 'Sosyal medya performansını görüntüle'}
     >
-      {/* Summary Cards */}
-      <SummaryCards
-        totalLiveViews={summary.totalLiveViews}
-        totalFollowersGrowth={summary.totalFollowersGrowth}
-        totalEngagement={summary.totalEngagement}
-        platformCount={summary.platformCount}
-      />
+      {/* Platform Detail Cards - All metrics per platform */}
+      <div className="mb-6">
+        <PlatformDetailCards
+          currentMetrics={currentMetrics}
+          previousMetrics={previousMetrics}
+          activeMonth={activeMonth}
+        />
+      </div>
 
-      {/* API Sync + Manual Entry - Admin only */}
+      {/* Trend Charts */}
+      <div className="mb-6">
+        <TrendCharts trendData={trendData} />
+      </div>
+
+      {/* Goals + Notes - Side by side */}
+      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+        <GoalProgress month={activeMonth} goals={goalProgress} isAdmin={isAdmin} />
+        <MonthlyNotes
+          month={activeMonth}
+          initialNotes={monthNote?.notes || ''}
+          isAdmin={isAdmin}
+        />
+      </div>
+
+      {/* Manual Entry - Admin only */}
       {isAdmin && (
-        <div className="mb-6 space-y-4">
-          <SyncButtons />
+        <div className="mb-6">
           <MetricsForm />
         </div>
       )}
-
-      {/* Platform Overview Table */}
-      <div className="mb-6">
-        <h3 className="mb-3 text-sm font-medium text-[var(--color-text-primary)]">
-          Platform Özeti (Bu Ay)
-        </h3>
-        <PlatformTable growthData={growthData} />
-      </div>
 
       {/* Platform History */}
       <PlatformHistory isReadOnly={!isAdmin} />

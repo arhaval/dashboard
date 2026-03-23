@@ -10,3 +10,5 @@ export { financeService } from './finance.service';
 export { socialStatService } from './social-stat.service';
 export { socialMetricsService } from './social-metrics.service';
 export { reportsService } from './reports.service';
+export { cs2Service } from './cs2.service';
+export { dathostService } from './dathost.service';

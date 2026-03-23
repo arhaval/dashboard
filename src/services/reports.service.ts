@@ -29,6 +29,52 @@ export interface PlatformReportData {
   growthPercent: number;
   status: 'growing' | 'stable' | 'declining';
   isFirstRecord: boolean;
+  detailMetrics: { label: string; value: number; format?: 'hours' | 'percent' }[];
+}
+
+// Build platform-specific detail metrics
+function buildDetailMetrics(metrics: SocialMonthlyMetrics | null): { label: string; value: number; format?: 'hours' | 'percent' }[] {
+  if (!metrics) return [];
+  switch (metrics.platform) {
+    case 'TWITCH':
+      return [
+        { label: 'Ort. İzleyici', value: metrics.avg_viewers || 0 },
+        { label: 'Zirve İzleyici', value: metrics.peak_viewers || 0 },
+        { label: 'Tekil İzleyici', value: metrics.unique_viewers || 0 },
+        { label: 'Canlı İzlenme', value: metrics.live_views || 0 },
+        { label: 'Tekil Sohbet', value: metrics.unique_chatters || 0 },
+        { label: 'Abone', value: metrics.subs_total || 0 },
+        { label: 'Yayın Süresi', value: metrics.total_stream_time_minutes || 0, format: 'hours' },
+      ];
+    case 'YOUTUBE':
+      return [
+        { label: 'Video İzlenme', value: metrics.video_views || 0 },
+        { label: 'Shorts İzlenme', value: metrics.shorts_views || 0 },
+        { label: 'Canlı İzlenme', value: metrics.live_views || 0 },
+        { label: 'Ort. Canlı İzleyici', value: metrics.avg_live_viewers || 0 },
+        { label: 'Zirve Canlı İzleyici', value: metrics.peak_live_viewers || 0 },
+        { label: 'Beğeni', value: metrics.total_likes || 0 },
+        { label: 'Yorum', value: metrics.total_comments || 0 },
+      ];
+    case 'INSTAGRAM':
+      return [
+        { label: 'Görüntülenme', value: metrics.views || 0 },
+        { label: 'Beğeni', value: metrics.likes || 0 },
+        { label: 'Yorum', value: metrics.comments || 0 },
+        { label: 'Kaydetme', value: metrics.saves || 0 },
+        { label: 'Paylaşım', value: metrics.shares || 0 },
+      ];
+    case 'X':
+      return [
+        { label: 'Gösterim', value: metrics.impressions || 0 },
+        { label: 'Etkileşim Oranı', value: metrics.engagement_rate || 0, format: 'percent' },
+        { label: 'Beğeni', value: metrics.likes || 0 },
+        { label: 'Yanıt', value: metrics.replies || 0 },
+        { label: 'Profil Ziyareti', value: metrics.profile_visits || 0 },
+      ];
+    default:
+      return [];
+  }
 }
 
 // Work items summary
@@ -391,6 +437,7 @@ export const reportsService = {
         growthPercent: Math.round(growthPercent * 100) / 100,
         status: isFirstRecord ? 'stable' : (growth > 0 ? 'growing' : growth < 0 ? 'declining' : 'stable'),
         isFirstRecord,
+        detailMetrics: buildDetailMetrics(current),
       });
     }
 
