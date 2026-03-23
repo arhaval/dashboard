@@ -540,7 +540,7 @@ export async function importFromCSV(formData: FormData) {
   };
 }
 
-/** Scan DatHost server for MatchZy CSV files and auto-import */
+/** Scan DatHost server — reads MatchZy SQLite for match data + CSV paths */
 export async function scanServerCSVs(formData: FormData) {
   const auth = await requireAdmin();
   if ('error' in auth) return auth;
@@ -548,12 +548,44 @@ export async function scanServerCSVs(formData: FormData) {
   const dathostServerId = formData.get('dathost_server_id') as string;
   if (!dathostServerId) return { error: 'Sunucu ID gerekli' };
 
+  // Try to read MatchZy SQLite database for full match info
+  const dbMatches = await dathostService.readMatchZyDatabase(dathostServerId);
+
+  // Also scan for CSV files
   const csvFiles = await dathostService.scanMatchZyStats(dathostServerId);
-  if (csvFiles.length === 0) {
-    return { error: 'Sunucuda MatchZy CSV dosyası bulunamadı' };
+
+  if (dbMatches.length === 0 && csvFiles.length === 0) {
+    return { error: 'Sunucuda MatchZy maç verisi bulunamadı' };
   }
 
-  return { success: true, files: csvFiles };
+  // Merge: match CSV paths with SQLite match data
+  const merged = dbMatches.map((m) => {
+    const csv = csvFiles.find((c) => c.matchId === m.matchId);
+    return {
+      ...m,
+      csvPath: csv?.csvPath || null,
+      csvName: csv?.csvName || null,
+    };
+  });
+
+  // Add any CSV-only entries (no SQLite data)
+  for (const csv of csvFiles) {
+    if (!merged.some((m) => m.matchId === csv.matchId)) {
+      merged.push({
+        matchId: csv.matchId,
+        mapNumber: 0,
+        team1Name: 'Takım 1',
+        team1Score: 0,
+        team2Name: 'Takım 2',
+        team2Score: 0,
+        mapName: '',
+        csvPath: csv.csvPath,
+        csvName: csv.csvName,
+      });
+    }
+  }
+
+  return { success: true, matches: merged };
 }
 
 /** Fetch a specific CSV from DatHost server and return its content */

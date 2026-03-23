@@ -294,14 +294,12 @@ export const dathostService = {
   ): Promise<{ matchId: string; csvPath: string; csvName: string }[]> {
     const results: { matchId: string; csvPath: string; csvName: string }[] = [];
 
-    // List match folders in MatchZy_Stats
     const matchFolders = await this.listServerFiles(
       dathostServerId,
       'csgo/MatchZy_Stats',
     );
 
     for (const folder of matchFolders) {
-      // Only process numeric folders (MatchZy match IDs)
       if (!/^\d+$/.test(folder)) continue;
 
       const files = await this.listServerFiles(
@@ -322,4 +320,80 @@ export const dathostService = {
 
     return results;
   },
+
+  /** Download a binary file from the game server */
+  async downloadServerFileBinary(
+    dathostServerId: string,
+    path: string,
+  ): Promise<ArrayBuffer | null> {
+    try {
+      const encodedPath = encodeURIComponent(path);
+      const res = await fetch(
+        `${DATHOST_API_BASE}/game-servers/${dathostServerId}/files/${encodedPath}`,
+        {
+          headers: { Authorization: getAuthHeader() },
+        },
+      );
+      if (!res.ok) return null;
+      return await res.arrayBuffer();
+    } catch {
+      return null;
+    }
+  },
+
+  /** Read MatchZy SQLite database and return match data */
+  async readMatchZyDatabase(
+    dathostServerId: string,
+  ): Promise<MatchZyMatch[]> {
+    const dbBuffer = await this.downloadServerFileBinary(
+      dathostServerId,
+      'csgo/addons/counterstrikesharp/plugins/MatchZy/matchzy.db',
+    );
+    if (!dbBuffer) return [];
+
+    try {
+      const initSqlJs = (await import('sql.js')).default;
+      const SQL = await initSqlJs();
+      const db = new SQL.Database(new Uint8Array(dbBuffer));
+
+      // Get maps with scores
+      const mapsResult = db.exec(`
+        SELECT m.matchid, m.mapnumber, m.team1_name, m.team1_score,
+               m.team2_name, m.team2_score, m.mapname
+        FROM matchzy_stats_maps m
+        ORDER BY m.matchid DESC, m.mapnumber ASC
+      `);
+
+      const matches: MatchZyMatch[] = [];
+      if (mapsResult.length > 0) {
+        for (const row of mapsResult[0].values) {
+          matches.push({
+            matchId: String(row[0]),
+            mapNumber: Number(row[1]),
+            team1Name: String(row[2] || 'Team 1'),
+            team1Score: Number(row[3]),
+            team2Name: String(row[4] || 'Team 2'),
+            team2Score: Number(row[5]),
+            mapName: String(row[6] || ''),
+          });
+        }
+      }
+
+      db.close();
+      return matches;
+    } catch (err) {
+      console.error('Error reading MatchZy database:', err);
+      return [];
+    }
+  },
+};
+
+export type MatchZyMatch = {
+  matchId: string;
+  mapNumber: number;
+  team1Name: string;
+  team1Score: number;
+  team2Name: string;
+  team2Score: number;
+  mapName: string;
 };

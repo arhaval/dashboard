@@ -41,7 +41,7 @@ export default async function OperationsPage() {
       }
     >
       {/* Quick Import */}
-      <QuickImport />
+      <QuickImport servers={servers} />
 
       {/* Server Status Bar */}
       <div className="flex flex-wrap gap-2">
