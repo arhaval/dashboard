@@ -745,6 +745,26 @@ YOUTUBE_API_KEY=
 
 ## Key Business Logic
 
+### CS2 Tournament — Player Statistics Rule (MANDATORY)
+
+Every player stat record MUST include `maps_played` — the number of maps that player actually played in that match/series. This applies to ALL data sources (DatHost API, MatchZy CSV, manual entry).
+
+**Why:** Players may not play all maps in a series (substitutions, roster changes). ADR and per-map averages MUST be calculated based on the maps they actually played, not the total maps in the series.
+
+**Rules:**
+- `maps_played` column is REQUIRED on `cs2_match_players`
+- When importing stats (API or CSV), count how many maps each player appears in
+- ADR = `total_damage / total_rounds_of_maps_played` (NOT total series rounds)
+- KDA per map = `(kills + assists) / deaths / maps_played`
+- Display: always show maps_played next to player stats (e.g. "3 map", "2 map")
+- A player who played 2 maps with 50 kills ≠ a player who played 3 maps with 50 kills
+
+**Example:**
+```
+Player A: 3 maps, 90K/60D → KDA per map = 0.50
+Player B: 2 maps, 90K/60D → KDA per map = 0.75 (better per-map performance)
+```
+
 ### Work Item Flow
 
 ```

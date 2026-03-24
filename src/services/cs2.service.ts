@@ -553,7 +553,7 @@ export const cs2Service = {
     // Fetch all player stats rows with registered player info
     const { data, error } = await supabase
       .from('cs2_match_players')
-      .select('steam_id, player_name, team_id, kills, deaths, assists, headshots, adr, mvps, entry_attempts, entry_successes, clutch_attempts, clutch_wins, player:cs2_players(name)');
+      .select('steam_id, player_name, team_id, kills, deaths, assists, headshots, adr, mvps, maps_played, entry_attempts, entry_successes, clutch_attempts, clutch_wins, player:cs2_players(name)');
 
     if (error) {
       console.error('Error fetching leaderboard data:', error);
@@ -596,7 +596,7 @@ export const cs2Service = {
 
       const existing = agg.get(row.steam_id);
       if (existing) {
-        existing.maps += 1;
+        existing.maps += (row.maps_played || 1);
         existing.kills += row.kills;
         existing.deaths += row.deaths;
         existing.assists += row.assists;
@@ -615,7 +615,7 @@ export const cs2Service = {
           steam_id: row.steam_id,
           player_name: displayName,
           team_id: row.team_id,
-          maps: 1,
+          maps: (row.maps_played || 1),
           kills: row.kills,
           deaths: row.deaths,
           assists: row.assists,
