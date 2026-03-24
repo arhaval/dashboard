@@ -70,7 +70,18 @@
       "Bash(wc -l \"C:\\\\Users\\\\hamit\\\\dashboard\\\\src\\\\app\\\\\\(dashboard\\)\\\\matches\\\\match-actions.ts\")",
       "Bash(npx vercel:*)",
       "Bash(printf 'hamitkulya3@icloud.com')",
-      "Bash(printf 'S1e0r1t1a89c')"
+      "Bash(printf 'S1e0r1t1a89c')",
+      "Bash(cat:*)",
+      "Bash(where python:*)",
+      "Bash(where python3:*)",
+      "Bash(where pip:*)",
+      "Bash(where pip3:*)",
+      "Bash(\"C:\\\\Users\\\\hamit\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\python.exe\" -m pip install pymupdf)",
+      "Bash(powershell -Command \"python --version\")",
+      "Bash(npm install:*)",
+      "Read(//c/Users/hamit/**)",
+      "Bash(sed -i 's/match_map_id/map_id/g' import_matches_simple.sql)",
+      "Bash(echo \"Fixed match_map_id -> map_id\")"
     ]
   }
 }

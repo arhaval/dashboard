@@ -654,7 +654,7 @@ export const cs2Service = {
         total_entry_successes: p.entry_successes,
         total_clutch_attempts: p.clutch_attempts,
         total_clutch_wins: p.clutch_wins,
-        avg_adr: p.maps > 0 ? p.adr_sum / p.maps : 0,
+        avg_adr: p.adr_sum,
         avg_kd: Number(avgKd.toFixed(2)),
         avg_kda: Number(avgKda.toFixed(2)),
         hs_percent: Number(hsPercent.toFixed(1)),
