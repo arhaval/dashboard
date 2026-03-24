@@ -92,6 +92,9 @@ export const dathostService = {
         })),
         settings: {
           map: input.map,
+          connect_time: 300,
+          match_begin_countdown: 30,
+          enable_tech_pause: true,
         },
       }),
     });
