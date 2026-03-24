@@ -12,7 +12,6 @@ import { cn } from '@/lib/utils';
 import { CS2_MATCH_STATUS_COLORS } from '@/constants';
 import type { CS2MatchStatus, CS2Match } from '@/types';
 import { MatchFilters } from './match-filters';
-import { NewMatchForm } from './new-match-form';
 
 interface PageProps {
   searchParams: Promise<{ status?: string }>;
@@ -56,10 +55,7 @@ export default async function MatchesPage({ searchParams }: PageProps) {
     status: params.status as CS2MatchStatus | undefined,
   };
 
-  const [matches, teams] = await Promise.all([
-    cs2Service.getMatches(filters),
-    isAdmin ? cs2Service.getTeams() : Promise.resolve([]),
-  ]);
+  const matches = await cs2Service.getMatches(filters);
 
   return (
     <PageShell
@@ -74,12 +70,20 @@ export default async function MatchesPage({ searchParams }: PageProps) {
             {tr.cs2.leaderboard}
           </Link>
           {isAdmin && (
-            <Link
-              href="/matches/teams"
-              className="rounded-[var(--radius-md)] border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-tertiary)]"
-            >
-              {tr.cs2.teams}
-            </Link>
+            <>
+              <Link
+                href="/matches/operations"
+                className="rounded-[var(--radius-md)] bg-[var(--color-accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)]"
+              >
+                Operasyonlar
+              </Link>
+              <Link
+                href="/matches/teams"
+                className="rounded-[var(--radius-md)] border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-tertiary)]"
+              >
+                {tr.cs2.teams}
+              </Link>
+            </>
           )}
         </div>
       }
@@ -88,13 +92,6 @@ export default async function MatchesPage({ searchParams }: PageProps) {
       <div className="mb-6">
         <MatchFilters />
       </div>
-
-      {/* New Match Form (admin only) */}
-      {isAdmin && (
-        <div className="mb-6">
-          <NewMatchForm teams={teams} />
-        </div>
-      )}
 
       {/* Match List */}
       {matches.length === 0 ? (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { startNextMap, resetServer } from '../match-actions';
 import { CS2_MAPS } from '@/constants';
 import { Button } from '@/components/ui/button';
@@ -50,12 +51,15 @@ export function ServerCard({ server, teams }: ServerCardProps) {
 
       {/* Match header for active/finished series */}
       {match && (
-        <div className="text-center text-sm text-[#A1A1A1]">
+        <Link
+          href={`/matches/${match.id}`}
+          className="block text-center text-sm text-[#A1A1A1] transition-colors hover:text-[#FF4D00]"
+        >
           <span className="text-[#FAFAFA]">{match.team1?.name}</span>
           {isSeriesComplete && <span className="font-mono text-[#FF4D00]"> {team1Wins}-{team2Wins} </span>}
           {!isSeriesComplete && <span className="text-[#6B6B6B]"> vs </span>}
           <span className="text-[#FAFAFA]">{match.team2?.name}</span>
-        </div>
+        </Link>
       )}
 
       {/* IDLE: show start form */}

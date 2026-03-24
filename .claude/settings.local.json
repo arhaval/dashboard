@@ -67,7 +67,10 @@
       "Bash(node --input-type=module -e \":*)",
       "Bash(node scripts/seed-teams.mjs)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://ysceuihdsatttnpnypjx.supabase.co\" --connect-timeout 10)",
-      "Bash(wc -l \"C:\\\\Users\\\\hamit\\\\dashboard\\\\src\\\\app\\\\\\(dashboard\\)\\\\matches\\\\match-actions.ts\")"
+      "Bash(wc -l \"C:\\\\Users\\\\hamit\\\\dashboard\\\\src\\\\app\\\\\\(dashboard\\)\\\\matches\\\\match-actions.ts\")",
+      "Bash(npx vercel:*)",
+      "Bash(printf 'hamitkulya3@icloud.com')",
+      "Bash(printf 'S1e0r1t1a89c')"
     ]
   }
 }

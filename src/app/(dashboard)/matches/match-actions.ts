@@ -2,7 +2,7 @@
 
 /**
  * CS2 Tournament Server Actions
- * Team, player, match management, and CSV upload per map
+ * Team, player, match management, DatHost integration
  */
 
 import { revalidatePath } from 'next/cache';
@@ -157,452 +157,6 @@ export async function deleteMatch(id: string) {
 
   revalidatePath('/matches');
   return { success: true };
-}
-
-// ===========================================================================
-// CSV Upload — Creates a map entry + player stats within a match
-// ===========================================================================
-
-const COLUMN_MAP: Record<string, string> = {
-  // Player identification
-  player: 'player_name', name: 'player_name', nick: 'player_name', nickname: 'player_name',
-  oyuncu: 'player_name', 'player name': 'player_name', 'player_name': 'player_name',
-  nickname_override: 'player_name',
-  // Steam ID
-  steamid: 'steam_id', steam_id: 'steam_id', steamid64: 'steam_id', 'steam id': 'steam_id',
-  steam_id_64: 'steam_id', 'steam id 64': 'steam_id',
-  // Team (dathost: "team_Muzaffer" etc.)
-  team: 'csv_team',
-  // Core stats
-  k: 'kills', kills: 'kills',
-  d: 'deaths', deaths: 'deaths',
-  a: 'assists', assists: 'assists',
-  // Headshots — dathost uses head_shot_kills
-  hs: 'headshots', headshots: 'headshots', kills_with_headshot: 'headshots',
-  head_shot_kills: 'headshots',
-  adr: 'adr',
-  mvp: 'mvps', mvps: 'mvps',
-  score: 'score', skor: 'score',
-  // Damage
-  damage: 'damage_dealt', dmg: 'damage_dealt', hasar: 'damage_dealt',
-  damage_dealt: 'damage_dealt',
-  // Entry — dathost uses entry_count / entry_wins
-  entry_successes: 'entry_successes', entry_attempts: 'entry_attempts',
-  entry_count: 'entry_attempts', entry_wins: 'entry_successes',
-  // Clutch — dathost uses v1_count / v1_wins
-  clutch_wins: 'clutch_wins', clutch_attempts: 'clutch_attempts',
-  '1vx_attempts': 'clutch_attempts', '1vx_wins': 'clutch_wins',
-  v1_count: 'clutch_attempts', v1_wins: 'clutch_wins',
-  // Weapon kills
-  kills_pistol: 'kills_pistol', kills_with_pistol: 'kills_pistol',
-  kills_sniper: 'kills_sniper', kills_with_sniper: 'kills_sniper',
-};
-
-function parseCSV(csvText: string): Record<string, string>[] {
-  const lines = csvText
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-
-  if (lines.length < 2) return [];
-
-  const headers = lines[0].split(/[,;\t]/).map((h) => h.trim().toLowerCase());
-
-  const rows: Record<string, string>[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(/[,;\t]/).map((v) => v.trim());
-    const row: Record<string, string> = {};
-    headers.forEach((h, idx) => {
-      const mappedKey = COLUMN_MAP[h] || h;
-      row[mappedKey] = values[idx] || '';
-    });
-    if (row.player_name) rows.push(row);
-  }
-
-  return rows;
-}
-
-export async function uploadMapCSV(matchId: string, formData: FormData) {
-  const auth = await requireAdmin();
-  if ('error' in auth) return auth;
-
-  // 1. Validate inputs
-  const mapName = formData.get('map') as string;
-  const team1Score = parseInt(formData.get('team1_score') as string, 10);
-  const team2Score = parseInt(formData.get('team2_score') as string, 10);
-
-  if (!mapName) return { error: 'Harita seçin' };
-  if (isNaN(team1Score) || isNaN(team2Score) || team1Score < 0 || team2Score < 0) {
-    return { error: 'Geçersiz skor değeri' };
-  }
-
-  // 2. Get CSV content
-  const csvFile = formData.get('csv_file') as File | null;
-  if (!csvFile || csvFile.size === 0) {
-    return { error: 'CSV dosyası seçilmedi' };
-  }
-
-  const csvText = await csvFile.text();
-  const rows = parseCSV(csvText);
-
-  if (rows.length === 0) {
-    return { error: 'CSV dosyasında oyuncu verisi bulunamadı' };
-  }
-
-  // 3. Get match details
-  const match = await cs2Service.getMatchById(matchId);
-  if (!match) return { error: 'Maç bulunamadı' };
-
-  // 4. Get players from both teams — index by steam_id AND name
-  const allTeams = await cs2Service.getTeams();
-  const team1 = allTeams.find((t) => t.id === match.team1_id);
-  const team2 = allTeams.find((t) => t.id === match.team2_id);
-  const allPlayers = [...(team1?.players || []), ...(team2?.players || [])];
-
-  const playerBySteamId = new Map(
-    allPlayers.map((p) => [p.steam_id, p])
-  );
-  const playerByName = new Map(
-    allPlayers.map((p) => [p.name.toLowerCase(), p])
-  );
-
-  // Build dathost csv_team → team_id mapping
-  // Dathost uses "team_XXX" format. We match by finding registered players
-  // in each csv_team group and using their team_id.
-  const csvTeamToId = new Map<string, string>();
-  for (const row of rows) {
-    const csvTeam = (row.csv_team || '').trim();
-    if (!csvTeam || csvTeamToId.has(csvTeam)) continue;
-    const csvSid = (row.steam_id || '').trim();
-    const reg = csvSid ? playerBySteamId.get(csvSid) : undefined;
-    if (reg) {
-      csvTeamToId.set(csvTeam, reg.team_id);
-    }
-  }
-
-  // 5. Determine map winner and next map number
-  const roundsPlayed = team1Score + team2Score;
-  let mapWinner: string | null = null;
-  if (team1Score > team2Score) mapWinner = match.team1_id;
-  else if (team2Score > team1Score) mapWinner = match.team2_id;
-
-  const mapNumber = await cs2Service.getNextMapNumber(matchId);
-
-  // 6. Create map entry
-  const matchMap = await cs2Service.createMatchMap({
-    match_id: matchId,
-    map: mapName,
-    map_number: mapNumber,
-    team1_score: team1Score,
-    team2_score: team2Score,
-    rounds_played: roundsPlayed,
-    winner_team_id: mapWinner,
-  });
-  if (!matchMap) return { error: 'Map kaydı oluşturulamadı' };
-
-  // 7. Map CSV rows to player stats
-  // Priority: match by steam_id first, then fall back to name
-  const mapPlayers = rows.map((row) => {
-    const csvSteamId = (row.steam_id || '').trim();
-    let registered = csvSteamId
-      ? playerBySteamId.get(csvSteamId)
-      : undefined;
-
-    // Fallback: try matching by name if no steam_id in CSV or no match found
-    if (!registered && row.player_name) {
-      registered = playerByName.get(row.player_name.toLowerCase());
-    }
-
-    // Determine team: registered player's team > csv_team mapping > fallback to team2
-    const csvTeam = (row.csv_team || '').trim();
-    const teamId = registered?.team_id
-      || (csvTeam ? csvTeamToId.get(csvTeam) : undefined)
-      || match.team2_id;
-
-    const kills = parseInt(row.kills || '0', 10) || 0;
-    const deaths = parseInt(row.deaths || '0', 10) || 0;
-    const assists = parseInt(row.assists || '0', 10) || 0;
-    const headshots = parseInt(row.headshots || '0', 10) || 0;
-    const mvps = parseInt(row.mvps || '0', 10) || 0;
-    const score = parseInt(row.score || '0', 10) || 0;
-    const damage_dealt = parseInt(row.damage_dealt || '0', 10) || 0;
-    const entry_attempts = parseInt(row.entry_attempts || '0', 10) || 0;
-    const entry_successes = parseInt(row.entry_successes || '0', 10) || 0;
-    const clutch_attempts = parseInt(row.clutch_attempts || '0', 10) || 0;
-    const clutch_wins = parseInt(row.clutch_wins || '0', 10) || 0;
-    const kills_pistol = parseInt(row.kills_pistol || '0', 10) || 0;
-    const kills_sniper = parseInt(row.kills_sniper || '0', 10) || 0;
-
-    let adr = parseFloat(row.adr || '0') || 0;
-    if (adr === 0 && damage_dealt > 0 && roundsPlayed > 0) {
-      adr = Math.round((damage_dealt / roundsPlayed) * 10) / 10;
-    }
-
-    // Use registered player's steam_id and name if found,
-    // otherwise use CSV values as-is
-    return {
-      map_id: matchMap.id,
-      player_id: registered?.id || null,
-      team_id: teamId,
-      steam_id: registered?.steam_id || csvSteamId || row.player_name,
-      player_name: registered?.name || row.player_name,
-      kills, deaths, assists, headshots, mvps, score,
-      damage_dealt, entry_attempts, entry_successes,
-      clutch_attempts, clutch_wins, kills_pistol, kills_sniper,
-      adr,
-    };
-  });
-
-  // 8. Upsert player stats
-  const statsOk = await cs2Service.upsertMapPlayers(matchMap.id, mapPlayers);
-  if (!statsOk) return { error: 'Oyuncu istatistikleri kaydedilemedi' };
-
-  // 9. Update match status
-  if (match.status === 'PENDING') {
-    await cs2Service.updateMatch(matchId, { status: 'LIVE' });
-  }
-
-  revalidatePath(`/matches/${matchId}`);
-  revalidatePath('/matches');
-  return { success: true, playersCount: mapPlayers.length, mapNumber };
-}
-
-// ===========================================================================
-// Auto-Import from CSV (creates teams + players + match + stats automatically)
-// ===========================================================================
-
-/** Import CSV and auto-create everything: teams, players, match, map, stats */
-export async function importFromCSV(formData: FormData) {
-  const auth = await requireAdmin();
-  if ('error' in auth) return auth;
-
-  const mapName = formData.get('map') as string;
-  const team1Score = parseInt(formData.get('team1_score') as string, 10);
-  const team2Score = parseInt(formData.get('team2_score') as string, 10);
-  const team1Name = (formData.get('team1_name') as string) || '';
-  const team2Name = (formData.get('team2_name') as string) || '';
-  const matchId = (formData.get('match_id') as string) || ''; // optional — append to existing match
-
-  if (!mapName) return { error: 'Harita seçin' };
-  if (isNaN(team1Score) || isNaN(team2Score) || team1Score < 0 || team2Score < 0) {
-    return { error: 'Geçersiz skor değeri' };
-  }
-
-  // Get CSV content (either from file upload or from server fetch)
-  let csvText = formData.get('csv_text') as string | null;
-  if (!csvText) {
-    const csvFile = formData.get('csv_file') as File | null;
-    if (!csvFile || csvFile.size === 0) {
-      return { error: 'CSV dosyası seçilmedi' };
-    }
-    csvText = await csvFile.text();
-  }
-
-  const rows = parseCSV(csvText);
-  if (rows.length === 0) {
-    return { error: 'CSV dosyasında oyuncu verisi bulunamadı' };
-  }
-
-  // Group players by csv_team column
-  const teamGroups = new Map<string, typeof rows>();
-  for (const row of rows) {
-    const csvTeam = (row.csv_team || 'unknown').trim();
-    if (!teamGroups.has(csvTeam)) teamGroups.set(csvTeam, []);
-    teamGroups.get(csvTeam)!.push(row);
-  }
-
-  // We expect exactly 2 teams
-  const teamKeys = Array.from(teamGroups.keys());
-  if (teamKeys.length < 2) {
-    return { error: 'CSV dosyasında en az 2 takım bulunamadı. "team" sütunu kontrol edin.' };
-  }
-
-  // Determine team names: user-provided > csv team column value
-  const cleanTeamName = (csvKey: string) =>
-    csvKey.replace(/^team_/i, '').trim() || csvKey;
-
-  const t1Name = team1Name || cleanTeamName(teamKeys[0]);
-  const t2Name = team2Name || cleanTeamName(teamKeys[1]);
-
-  // Auto-create teams
-  const team1 = await cs2Service.findOrCreateTeam(t1Name);
-  const team2 = await cs2Service.findOrCreateTeam(t2Name);
-  if (!team1 || !team2) return { error: 'Takımlar oluşturulamadı' };
-
-  // Auto-create players for each team
-  const team1Rows = teamGroups.get(teamKeys[0]) || [];
-  const team2Rows = teamGroups.get(teamKeys[1]) || [];
-
-  for (const row of team1Rows) {
-    const steamId = (row.steam_id || '').trim();
-    const name = (row.player_name || steamId || 'Unknown').trim();
-    if (steamId) await cs2Service.findOrCreatePlayer(steamId, name, team1.id);
-  }
-  for (const row of team2Rows) {
-    const steamId = (row.steam_id || '').trim();
-    const name = (row.player_name || steamId || 'Unknown').trim();
-    if (steamId) await cs2Service.findOrCreatePlayer(steamId, name, team2.id);
-  }
-
-  // Get or create match
-  let match;
-  if (matchId) {
-    match = await cs2Service.getMatchById(matchId);
-    if (!match) return { error: 'Maç bulunamadı' };
-  } else {
-    match = await cs2Service.createMatch({
-      team1_id: team1.id,
-      team2_id: team2.id,
-      match_date: new Date().toISOString(),
-    });
-    if (!match) return { error: 'Maç oluşturulamadı' };
-  }
-
-  // Create map entry
-  const roundsPlayed = team1Score + team2Score;
-  let mapWinner: string | null = null;
-  if (team1Score > team2Score) mapWinner = team1.id;
-  else if (team2Score > team1Score) mapWinner = team2.id;
-
-  const mapNumber = await cs2Service.getNextMapNumber(match.id);
-  const matchMap = await cs2Service.createMatchMap({
-    match_id: match.id,
-    map: mapName,
-    map_number: mapNumber,
-    team1_score: team1Score,
-    team2_score: team2Score,
-    rounds_played: roundsPlayed,
-    winner_team_id: mapWinner,
-  });
-  if (!matchMap) return { error: 'Map kaydı oluşturulamadı' };
-
-  // Build player lookup (refreshed after auto-create)
-  const allPlayers = [
-    ...(await cs2Service.getPlayersByTeam(team1.id)),
-    ...(await cs2Service.getPlayersByTeam(team2.id)),
-  ];
-  const playerBySteamId = new Map(allPlayers.map((p) => [p.steam_id, p]));
-
-  // Map CSV rows to player stats
-  const mapPlayers = rows.map((row) => {
-    const csvSteamId = (row.steam_id || '').trim();
-    const csvTeam = (row.csv_team || '').trim();
-    const registered = csvSteamId ? playerBySteamId.get(csvSteamId) : undefined;
-    const teamId = csvTeam === teamKeys[0] ? team1.id : team2.id;
-
-    const kills = parseInt(row.kills || '0', 10) || 0;
-    const deaths = parseInt(row.deaths || '0', 10) || 0;
-    const assists = parseInt(row.assists || '0', 10) || 0;
-    const headshots = parseInt(row.headshots || '0', 10) || 0;
-    const mvps = parseInt(row.mvps || '0', 10) || 0;
-    const score = parseInt(row.score || '0', 10) || 0;
-    const damage_dealt = parseInt(row.damage_dealt || '0', 10) || 0;
-    const entry_attempts = parseInt(row.entry_attempts || '0', 10) || 0;
-    const entry_successes = parseInt(row.entry_successes || '0', 10) || 0;
-    const clutch_attempts = parseInt(row.clutch_attempts || '0', 10) || 0;
-    const clutch_wins = parseInt(row.clutch_wins || '0', 10) || 0;
-    const kills_pistol = parseInt(row.kills_pistol || '0', 10) || 0;
-    const kills_sniper = parseInt(row.kills_sniper || '0', 10) || 0;
-
-    let adr = parseFloat(row.adr || '0') || 0;
-    if (adr === 0 && damage_dealt > 0 && roundsPlayed > 0) {
-      adr = Math.round((damage_dealt / roundsPlayed) * 10) / 10;
-    }
-
-    return {
-      map_id: matchMap.id,
-      player_id: registered?.id || null,
-      team_id: teamId,
-      steam_id: registered?.steam_id || csvSteamId || row.player_name,
-      player_name: registered?.name || row.player_name,
-      kills, deaths, assists, headshots, mvps, score,
-      damage_dealt, entry_attempts, entry_successes,
-      clutch_attempts, clutch_wins, kills_pistol, kills_sniper,
-      adr,
-    };
-  });
-
-  const statsOk = await cs2Service.upsertMapPlayers(matchMap.id, mapPlayers);
-  if (!statsOk) return { error: 'Oyuncu istatistikleri kaydedilemedi' };
-
-  if (match.status === 'PENDING') {
-    await cs2Service.updateMatch(match.id, { status: 'LIVE' });
-  }
-
-  revalidatePath(`/matches/${match.id}`);
-  revalidatePath('/matches');
-  revalidatePath('/matches/teams');
-  return {
-    success: true,
-    matchId: match.id,
-    team1Name: t1Name,
-    team2Name: t2Name,
-    playersCount: mapPlayers.length,
-    mapNumber,
-  };
-}
-
-/** Scan DatHost server — reads MatchZy SQLite for match data + CSV paths */
-export async function scanServerCSVs(formData: FormData) {
-  const auth = await requireAdmin();
-  if ('error' in auth) return auth;
-
-  const dathostServerId = formData.get('dathost_server_id') as string;
-  if (!dathostServerId) return { error: 'Sunucu ID gerekli' };
-
-  // Try to read MatchZy SQLite database for full match info
-  const dbMatches = await dathostService.readMatchZyDatabase(dathostServerId);
-
-  // Also scan for CSV files
-  const csvFiles = await dathostService.scanMatchZyStats(dathostServerId);
-
-  if (dbMatches.length === 0 && csvFiles.length === 0) {
-    return { error: 'Sunucuda MatchZy maç verisi bulunamadı' };
-  }
-
-  // Merge: match CSV paths with SQLite match data
-  const merged = dbMatches.map((m) => {
-    const csv = csvFiles.find((c) => c.matchId === m.matchId);
-    return {
-      ...m,
-      csvPath: csv?.csvPath || null,
-      csvName: csv?.csvName || null,
-    };
-  });
-
-  // Add any CSV-only entries (no SQLite data)
-  for (const csv of csvFiles) {
-    if (!merged.some((m) => m.matchId === csv.matchId)) {
-      merged.push({
-        matchId: csv.matchId,
-        mapNumber: 0,
-        team1Name: 'Takım 1',
-        team1Score: 0,
-        team2Name: 'Takım 2',
-        team2Score: 0,
-        mapName: '',
-        csvPath: csv.csvPath,
-        csvName: csv.csvName,
-      });
-    }
-  }
-
-  return { success: true, matches: merged };
-}
-
-/** Fetch a specific CSV from DatHost server and return its content */
-export async function fetchServerCSV(formData: FormData) {
-  const auth = await requireAdmin();
-  if ('error' in auth) return auth;
-
-  const dathostServerId = formData.get('dathost_server_id') as string;
-  const csvPath = formData.get('csv_path') as string;
-  if (!dathostServerId || !csvPath) return { error: 'Eksik parametre' };
-
-  const csvText = await dathostService.downloadServerFile(dathostServerId, csvPath);
-  if (!csvText) return { error: 'CSV dosyası indirilemedi' };
-
-  return { success: true, csvText };
 }
 
 // ===========================================================================
@@ -992,161 +546,6 @@ export async function removeDatHostServer(id: string) {
 }
 
 // ===========================================================================
-// DatHost Quick Import — Tek match ID ile her şeyi çek
-// ===========================================================================
-
-/**
- * Import a complete match from DatHost using only the match ID.
- * Auto-creates teams, players, match (series), map, and player stats.
- *
- * If a series matchId is provided, appends as a new map to that series.
- * Otherwise, creates a new series.
- */
-export async function importFromDathost(formData: FormData) {
-  const auth = await requireAdmin();
-  if ('error' in auth) return auth;
-
-  const dathostMatchId = (formData.get('dathost_match_id') as string || '').trim();
-  const existingMatchId = (formData.get('match_id') as string || '').trim() || null;
-
-  if (!dathostMatchId) {
-    return { error: 'DatHost Match ID gerekli' };
-  }
-
-  // 1. Fetch match data from DatHost API
-  const dathostData = await dathostService.getMatch(dathostMatchId);
-  if (!dathostData) {
-    return { error: 'DatHost API yanıt vermedi. Match ID\'yi kontrol edin.' };
-  }
-
-  // 2. Separate players by team
-  const team1Players = dathostData.players.filter((p) => p.team === 'team1');
-  const team2Players = dathostData.players.filter((p) => p.team === 'team2');
-
-  // 3. Find or create teams
-  const team1Name = dathostData.settings?.team1_name || 'Team 1';
-  const team2Name = dathostData.settings?.team2_name || 'Team 2';
-
-  const team1 = await cs2Service.findOrCreateTeam(team1Name);
-  const team2 = await cs2Service.findOrCreateTeam(team2Name);
-  if (!team1 || !team2) {
-    return { error: 'Takımlar oluşturulamadı' };
-  }
-
-  // 4. Find or create players
-  for (const dp of team1Players) {
-    const name = dp.nickname_override || dp.steam_id_64;
-    await cs2Service.findOrCreatePlayer(dp.steam_id_64, name, team1.id);
-  }
-  for (const dp of team2Players) {
-    const name = dp.nickname_override || dp.steam_id_64;
-    await cs2Service.findOrCreatePlayer(dp.steam_id_64, name, team2.id);
-  }
-
-  // 5. Get or create match (series)
-  let matchId = existingMatchId;
-  if (!matchId) {
-    const match = await cs2Service.createMatch({
-      team1_id: team1.id,
-      team2_id: team2.id,
-    });
-    if (!match) return { error: 'Maç oluşturulamadı' };
-    matchId = match.id;
-  }
-
-  // 6. Create map entry
-  const team1Score = dathostData.team1_stats?.score || 0;
-  const team2Score = dathostData.team2_stats?.score || 0;
-  const roundsPlayed = dathostData.rounds_played || 0;
-  const mapName = dathostData.settings?.map || 'unknown';
-
-  let winnerId: string | null = null;
-  if (team1Score > team2Score) winnerId = team1.id;
-  else if (team2Score > team1Score) winnerId = team2.id;
-
-  const mapNumber = await cs2Service.getNextMapNumber(matchId);
-
-  const matchMap = await cs2Service.createMatchMap({
-    match_id: matchId,
-    map: mapName,
-    map_number: mapNumber,
-    team1_score: team1Score,
-    team2_score: team2Score,
-    rounds_played: roundsPlayed,
-    winner_team_id: winnerId,
-    dathost_match_id: dathostMatchId,
-    dathost_status: dathostData.finished ? 'FINISHED' : 'LIVE',
-  });
-
-  if (!matchMap) return { error: 'Map kaydı oluşturulamadı' };
-
-  // 7. Import player stats (if match is finished)
-  let playersCount = 0;
-  if (dathostData.finished) {
-    const allRegisteredPlayers = await cs2Service.getTeams();
-    const playerBySteamId = new Map(
-      allRegisteredPlayers.flatMap((t) => (t.players || []).map((p) => [p.steam_id, p])),
-    );
-
-    const mapPlayers = dathostData.players.map((dp) => {
-      const registered = playerBySteamId.get(dp.steam_id_64);
-      const teamId = dp.team === 'team1' ? team1.id : team2.id;
-      const s = dp.stats;
-      const adr = roundsPlayed > 0
-        ? Math.round((s.damage_dealt / roundsPlayed) * 10) / 10
-        : 0;
-
-      return {
-        map_id: matchMap.id,
-        player_id: registered?.id || null,
-        team_id: registered?.team_id || teamId,
-        steam_id: dp.steam_id_64,
-        player_name: registered?.name || dp.nickname_override || dp.steam_id_64,
-        kills: s.kills,
-        deaths: s.deaths,
-        assists: s.assists,
-        headshots: s.kills_with_headshot,
-        mvps: s.mvps,
-        score: s.score,
-        damage_dealt: s.damage_dealt,
-        entry_attempts: s.entry_attempts,
-        entry_successes: s.entry_successes,
-        clutch_attempts: s['1vX_attempts'],
-        clutch_wins: s['1vX_wins'],
-        kills_pistol: s.kills_with_pistol,
-        kills_sniper: s.kills_with_sniper,
-        adr,
-      };
-    });
-
-    const ok = await cs2Service.upsertMapPlayers(matchMap.id, mapPlayers);
-    if (!ok) return { error: 'İstatistikler kaydedilemedi' };
-    playersCount = mapPlayers.length;
-  }
-
-  // 8. Update match status
-  const match = await cs2Service.getMatchById(matchId);
-  if (match && match.status === 'PENDING') {
-    await cs2Service.updateMatch(matchId, { status: dathostData.finished ? 'LIVE' : 'LIVE' });
-  }
-
-  revalidatePath(`/matches/${matchId}`);
-  revalidatePath('/matches');
-  revalidatePath('/matches/operations');
-
-  return {
-    success: true,
-    matchId,
-    mapNumber,
-    playersCount,
-    team1Name: team1.name,
-    team2Name: team2.name,
-    score: `${team1Score}:${team2Score}`,
-    map: mapName,
-  };
-}
-
-// ===========================================================================
 // Quick Start Match — single action: create match + start DatHost map
 // ===========================================================================
 
@@ -1246,7 +645,7 @@ export async function quickStartMatch(formData: FormData) {
 }
 
 // ===========================================================================
-// Start Next Map — start the next map in an ongoing series
+// Start Next Map — start the next map in an ongoing series (by server ID)
 // ===========================================================================
 
 export async function startNextMap(serverId: string, formData: FormData) {
@@ -1314,6 +713,79 @@ export async function startNextMap(serverId: string, formData: FormData) {
     currentMapId: matchMap.id,
   });
 
+  revalidatePath('/matches/operations');
+  return { success: true, mapId: matchMap.id };
+}
+
+// ===========================================================================
+// Start Next Map for Match — start next map by match ID (for match detail page)
+// ===========================================================================
+
+export async function startNextMapForMatch(matchId: string, formData: FormData) {
+  const auth = await requireAdmin();
+  if ('error' in auth) return auth;
+
+  const raw = { map: formData.get('map') as string };
+  const parsed = startNextMapSchema.safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  // Find the server assigned to this match
+  const servers = await dathostService.getServersWithMatches();
+  const server = servers.find((s) => s.current_match_id === matchId);
+  if (!server) return { error: 'Bu maça atanmış sunucu bulunamadı' };
+
+  const match = await cs2Service.getMatchById(matchId);
+  if (!match) return { error: 'Maç bulunamadı' };
+  if (match.status !== 'LIVE') return { error: 'Seri aktif değil' };
+
+  // All previous maps must be finished
+  const activeMaps = (match.maps || []).filter(
+    (m) => m.dathost_status && !['FINISHED', 'CANCELLED', 'FAILED'].includes(m.dathost_status)
+  );
+  if (activeMaps.length > 0) return { error: 'Aktif bir map var, önce bitmesini bekleyin' };
+
+  // Get teams with players
+  const allTeams = await cs2Service.getTeams();
+  const team1 = allTeams.find((t) => t.id === match.team1_id);
+  const team2 = allTeams.find((t) => t.id === match.team2_id);
+  if (!team1 || !team2) return { error: 'Takım bulunamadı' };
+
+  const players = [
+    ...(team1.players || []).filter((p) => p.is_active).map((p) => ({ steam_id_64: p.steam_id, team: 'team1' as const })),
+    ...(team2.players || []).filter((p) => p.is_active).map((p) => ({ steam_id_64: p.steam_id, team: 'team2' as const })),
+  ];
+
+  const dathostMatch = await dathostService.startMatch({
+    dathostServerId: server.dathost_server_id,
+    map: parsed.data.map,
+    team1Name: team1.name,
+    team2Name: team2.name,
+    players,
+  });
+
+  if (!dathostMatch) return { error: 'DatHost API hatası' };
+
+  const mapNumber = await cs2Service.getNextMapNumber(match.id);
+  const matchMap = await cs2Service.createMatchMap({
+    match_id: match.id,
+    map: parsed.data.map,
+    map_number: mapNumber,
+    team1_score: 0,
+    team2_score: 0,
+    rounds_played: 0,
+    winner_team_id: null,
+    dathost_match_id: dathostMatch.id,
+    dathost_status: 'CREATED',
+  });
+
+  if (!matchMap) return { error: 'Map kaydı oluşturulamadı' };
+
+  await dathostService.updateServerStatus(server.id, 'IN_MATCH', {
+    lastUsedAt: new Date().toISOString(),
+    currentMapId: matchMap.id,
+  });
+
+  revalidatePath(`/matches/${matchId}`);
   revalidatePath('/matches/operations');
   return { success: true, mapId: matchMap.id };
 }
