@@ -1211,7 +1211,9 @@ export async function quickStartMatch(formData: FormData) {
   });
 
   if (!dathostMatch) {
-    return { error: 'DatHost API hatası — maç başlatılamadı' };
+    // Rollback: delete the match we just created
+    await cs2Service.deleteMatch(match.id);
+    return { error: 'DatHost API hatası — maç başlatılamadı. Sunucu açık mı kontrol edin.' };
   }
 
   // Create map entry
