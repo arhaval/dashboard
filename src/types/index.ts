@@ -634,6 +634,10 @@ export interface DatHostServer {
   server_status: DatHostServerStatus;
   last_used_at: string | null;
   created_at: string;
+  current_match_id: string | null;
+  current_map_id: string | null;
+  current_match?: CS2Match | null;
+  current_map?: CS2MatchMap | null;
 }
 
 /** DatHost API match response */

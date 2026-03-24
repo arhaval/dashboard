@@ -15,6 +15,8 @@ import {
   startDatHostMapSchema,
   finishSeriesSchema,
   addDatHostServerSchema,
+  quickStartMatchSchema,
+  startNextMapSchema,
 } from '@/lib/validations/cs2';
 import type { DatHostLiveScore } from '@/types';
 
@@ -682,7 +684,7 @@ export async function startDatHostMap(matchId: string, formData: FormData) {
   if (!matchMap) return { error: 'Map kaydı oluşturulamadı' };
 
   // Update server status
-  await dathostService.updateServerStatus(server.id, 'IN_MATCH', new Date().toISOString());
+  await dathostService.updateServerStatus(server.id, 'IN_MATCH', { lastUsedAt: new Date().toISOString() });
 
   // Update series status if first map
   if (match.status === 'PENDING') {
@@ -771,13 +773,42 @@ export async function pollDatHostMap(
         ended_at: new Date().toISOString(),
       });
 
-      // Release server
-      const servers = await dathostService.getServers();
-      const usedServer = servers.find(
-        (s) => s.server_status === 'IN_MATCH',
-      );
-      if (usedServer) {
-        await dathostService.updateServerStatus(usedServer.id, 'IDLE');
+      // Check series status — auto-finish if 2-0 or 2-1
+      if (match) {
+        const allMaps = [...(match.maps || [])];
+        // Count wins including this just-finished map
+        let t1Wins = 0;
+        let t2Wins = 0;
+        for (const m of allMaps) {
+          const mWinner = m.id === map.id ? winnerId : m.winner_team_id;
+          if (mWinner === match.team1_id) t1Wins++;
+          else if (mWinner === match.team2_id) t2Wins++;
+        }
+
+        const seriesOver = t1Wins >= 2 || t2Wins >= 2;
+        const seriesWinner = t1Wins >= 2 ? match.team1_id : t2Wins >= 2 ? match.team2_id : null;
+
+        // Find the server for this match
+        const servers = await dathostService.getServersWithMatches();
+        const usedServer = servers.find((s) => s.current_match_id === match.id);
+
+        if (seriesOver) {
+          // Finish series
+          await cs2Service.updateMatch(match.id, { status: 'FINISHED', winner_team_id: seriesWinner });
+          if (usedServer) {
+            await dathostService.updateServerStatus(usedServer.id, 'IDLE', {
+              currentMatchId: null,
+              currentMapId: null,
+            });
+          }
+        } else {
+          // Series continues — clear current_map_id but keep match
+          if (usedServer) {
+            await dathostService.updateServerStatus(usedServer.id, 'IN_MATCH', {
+              currentMapId: null,
+            });
+          }
+        }
       }
 
       // Auto-import stats (best effort)
@@ -847,17 +878,17 @@ export async function importDatHostStats(mapId: string) {
       kills: s.kills,
       deaths: s.deaths,
       assists: s.assists,
-      headshots: s.kills_with_headshot,
-      mvps: s.mvps,
-      score: s.score,
       damage_dealt: s.damage_dealt,
-      entry_attempts: s.entry_attempts,
-      entry_successes: s.entry_successes,
-      clutch_attempts: s['1vX_attempts'],
-      clutch_wins: s['1vX_wins'],
-      kills_pistol: s.kills_with_pistol,
-      kills_sniper: s.kills_with_sniper,
       adr,
+      headshots: 0,
+      mvps: 0,
+      score: 0,
+      entry_attempts: 0,
+      entry_successes: 0,
+      clutch_attempts: 0,
+      clutch_wins: 0,
+      kills_pistol: 0,
+      kills_sniper: 0,
     };
   });
 
@@ -1113,4 +1144,214 @@ export async function importFromDathost(formData: FormData) {
     score: `${team1Score}:${team2Score}`,
     map: mapName,
   };
+}
+
+// ===========================================================================
+// Quick Start Match — single action: create match + start DatHost map
+// ===========================================================================
+
+export async function quickStartMatch(formData: FormData) {
+  const auth = await requireAdmin();
+  if ('error' in auth) return auth;
+
+  const raw = {
+    server_id: formData.get('server_id') as string,
+    team1_id: formData.get('team1_id') as string,
+    team2_id: formData.get('team2_id') as string,
+    map: formData.get('map') as string,
+  };
+
+  const parsed = quickStartMatchSchema.safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const { server_id, team1_id, team2_id, map } = parsed.data;
+
+  // Get server, must be IDLE
+  const servers = await dathostService.getServers();
+  const server = servers.find((s) => s.id === server_id);
+  if (!server) return { error: 'Sunucu bulunamadı' };
+  if (server.server_status !== 'IDLE') return { error: 'Sunucu meşgul' };
+
+  // Get teams with players
+  const allTeams = await cs2Service.getTeams();
+  const team1 = allTeams.find((t) => t.id === team1_id);
+  const team2 = allTeams.find((t) => t.id === team2_id);
+  if (!team1 || !team2) return { error: 'Takım bulunamadı' };
+
+  const team1Players = (team1.players || []).filter((p) => p.is_active);
+  const team2Players = (team2.players || []).filter((p) => p.is_active);
+  if (team1Players.length === 0 || team2Players.length === 0) {
+    return { error: 'Her iki takımda da aktif oyuncu olmalı' };
+  }
+
+  // Create match (series)
+  const match = await cs2Service.createMatch({
+    team1_id,
+    team2_id,
+    match_date: new Date().toISOString(),
+  });
+  if (!match) return { error: 'Maç oluşturulamadı' };
+
+  // Update match status to LIVE
+  await cs2Service.updateMatch(match.id, { status: 'LIVE' });
+
+  // Build player list for DatHost API
+  const players = [
+    ...team1Players.map((p) => ({ steam_id_64: p.steam_id, team: 'team1' as const })),
+    ...team2Players.map((p) => ({ steam_id_64: p.steam_id, team: 'team2' as const })),
+  ];
+
+  // Start match on DatHost
+  const dathostMatch = await dathostService.startMatch({
+    dathostServerId: server.dathost_server_id,
+    map,
+    team1Name: team1.name,
+    team2Name: team2.name,
+    players,
+  });
+
+  if (!dathostMatch) {
+    return { error: 'DatHost API hatası — maç başlatılamadı' };
+  }
+
+  // Create map entry
+  const matchMap = await cs2Service.createMatchMap({
+    match_id: match.id,
+    map,
+    map_number: 1,
+    team1_score: 0,
+    team2_score: 0,
+    rounds_played: 0,
+    winner_team_id: null,
+    dathost_match_id: dathostMatch.id,
+    dathost_status: 'CREATED',
+  });
+
+  if (!matchMap) return { error: 'Map kaydı oluşturulamadı' };
+
+  // Update server tracking
+  await dathostService.updateServerStatus(server.id, 'IN_MATCH', {
+    lastUsedAt: new Date().toISOString(),
+    currentMatchId: match.id,
+    currentMapId: matchMap.id,
+  });
+
+  revalidatePath('/matches/operations');
+  revalidatePath('/matches');
+
+  return { success: true, matchId: match.id, mapId: matchMap.id };
+}
+
+// ===========================================================================
+// Start Next Map — start the next map in an ongoing series
+// ===========================================================================
+
+export async function startNextMap(serverId: string, formData: FormData) {
+  const auth = await requireAdmin();
+  if ('error' in auth) return auth;
+
+  const raw = { map: formData.get('map') as string };
+  const parsed = startNextMapSchema.safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  // Get server with current match
+  const servers = await dathostService.getServersWithMatches();
+  const server = servers.find((s) => s.id === serverId);
+  if (!server) return { error: 'Sunucu bulunamadı' };
+  if (!server.current_match_id) return { error: 'Sunucuda aktif seri yok' };
+
+  const match = await cs2Service.getMatchById(server.current_match_id);
+  if (!match) return { error: 'Maç bulunamadı' };
+  if (match.status !== 'LIVE') return { error: 'Seri aktif değil' };
+
+  // All previous maps must be finished
+  const activeMaps = (match.maps || []).filter(
+    (m) => m.dathost_status && !['FINISHED', 'CANCELLED', 'FAILED'].includes(m.dathost_status)
+  );
+  if (activeMaps.length > 0) return { error: 'Aktif bir map var, önce bitmesini bekleyin' };
+
+  // Get teams with players
+  const allTeams = await cs2Service.getTeams();
+  const team1 = allTeams.find((t) => t.id === match.team1_id);
+  const team2 = allTeams.find((t) => t.id === match.team2_id);
+  if (!team1 || !team2) return { error: 'Takım bulunamadı' };
+
+  const players = [
+    ...(team1.players || []).filter((p) => p.is_active).map((p) => ({ steam_id_64: p.steam_id, team: 'team1' as const })),
+    ...(team2.players || []).filter((p) => p.is_active).map((p) => ({ steam_id_64: p.steam_id, team: 'team2' as const })),
+  ];
+
+  const dathostMatch = await dathostService.startMatch({
+    dathostServerId: server.dathost_server_id,
+    map: parsed.data.map,
+    team1Name: team1.name,
+    team2Name: team2.name,
+    players,
+  });
+
+  if (!dathostMatch) return { error: 'DatHost API hatası' };
+
+  const mapNumber = await cs2Service.getNextMapNumber(match.id);
+  const matchMap = await cs2Service.createMatchMap({
+    match_id: match.id,
+    map: parsed.data.map,
+    map_number: mapNumber,
+    team1_score: 0,
+    team2_score: 0,
+    rounds_played: 0,
+    winner_team_id: null,
+    dathost_match_id: dathostMatch.id,
+    dathost_status: 'CREATED',
+  });
+
+  if (!matchMap) return { error: 'Map kaydı oluşturulamadı' };
+
+  await dathostService.updateServerStatus(server.id, 'IN_MATCH', {
+    lastUsedAt: new Date().toISOString(),
+    currentMapId: matchMap.id,
+  });
+
+  revalidatePath('/matches/operations');
+  return { success: true, mapId: matchMap.id };
+}
+
+// ===========================================================================
+// Reset Server — finish the series and release the server
+// ===========================================================================
+
+export async function resetServer(serverId: string) {
+  const auth = await requireAdmin();
+  if ('error' in auth) return auth;
+
+  const servers = await dathostService.getServersWithMatches();
+  const server = servers.find((s) => s.id === serverId);
+  if (!server) return { error: 'Sunucu bulunamadı' };
+
+  if (server.current_match_id && server.current_match) {
+    const match = server.current_match;
+    const maps = match.maps || [];
+
+    // Calculate winner from finished maps
+    let team1Wins = 0;
+    let team2Wins = 0;
+    for (const m of maps) {
+      if (m.winner_team_id === match.team1_id) team1Wins++;
+      else if (m.winner_team_id === match.team2_id) team2Wins++;
+    }
+
+    const winnerId = team1Wins > team2Wins ? match.team1_id : team2Wins > team1Wins ? match.team2_id : null;
+    await cs2Service.updateMatch(match.id, {
+      status: 'FINISHED',
+      winner_team_id: winnerId,
+    });
+  }
+
+  await dathostService.updateServerStatus(server.id, 'IDLE', {
+    currentMatchId: null,
+    currentMapId: null,
+  });
+
+  revalidatePath('/matches/operations');
+  revalidatePath('/matches');
+  return { success: true };
 }

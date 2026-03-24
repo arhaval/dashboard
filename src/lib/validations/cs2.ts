@@ -52,6 +52,20 @@ export const addDatHostServerSchema = z.object({
   name: z.string().min(1, 'Sunucu adı gerekli'),
 });
 
+export const quickStartMatchSchema = z.object({
+  server_id: z.string().uuid('Sunucu seçin'),
+  team1_id: z.string().uuid('Takım 1 seçin'),
+  team2_id: z.string().uuid('Takım 2 seçin'),
+  map: z.enum(CS2_MAPS, { error: 'Harita seçin' }),
+}).refine((data) => data.team1_id !== data.team2_id, {
+  message: 'İki farklı takım seçin',
+  path: ['team2_id'],
+});
+
+export const startNextMapSchema = z.object({
+  map: z.enum(CS2_MAPS, { error: 'Harita seçin' }),
+});
+
 export type CreateTeamFormData = z.infer<typeof createTeamSchema>;
 export type CreatePlayerFormData = z.infer<typeof createPlayerSchema>;
 export type CreateMatchFormData = z.infer<typeof createMatchSchema>;

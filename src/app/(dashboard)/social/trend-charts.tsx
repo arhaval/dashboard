@@ -145,9 +145,9 @@ export function TrendCharts({ trendData }: TrendChartsProps) {
                         fontSize: '12px',
                       }}
                       labelStyle={{ color: '#FAFAFA' }}
-                      formatter={(value?: number, name?: string) => [
-                        (value ?? 0).toLocaleString('tr-TR'),
-                        (name ?? '') === 'followers' ? 'Takipçi' : MAIN_METRIC[platform].label,
+                      formatter={(value: unknown, name: unknown) => [
+                        (typeof value === 'number' ? value : 0).toLocaleString('tr-TR'),
+                        (String(name || '')) === 'followers' ? 'Takipçi' : MAIN_METRIC[platform].label,
                       ]}
                     />
                     <Legend

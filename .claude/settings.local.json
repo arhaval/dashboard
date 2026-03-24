@@ -58,7 +58,16 @@
       "Bash(ls \"C:\\\\Users\\\\hamit\\\\dashboard\\\\src\\\\app\\\\\\(dashboard\\)\\\\matches\"\")",
       "Bash(node node_modules/next/dist/bin/next build)",
       "Bash(ls \"C:\\\\Users\\\\hamit\\\\dashboard\\\\src\\\\app\\\\\\(dashboard\\)\\\\matches\\\\operations\")",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://ysceuihdsatttnpnypjx.supabase.co/rest/v1/\" -H \"apikey: dummy\")"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://ysceuihdsatttnpnypjx.supabase.co/rest/v1/\" -H \"apikey: dummy\")",
+      "WebSearch",
+      "WebFetch(domain:shobhit-pathak.github.io)",
+      "Bash(pnpm add:*)",
+      "Bash(pip install:*)",
+      "Bash(python3 -c \":*)",
+      "Bash(node --input-type=module -e \":*)",
+      "Bash(node scripts/seed-teams.mjs)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://ysceuihdsatttnpnypjx.supabase.co\" --connect-timeout 10)",
+      "Bash(wc -l \"C:\\\\Users\\\\hamit\\\\dashboard\\\\src\\\\app\\\\\\(dashboard\\)\\\\matches\\\\match-actions.ts\")"
     ]
   }
 }

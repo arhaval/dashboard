@@ -172,11 +172,17 @@ export const dathostService = {
   async updateServerStatus(
     id: string,
     serverStatus: DatHostServerStatus,
-    lastUsedAt?: string,
+    extra?: {
+      lastUsedAt?: string;
+      currentMatchId?: string | null;
+      currentMapId?: string | null;
+    },
   ): Promise<boolean> {
     const supabase = await createClient();
     const update: Record<string, unknown> = { server_status: serverStatus };
-    if (lastUsedAt) update.last_used_at = lastUsedAt;
+    if (extra?.lastUsedAt) update.last_used_at = extra.lastUsedAt;
+    if (extra?.currentMatchId !== undefined) update.current_match_id = extra.currentMatchId;
+    if (extra?.currentMapId !== undefined) update.current_map_id = extra.currentMapId;
 
     const { error } = await supabase
       .from('dathost_servers')
@@ -188,6 +194,30 @@ export const dathostService = {
       return false;
     }
     return true;
+  },
+
+  /** Get all active servers with their current match and map data joined */
+  async getServersWithMatches(): Promise<DatHostServer[]> {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('dathost_servers')
+      .select(`
+        *,
+        current_match:cs2_matches!dathost_servers_current_match_id_fkey(
+          *,
+          team1:cs2_teams!cs2_matches_team1_id_fkey(*),
+          team2:cs2_teams!cs2_matches_team2_id_fkey(*),
+          maps:cs2_match_maps(*, players:cs2_match_players(*))
+        )
+      `)
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) {
+      console.error('getServersWithMatches error:', error);
+      return [];
+    }
+    return (data || []) as unknown as DatHostServer[];
   },
 
   // ==========================================================================
