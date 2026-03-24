@@ -459,6 +459,91 @@ export const cs2Service = {
   },
 
   // ===========================================================================
+  // Team Standings (puan durumu)
+  // ===========================================================================
+
+  async getTeamStandings(): Promise<import('@/types').CS2TeamStanding[]> {
+    const supabase = await createClient();
+
+    // Get all teams
+    const { data: teams } = await supabase
+      .from('cs2_teams')
+      .select('id, name, tag');
+    if (!teams) return [];
+
+    // Get all finished matches with maps
+    const { data: matches } = await supabase
+      .from('cs2_matches')
+      .select('id, team1_id, team2_id, status, winner_team_id');
+    if (!matches) return [];
+
+    // Get all finished maps
+    const { data: maps } = await supabase
+      .from('cs2_match_maps')
+      .select('id, match_id, winner_team_id, dathost_status');
+    if (!maps) return [];
+
+    const finishedMaps = maps.filter((m) => m.dathost_status === 'FINISHED');
+    const finishedMatches = matches.filter((m) => m.status === 'FINISHED');
+
+    const standings = new Map<string, {
+      matches_played: number;
+      matches_won: number;
+      maps_played: number;
+      maps_won: number;
+    }>();
+
+    // Initialize all teams
+    for (const t of teams) {
+      standings.set(t.id, { matches_played: 0, matches_won: 0, maps_played: 0, maps_won: 0 });
+    }
+
+    // Count matches
+    for (const m of finishedMatches) {
+      const t1 = standings.get(m.team1_id);
+      const t2 = standings.get(m.team2_id);
+      if (t1) t1.matches_played++;
+      if (t2) t2.matches_played++;
+      if (m.winner_team_id) {
+        const winner = standings.get(m.winner_team_id);
+        if (winner) winner.matches_won++;
+      }
+    }
+
+    // Count maps
+    for (const map of finishedMaps) {
+      const match = matches.find((m) => m.id === map.match_id);
+      if (!match) continue;
+      const t1 = standings.get(match.team1_id);
+      const t2 = standings.get(match.team2_id);
+      if (t1) t1.maps_played++;
+      if (t2) t2.maps_played++;
+      if (map.winner_team_id) {
+        const winner = standings.get(map.winner_team_id);
+        if (winner) winner.maps_won++;
+      }
+    }
+
+    // Build result sorted by points (maps_won) desc
+    return teams
+      .map((t) => {
+        const s = standings.get(t.id) || { matches_played: 0, matches_won: 0, maps_played: 0, maps_won: 0 };
+        return {
+          team_id: t.id,
+          team_name: t.name,
+          team_tag: t.tag,
+          matches_played: s.matches_played,
+          matches_won: s.matches_won,
+          maps_played: s.maps_played,
+          maps_won: s.maps_won,
+          points: s.maps_won, // 1 point per map won
+        };
+      })
+      .filter((t) => t.maps_played > 0) // Only teams that played
+      .sort((a, b) => b.points - a.points || b.matches_won - a.matches_won);
+  },
+
+  // ===========================================================================
   // Leaderboard (aggregated player stats across all maps)
   // ===========================================================================
 

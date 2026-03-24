@@ -724,6 +724,17 @@ export interface CS2MatchFilters {
 }
 
 /** Aggregated player stats across all maps (leaderboard) */
+export interface CS2TeamStanding {
+  team_id: string;
+  team_name: string;
+  team_tag: string;
+  matches_played: number;
+  matches_won: number;
+  maps_played: number;
+  maps_won: number;
+  points: number; // 1 point per map won
+}
+
 export interface CS2PlayerLeaderboardEntry {
   steam_id: string;
   player_name: string;
