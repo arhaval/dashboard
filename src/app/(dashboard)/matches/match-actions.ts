@@ -717,8 +717,8 @@ export async function pollDatHostMap(
   const liveScore: DatHostLiveScore = {
     dathost_match_id: map.dathost_match_id,
     map: dathostData.settings?.map || map.map,
-    team1_score: dathostData.team1_stats?.score || 0,
-    team2_score: dathostData.team2_stats?.score || 0,
+    team1_score: dathostData.team1?.stats?.score || dathostData.team1_stats?.score || 0,
+    team2_score: dathostData.team2?.stats?.score || dathostData.team2_stats?.score || 0,
     rounds_played: dathostData.rounds_played || 0,
     finished: dathostData.finished,
     cancelled: !!dathostData.cancel_reason,

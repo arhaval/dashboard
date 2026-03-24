@@ -646,8 +646,10 @@ export interface DatHostMatchResponse {
   finished: boolean;
   cancel_reason: string | null;
   rounds_played: number;
-  team1_stats: { score: number };
-  team2_stats: { score: number };
+  team1: { name: string; stats: { score: number } };
+  team2: { name: string; stats: { score: number } };
+  team1_stats?: { score: number };
+  team2_stats?: { score: number };
   players: DatHostPlayerResponse[];
   settings: {
     map: string;
