@@ -92,8 +92,8 @@ export const dathostService = {
         })),
         settings: {
           map: input.map,
-          connect_time: 600,
-          match_begin_countdown: 30,
+          connect_time: 9999,
+          match_begin_countdown: 180,
           enable_tech_pause: true,
           enable_pause: true,
         },
