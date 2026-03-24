@@ -95,7 +95,6 @@ export const dathostService = {
           connect_time: 9999,
           match_begin_countdown: 180,
           enable_tech_pause: true,
-          enable_pause: true,
         },
       }),
     });
