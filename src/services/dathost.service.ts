@@ -25,10 +25,15 @@ function getAuthHeader(): string {
   return 'Basic ' + Buffer.from(`${email}:${password}`).toString('base64');
 }
 
+// Store last error for debugging
+let _lastDatHostError = '';
+function getLastDatHostError() { return _lastDatHostError; }
+
 async function fetchDatHost<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T | null> {
+  _lastDatHostError = '';
   try {
     const res = await fetch(`${DATHOST_API_BASE}${path}`, {
       ...options,
@@ -41,6 +46,7 @@ async function fetchDatHost<T>(
 
     if (!res.ok) {
       const body = await res.text();
+      _lastDatHostError = `HTTP ${res.status}: ${body}`;
       console.error(`DatHost API ${res.status}: ${body}`);
       return null;
     }
@@ -50,6 +56,7 @@ async function fetchDatHost<T>(
     if (!text) return null;
     return JSON.parse(text) as T;
   } catch (err) {
+    _lastDatHostError = `Exception: ${err instanceof Error ? err.message : String(err)}`;
     console.error('DatHost API error:', err);
     return null;
   }
@@ -60,6 +67,7 @@ async function fetchDatHost<T>(
 // ---------------------------------------------------------------------------
 
 export const dathostService = {
+  getLastError: getLastDatHostError,
   // ==========================================================================
   // DatHost API calls
   // ==========================================================================

@@ -1213,7 +1213,8 @@ export async function quickStartMatch(formData: FormData) {
   if (!dathostMatch) {
     // Rollback: delete the match we just created
     await cs2Service.deleteMatch(match.id);
-    return { error: `DatHost API hatası (server: ${server.dathost_server_id}, map: ${map}, players: ${players.length})` };
+    const apiErr = dathostService.getLastError();
+    return { error: `DatHost API: ${apiErr || 'bilinmeyen hata'} (server: ${server.dathost_server_id}, players: ${players.length})` };
   }
 
   // Create map entry
