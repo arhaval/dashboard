@@ -1169,19 +1169,19 @@ export async function quickStartMatch(formData: FormData) {
   // Get server, must be IDLE
   const servers = await dathostService.getServers();
   const server = servers.find((s) => s.id === server_id);
-  if (!server) return { error: 'Sunucu bulunamadı' };
-  if (server.server_status !== 'IDLE') return { error: 'Sunucu meşgul' };
+  if (!server) return { error: `Sunucu bulunamadı (id: ${server_id}, servers: ${servers.length})` };
+  if (server.server_status !== 'IDLE') return { error: `Sunucu meşgul (status: ${server.server_status})` };
 
   // Get teams with players
   const allTeams = await cs2Service.getTeams();
   const team1 = allTeams.find((t) => t.id === team1_id);
   const team2 = allTeams.find((t) => t.id === team2_id);
-  if (!team1 || !team2) return { error: 'Takım bulunamadı' };
+  if (!team1 || !team2) return { error: `Takım bulunamadı (team1: ${!!team1}, team2: ${!!team2}, total: ${allTeams.length})` };
 
   const team1Players = (team1.players || []).filter((p) => p.is_active);
   const team2Players = (team2.players || []).filter((p) => p.is_active);
   if (team1Players.length === 0 || team2Players.length === 0) {
-    return { error: 'Her iki takımda da aktif oyuncu olmalı' };
+    return { error: `Aktif oyuncu yok (${team1.name}: ${team1Players.length}, ${team2.name}: ${team2Players.length})` };
   }
 
   // Create match (series)
@@ -1190,7 +1190,7 @@ export async function quickStartMatch(formData: FormData) {
     team2_id,
     match_date: new Date().toISOString(),
   });
-  if (!match) return { error: 'Maç oluşturulamadı' };
+  if (!match) return { error: 'Maç oluşturulamadı (DB hatası)' };
 
   // Update match status to LIVE
   await cs2Service.updateMatch(match.id, { status: 'LIVE' });
@@ -1213,7 +1213,7 @@ export async function quickStartMatch(formData: FormData) {
   if (!dathostMatch) {
     // Rollback: delete the match we just created
     await cs2Service.deleteMatch(match.id);
-    return { error: 'DatHost API hatası — maç başlatılamadı. Sunucu açık mı kontrol edin.' };
+    return { error: `DatHost API hatası (server: ${server.dathost_server_id}, map: ${map}, players: ${players.length})` };
   }
 
   // Create map entry
