@@ -14,6 +14,7 @@ import type { CS2MatchStatus, CS2Match } from '@/types';
 import { MapTabs } from './map-tabs';
 import { LiveMapBanner } from './live-map-banner';
 import { StartNextMap } from './start-next-map';
+import { MatchControls } from './match-controls';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -189,6 +190,18 @@ export default async function MatchDetailPage({ params }: PageProps) {
         team1Tag={team1Tag}
         team2Tag={team2Tag}
       />
+
+      {/* Match Controls (admin only) */}
+      {isAdmin && (
+        <div className="mt-6 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
+          <h3 className="mb-3 text-xs font-medium text-[var(--color-text-muted)]">Maç Kontrolü</h3>
+          <MatchControls
+            matchId={match.id}
+            matchStatus={match.status}
+            activeMapId={activeMap?.id}
+          />
+        </div>
+      )}
 
       {/* Notes */}
       {match.notes && (

@@ -485,6 +485,48 @@ export async function cancelDatHostMap(mapId: string) {
   return { success: true };
 }
 
+/** Cancel entire series — cancel active DatHost map, release server, mark CANCELLED */
+export async function cancelSeries(matchId: string) {
+  const auth = await requireAdmin();
+  if ('error' in auth) return auth;
+
+  const match = await cs2Service.getMatchById(matchId);
+  if (!match) return { error: 'Maç bulunamadı' };
+
+  // Cancel any active DatHost maps
+  const maps = match.maps || [];
+  for (const map of maps) {
+    if (
+      map.dathost_match_id &&
+      (map.dathost_status === 'CREATED' ||
+        map.dathost_status === 'WAITING_PLAYERS' ||
+        map.dathost_status === 'LIVE')
+    ) {
+      await dathostService.cancelMatch(map.dathost_match_id).catch(() => {});
+      await cs2Service.updateMatchMap(map.id, {
+        dathost_status: 'CANCELLED',
+        ended_at: new Date().toISOString(),
+      });
+    }
+  }
+
+  // Release server
+  const servers = await dathostService.getServers();
+  const usedServer = servers.find(
+    (s) => s.current_match_id === matchId && s.server_status === 'IN_MATCH',
+  );
+  if (usedServer) {
+    await dathostService.updateServerStatus(usedServer.id, 'IDLE');
+  }
+
+  await cs2Service.updateMatch(matchId, { status: 'CANCELLED' });
+
+  revalidatePath(`/matches/${matchId}`);
+  revalidatePath('/matches');
+  revalidatePath('/matches/operations');
+  return { success: true };
+}
+
 /** Finish a series (BO3) — set winner and status */
 export async function finishSeries(matchId: string, formData: FormData) {
   const auth = await requireAdmin();
