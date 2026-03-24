@@ -248,21 +248,17 @@ export const dathostService = {
   // DatHost File API (server files access)
   // ==========================================================================
 
-  /** List files in a directory on the game server */
-  async listServerFiles(
+  /** List all files on a game server, returns flat array of {path, size} */
+  async listAllServerFiles(
     dathostServerId: string,
-    path: string = '',
-  ): Promise<string[]> {
+  ): Promise<{ path: string; size: number }[]> {
     try {
-      const encodedPath = path.split('/').map(encodeURIComponent).join('/');
       const res = await fetch(
-        `${DATHOST_API_BASE}/game-servers/${dathostServerId}/files/${encodedPath}`,
-        {
-          headers: { Authorization: getAuthHeader() },
-        },
+        `${DATHOST_API_BASE}/game-servers/${dathostServerId}/files`,
+        { headers: { Authorization: getAuthHeader() } },
       );
       if (!res.ok) return [];
-      return (await res.json()) as string[];
+      return (await res.json()) as { path: string; size: number }[];
     } catch {
       return [];
     }
@@ -277,9 +273,7 @@ export const dathostService = {
       const encodedPath = path.split('/').map(encodeURIComponent).join('/');
       const res = await fetch(
         `${DATHOST_API_BASE}/game-servers/${dathostServerId}/files/${encodedPath}`,
-        {
-          headers: { Authorization: getAuthHeader() },
-        },
+        { headers: { Authorization: getAuthHeader() } },
       );
       if (!res.ok) return null;
       return await res.text();
@@ -288,39 +282,24 @@ export const dathostService = {
     }
   },
 
-  /** Scan MatchZy_Stats folder for CSV files — tries cs2/ then csgo/ paths */
+  /** Scan MatchZy_Stats folder for CSV files using flat file listing */
   async scanMatchZyStats(
     dathostServerId: string,
   ): Promise<{ matchId: string; csvPath: string; csvName: string }[]> {
+    const allFiles = await this.listAllServerFiles(dathostServerId);
     const results: { matchId: string; csvPath: string; csvName: string }[] = [];
 
-    // Try both cs2/ and csgo/ paths (DatHost uses different roots)
-    const basePaths = ['cs2/MatchZy_Stats', 'csgo/MatchZy_Stats'];
-    let activePath = '';
+    // Match paths like: MatchZy_Stats/1/match_data_map0_1.csv
+    const csvRegex = /MatchZy_Stats\/(\d+)\/([^/]+\.csv)$/;
 
-    for (const basePath of basePaths) {
-      const matchFolders = await this.listServerFiles(dathostServerId, basePath);
-      if (matchFolders.length > 0) {
-        activePath = basePath;
-        for (const folder of matchFolders) {
-          if (!/^\d+$/.test(folder)) continue;
-
-          const files = await this.listServerFiles(
-            dathostServerId,
-            `${basePath}/${folder}`,
-          );
-
-          for (const file of files) {
-            if (file.endsWith('.csv')) {
-              results.push({
-                matchId: folder,
-                csvPath: `${basePath}/${folder}/${file}`,
-                csvName: file,
-              });
-            }
-          }
-        }
-        break; // Found files, stop searching
+    for (const f of allFiles) {
+      const m = f.path.match(csvRegex);
+      if (m) {
+        results.push({
+          matchId: m[1],
+          csvPath: f.path,
+          csvName: m[2],
+        });
       }
     }
 
@@ -336,9 +315,7 @@ export const dathostService = {
       const encodedPath = path.split('/').map(encodeURIComponent).join('/');
       const res = await fetch(
         `${DATHOST_API_BASE}/game-servers/${dathostServerId}/files/${encodedPath}`,
-        {
-          headers: { Authorization: getAuthHeader() },
-        },
+        { headers: { Authorization: getAuthHeader() } },
       );
       if (!res.ok) return null;
       return await res.arrayBuffer();
@@ -347,20 +324,16 @@ export const dathostService = {
     }
   },
 
-  /** Read MatchZy SQLite database and return match data — tries cs2/ then csgo/ */
+  /** Read MatchZy SQLite database and return match data */
   async readMatchZyDatabase(
     dathostServerId: string,
   ): Promise<MatchZyMatch[]> {
-    const dbPaths = [
-      'cs2/addons/counterstrikesharp/plugins/MatchZy/matchzy.db',
-      'csgo/addons/counterstrikesharp/plugins/MatchZy/matchzy.db',
-    ];
+    // Find the db path from file listing
+    const allFiles = await this.listAllServerFiles(dathostServerId);
+    const dbFile = allFiles.find((f) => f.path.endsWith('MatchZy/matchzy.db'));
+    if (!dbFile) return [];
 
-    let dbBuffer: ArrayBuffer | null = null;
-    for (const p of dbPaths) {
-      dbBuffer = await this.downloadServerFileBinary(dathostServerId, p);
-      if (dbBuffer) break;
-    }
+    const dbBuffer = await this.downloadServerFileBinary(dathostServerId, dbFile.path);
     if (!dbBuffer) return [];
 
     try {
