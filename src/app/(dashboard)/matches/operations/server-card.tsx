@@ -30,13 +30,12 @@ export function ServerCard({ server, teams }: ServerCardProps) {
     if (m.winner_team_id === match?.team1_id) team1Wins++;
     else if (m.winner_team_id === match?.team2_id) team2Wins++;
   }
-  const seriesOver = team1Wins >= 2 || team2Wins >= 2;
-
-  // Determine card state
+  // Determine card state (no auto-finish, always play 3 maps, admin finishes manually)
+  const allMaps = [...finishedMaps];
   const isIdle = !match;
   const isLive = !!activeMap;
-  const isBetweenMaps = match && !activeMap && !seriesOver && match.status === 'LIVE';
-  const isSeriesComplete = match && seriesOver;
+  const isBetweenMaps = match && !activeMap && allMaps.length < 3 && match.status === 'LIVE';
+  const isSeriesComplete = match && allMaps.length >= 3 && !activeMap && match.status === 'LIVE';
 
   return (
     <div className="border border-[#2A2A2A] rounded-[6px] bg-[#141414] p-4 space-y-3">

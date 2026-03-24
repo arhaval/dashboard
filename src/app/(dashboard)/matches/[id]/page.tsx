@@ -73,9 +73,9 @@ export default async function MatchDetailPage({ params }: PageProps) {
       m.dathost_status === 'LIVE',
   );
 
-  // Check if between maps (series LIVE, no active map, series not over)
-  const seriesOver = series.team1 >= 2 || series.team2 >= 2;
-  const isBetweenMaps = isLive && !activeMap && !seriesOver;
+  // Check if between maps (series LIVE, no active map, less than 3 maps played)
+  const allMapsFinished = maps.every((m) => m.dathost_status === 'FINISHED' || m.dathost_status === 'CANCELLED');
+  const isBetweenMaps = isLive && !activeMap && maps.length < 3 && allMapsFinished;
 
   return (
     <PageShell

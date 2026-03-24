@@ -327,41 +327,15 @@ export async function pollDatHostMap(
         ended_at: new Date().toISOString(),
       });
 
-      // Check series status — auto-finish if 2-0 or 2-1
+      // Map finished — series always continues (no auto-finish, admin uses "Seriyi Bitir")
+      // Clear current_map_id but keep match on server
       if (match) {
-        const allMaps = [...(match.maps || [])];
-        // Count wins including this just-finished map
-        let t1Wins = 0;
-        let t2Wins = 0;
-        for (const m of allMaps) {
-          const mWinner = m.id === map.id ? winnerId : m.winner_team_id;
-          if (mWinner === match.team1_id) t1Wins++;
-          else if (mWinner === match.team2_id) t2Wins++;
-        }
-
-        const seriesOver = t1Wins >= 2 || t2Wins >= 2;
-        const seriesWinner = t1Wins >= 2 ? match.team1_id : t2Wins >= 2 ? match.team2_id : null;
-
-        // Find the server for this match
         const servers = await dathostService.getServersWithMatches();
         const usedServer = servers.find((s) => s.current_match_id === match.id);
-
-        if (seriesOver) {
-          // Finish series
-          await cs2Service.updateMatch(match.id, { status: 'FINISHED', winner_team_id: seriesWinner });
-          if (usedServer) {
-            await dathostService.updateServerStatus(usedServer.id, 'IDLE', {
-              currentMatchId: null,
-              currentMapId: null,
-            });
-          }
-        } else {
-          // Series continues — clear current_map_id but keep match
-          if (usedServer) {
-            await dathostService.updateServerStatus(usedServer.id, 'IN_MATCH', {
-              currentMapId: null,
-            });
-          }
+        if (usedServer) {
+          await dathostService.updateServerStatus(usedServer.id, 'IN_MATCH', {
+            currentMapId: null,
+          });
         }
       }
 
