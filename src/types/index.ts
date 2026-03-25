@@ -732,6 +732,7 @@ export interface CS2TeamStanding {
   matches_won: number;
   maps_played: number;
   maps_won: number;
+  rounds_won: number;
   points: number; // 1 point per map won
 }
 

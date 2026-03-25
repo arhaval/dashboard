@@ -5,6 +5,22 @@ import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
 import type { CS2PlayerLeaderboardEntry } from '@/types';
 
+const TEAM_COLORS: Record<string, { bg: string; text: string }> = {
+  AK47: { bg: 'bg-red-900/40', text: 'text-red-400' },
+  BHEAM: { bg: 'bg-blue-900/40', text: 'text-blue-400' },
+  MAMBA: { bg: 'bg-emerald-900/40', text: 'text-emerald-400' },
+  BORU: { bg: 'bg-cyan-900/40', text: 'text-cyan-400' },
+  BUSC: { bg: 'bg-purple-900/40', text: 'text-purple-400' },
+  CRMSN: { bg: 'bg-rose-900/40', text: 'text-rose-400' },
+  GEGEN: { bg: 'bg-yellow-900/40', text: 'text-yellow-400' },
+  HIZAL: { bg: 'bg-orange-900/40', text: 'text-orange-400' },
+  METAL: { bg: 'bg-zinc-700/40', text: 'text-zinc-300' },
+  SIKLA: { bg: 'bg-lime-900/40', text: 'text-lime-400' },
+  DD: { bg: 'bg-pink-900/40', text: 'text-pink-400' },
+  TG: { bg: 'bg-teal-900/40', text: 'text-teal-400' },
+  TYT: { bg: 'bg-indigo-900/40', text: 'text-indigo-400' },
+};
+
 type SortKey =
   | 'avg_adr'
   | 'avg_kd'
@@ -217,7 +233,13 @@ export function LeaderboardTable({ data }: { data: CS2PlayerLeaderboardEntry[] }
               {/* Player Name + Team Tag */}
               <td className="px-4 py-2">
                 <div className="flex items-center gap-2">
-                  <span className="rounded-[var(--radius-sm)] bg-[var(--color-accent-muted)] px-1.5 py-0.5 font-mono text-xs font-semibold text-[var(--color-accent)]">
+                  <span
+                    className={cn(
+                      'rounded px-1.5 py-0.5 font-mono text-xs font-semibold',
+                      TEAM_COLORS[entry.team_tag]?.bg || 'bg-[var(--color-accent-muted)]',
+                      TEAM_COLORS[entry.team_tag]?.text || 'text-[var(--color-accent)]'
+                    )}
+                  >
                     {entry.team_tag}
                   </span>
                   <span className="text-sm font-medium text-[var(--color-text-primary)]">
