@@ -544,7 +544,7 @@ export const cs2Service = {
         };
       })
       .filter((t) => t.maps_played > 0)
-      .sort((a, b) => b.points - a.points || b.rounds_won - a.rounds_won);
+      .sort((a, b) => b.points - a.points || b.matches_won - a.matches_won);
   },
 
   // ===========================================================================

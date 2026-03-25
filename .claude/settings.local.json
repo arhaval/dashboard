@@ -82,7 +82,8 @@
       "Read(//c/Users/hamit/**)",
       "Bash(sed -i 's/match_map_id/map_id/g' import_matches_simple.sql)",
       "Bash(echo \"Fixed match_map_id -> map_id\")",
-      "WebFetch(domain:dribbble.com)"
+      "WebFetch(domain:dribbble.com)",
+      "Bash(node scripts/analyze-matches.js)"
     ]
   }
 }

@@ -1,7 +1,7 @@
 /**
  * TeamStandings — Puan durumu tablosu
  * Puan = kazanılan harita sayısı
- * Eşitlik bozucu: kazanılan round sayısı
+ * Sıralama: Puan → Galibiyet → Alfabe
  */
 
 import type { CS2TeamStanding } from '@/types';
@@ -41,13 +41,13 @@ export function TeamStandings({ data }: TeamStandingsProps) {
               Takım
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium text-[var(--color-text-muted)]">
-              Oynanan Harita
+              Oynanan Maç
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-[var(--color-text-muted)]">
+              Galibiyet
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium text-[var(--color-text-muted)]">
               Kazanılan Harita
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-[var(--color-text-muted)]">
-              Kazanılan Round
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium text-[var(--color-accent)]">
               Puan
@@ -94,13 +94,13 @@ export function TeamStandings({ data }: TeamStandingsProps) {
                   </div>
                 </td>
                 <td className="px-4 py-3 text-center font-mono text-sm text-[var(--color-text-secondary)]">
-                  {team.maps_played}
+                  {team.matches_played}
+                </td>
+                <td className="px-4 py-3 text-center font-mono text-sm text-[var(--color-text-primary)]">
+                  {team.matches_won}
                 </td>
                 <td className="px-4 py-3 text-center font-mono text-sm text-[var(--color-text-primary)]">
                   {team.maps_won}
-                </td>
-                <td className="px-4 py-3 text-center font-mono text-sm text-[var(--color-text-secondary)]">
-                  {team.rounds_won}
                 </td>
                 <td className="px-4 py-3 text-center font-mono text-lg font-bold text-[var(--color-accent)]">
                   {team.points}
