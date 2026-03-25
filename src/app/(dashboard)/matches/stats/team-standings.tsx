@@ -41,12 +41,6 @@ export function TeamStandings({ data }: TeamStandingsProps) {
               Takım
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium text-[var(--color-text-muted)]">
-              Maç
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-[var(--color-text-muted)]">
-              Galibiyet
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-[var(--color-text-muted)]">
               Oynanan Harita
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium text-[var(--color-text-muted)]">
@@ -98,12 +92,6 @@ export function TeamStandings({ data }: TeamStandingsProps) {
                       {team.team_name}
                     </span>
                   </div>
-                </td>
-                <td className="px-4 py-3 text-center font-mono text-sm text-[var(--color-text-secondary)]">
-                  {team.matches_played}
-                </td>
-                <td className="px-4 py-3 text-center font-mono text-sm text-[var(--color-text-primary)]">
-                  {team.matches_won}
                 </td>
                 <td className="px-4 py-3 text-center font-mono text-sm text-[var(--color-text-secondary)]">
                   {team.maps_played}
