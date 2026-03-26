@@ -14,7 +14,16 @@ import type { CS2MatchStatus, CS2Match } from '@/types';
 import { MatchFilters } from './match-filters';
 
 interface PageProps {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; week?: string }>;
+}
+
+/** Get unique weeks from matches sorted by date */
+function getWeeks(matches: CS2Match[]): { label: string; date: string }[] {
+  const uniqueDates = [...new Set(matches.map((m) => m.match_date.split('T')[0]))].sort();
+  return uniqueDates.map((date, i) => ({
+    label: `${i + 1}. Hafta`,
+    date,
+  }));
 }
 
 function formatMatchDate(dateStr: string): string {
@@ -28,20 +37,12 @@ function formatMatchDate(dateStr: string): string {
   });
 }
 
-/** Calculate series score: how many maps each team won */
-function getSeriesScore(match: CS2Match): { team1: number; team2: number; mapNames: string[] } {
-  const maps = match.maps || [];
-  let team1 = 0;
-  let team2 = 0;
-  const mapNames: string[] = [];
-
-  for (const map of maps) {
-    mapNames.push(map.map);
-    if (map.winner_team_id === match.team1_id) team1++;
-    else if (map.winner_team_id === match.team2_id) team2++;
-  }
-
-  return { team1, team2, mapNames };
+/** Get series score from match record */
+function getSeriesScore(match: CS2Match): { team1: number; team2: number } {
+  return {
+    team1: match.team1_maps_won ?? 0,
+    team2: match.team2_maps_won ?? 0,
+  };
 }
 
 export default async function MatchesPage({ searchParams }: PageProps) {
@@ -55,7 +56,14 @@ export default async function MatchesPage({ searchParams }: PageProps) {
     status: params.status as CS2MatchStatus | undefined,
   };
 
-  const matches = await cs2Service.getMatches(filters);
+  const allMatches = await cs2Service.getMatches(filters);
+  const weeks = getWeeks(allMatches);
+  const selectedWeek = params.week || '';
+
+  // Filter by week if selected
+  const matches = selectedWeek
+    ? allMatches.filter((m) => m.match_date.split('T')[0] === selectedWeek)
+    : allMatches;
 
   return (
     <PageShell
@@ -73,7 +81,7 @@ export default async function MatchesPage({ searchParams }: PageProps) {
             <>
               <Link
                 href="/matches/operations"
-                className="rounded-[var(--radius-md)] bg-[var(--color-accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)]"
+                className="rounded-[var(--radius-md)] bg-[var(--color-accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-bg-tertiary)]"
               >
                 Operasyonlar
               </Link>
@@ -88,9 +96,33 @@ export default async function MatchesPage({ searchParams }: PageProps) {
         </div>
       }
     >
-      {/* Filters */}
-      <div className="mb-6">
-        <MatchFilters />
+      {/* Week Filter */}
+      <div className="mb-6 flex items-center gap-3">
+        <Link
+          href="/matches"
+          className={cn(
+            'rounded-[var(--radius-md)] px-3 py-1.5 text-sm transition-colors',
+            !selectedWeek
+              ? 'bg-[var(--color-accent)] text-white'
+              : 'border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
+          )}
+        >
+          Tümü
+        </Link>
+        {weeks.map((week) => (
+          <Link
+            key={week.date}
+            href={`/matches?week=${week.date}`}
+            className={cn(
+              'rounded-[var(--radius-md)] px-3 py-1.5 text-sm transition-colors',
+              selectedWeek === week.date
+                ? 'bg-[var(--color-accent)] text-white'
+                : 'border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
+            )}
+          >
+            {week.label}
+          </Link>
+        ))}
       </div>
 
       {/* Match List */}
@@ -104,7 +136,6 @@ export default async function MatchesPage({ searchParams }: PageProps) {
             const statusColor = CS2_MATCH_STATUS_COLORS[match.status as CS2MatchStatus] || '';
             const isFinished = match.status === 'FINISHED';
             const series = getSeriesScore(match);
-            const mapCount = (match.maps || []).length;
 
             return (
               <Link
@@ -118,11 +149,6 @@ export default async function MatchesPage({ searchParams }: PageProps) {
                     <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', statusColor)}>
                       {tr.cs2.status[match.status as CS2MatchStatus]}
                     </span>
-                    {mapCount > 0 && (
-                      <span className="text-xs text-[var(--color-text-muted)]">
-                        {series.mapNames.join(', ')}
-                      </span>
-                    )}
                   </div>
                   <span className="text-xs text-[var(--color-text-muted)]">
                     {formatMatchDate(match.match_date)}
@@ -174,19 +200,6 @@ export default async function MatchesPage({ searchParams }: PageProps) {
                   </div>
                 </div>
 
-                {/* Per-map scores */}
-                {mapCount > 0 && (
-                  <div className="mt-3 flex items-center justify-center gap-3">
-                    {(match.maps || []).map((map) => (
-                      <span
-                        key={map.id}
-                        className="rounded-[var(--radius-sm)] bg-[var(--color-bg-primary)] px-2 py-0.5 font-mono text-xs text-[var(--color-text-muted)]"
-                      >
-                        {map.map.replace('de_', '')} {map.team1_score}:{map.team2_score}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </Link>
             );
           })}

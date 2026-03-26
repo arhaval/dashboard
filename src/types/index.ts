@@ -531,6 +531,8 @@ export interface CS2Match {
   status: CS2MatchStatus;
   winner_team_id: string | null;
   match_date: string;
+  team1_maps_won: number;
+  team2_maps_won: number;
   notes: string | null;
   created_at: string;
   updated_at: string;
