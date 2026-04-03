@@ -39,7 +39,7 @@ export async function createContentPlan(formData: FormData) {
 
   const result = createSchema.safeParse(raw);
   if (!result.success) {
-    return { error: result.error.errors[0].message };
+    return { error: result.error.issues[0].message };
   }
 
   const plan = await contentPlanService.create(result.data, currentUser.id);
