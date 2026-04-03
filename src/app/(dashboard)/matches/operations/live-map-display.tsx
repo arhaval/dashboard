@@ -66,20 +66,20 @@ export function LiveMapDisplay({
         {isWaiting && (
           <span className="text-xs text-yellow-400">Oyuncular bekleniyor...</span>
         )}
-        <span className="text-xs text-[#6B6B6B]">{mapName.replace('de_', '')}</span>
+        <span className="text-xs text-[var(--color-text-muted)]">{mapName.replace('de_', '')}</span>
       </div>
 
       <div className="flex items-center justify-center gap-4">
-        <span className="text-sm text-[#FAFAFA] font-medium truncate max-w-[100px]">{team1Name}</span>
-        <span className="text-2xl font-mono text-[#FAFAFA] font-bold">
-          {score.team1} <span className="text-[#6B6B6B]">-</span> {score.team2}
+        <span className="text-sm text-[var(--color-text-primary)] font-medium truncate max-w-[100px]">{team1Name}</span>
+        <span className="text-2xl font-mono text-[var(--color-text-primary)] font-bold">
+          {score.team1} <span className="text-[var(--color-text-muted)]">-</span> {score.team2}
         </span>
-        <span className="text-sm text-[#FAFAFA] font-medium truncate max-w-[100px]">{team2Name}</span>
+        <span className="text-sm text-[var(--color-text-primary)] font-medium truncate max-w-[100px]">{team2Name}</span>
       </div>
 
       {isLive && (
         <div className="text-center">
-          <span className="text-xs text-[#6B6B6B]">R:{score.rounds}</span>
+          <span className="text-xs text-[var(--color-text-muted)]">R:{score.rounds}</span>
         </div>
       )}
     </div>

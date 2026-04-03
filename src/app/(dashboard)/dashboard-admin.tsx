@@ -1,28 +1,41 @@
 /**
  * Admin Dashboard View
- * Shows overview stats, recent activity, and quick action links.
+ * Business-first operations panel.
+ * Priority: Unpaid money → Monthly finance → Content production → Team performance → Actions
  */
 
 import Link from 'next/link';
 import { PageShell } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StatCard } from '@/components/ui/stat-card';
+import { ContentTrendChart, TeamContentChart } from '@/components/charts/content-charts';
 import {
-  FileText,
-  CreditCard,
-  Users,
+  AlertCircle,
   TrendingUp,
-  ClipboardCheck,
-  Receipt,
-  FileOutput,
+  TrendingDown,
+  Mic,
+  Scissors,
+  Video,
   ArrowRight,
+  Clock,
+  CheckCircle2,
+  DollarSign,
+  Users,
 } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
 import type { WorkItem, User } from '@/types';
 
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────
 // Types
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────
+
+interface MonthlyFinanceStats {
+  totalIncome: number;
+  totalExpenses: number;
+  netBalance: number;
+  transactionCount: number;
+}
 
 interface PaymentStats {
   total: number;
@@ -32,238 +45,377 @@ interface PaymentStats {
   totalAmount: number;
 }
 
-interface FinanceStats {
-  totalIncome: number;
-  totalExpenses: number;
-  netBalance: number;
-  transactionCount: number;
+interface ContentStats {
+  thisMonth: { voice: number; edit: number; total: number };
+  lastMonth: { voice: number; edit: number; total: number };
+  change: number;
+}
+
+interface ContentTrendPoint {
+  month: string;
+  label: string;
+  voice: number;
+  edit: number;
+  total: number;
+}
+
+interface TeamContentEntry {
+  userId: string;
+  name: string;
+  voice: number;
+  edit: number;
+  total: number;
 }
 
 export interface DashboardAdminProps {
   allWorkItems: WorkItem[];
   allUsers: User[];
   paymentStats: PaymentStats;
-  financeStats: FinanceStats;
+  monthlyFinanceStats: MonthlyFinanceStats;
+  unpaidTotal: number;
+  contentStats: ContentStats;
+  contentTrend: ContentTrendPoint[];
+  teamContentStats: TeamContentEntry[];
+  currentMonth: string;
 }
 
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────
 // Helpers
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────
 
-const ROW_CLASS =
-  'flex items-center justify-between rounded-[var(--radius-sm)] bg-[var(--color-bg-tertiary)] p-3';
-
-function getWorkItemLabel(item: WorkItem): string {
+function getWorkItemTitle(item: WorkItem): string {
   return item.match_name || item.content_name || item.work_type;
 }
 
-// ---------------------------------------------------------------------------
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    DRAFT: 'bg-[var(--color-warning-muted)] text-[var(--color-warning)]',
+    APPROVED: 'bg-[var(--color-info-muted)] text-[var(--color-info)]',
+    PAID: 'bg-[var(--color-success-muted)] text-[var(--color-success)]',
+  };
+  const labels: Record<string, string> = {
+    DRAFT: 'Taslak',
+    APPROVED: 'Onaylı',
+    PAID: 'Ödendi',
+  };
+  return (
+    <span className={cn('inline-block rounded-full px-2 py-0.5 text-xs font-medium', map[status] ?? '')}>
+      {labels[status] ?? status}
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────
 // Component
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────
 
 export function DashboardAdmin({
   allWorkItems,
   allUsers,
   paymentStats,
-  financeStats,
+  monthlyFinanceStats,
+  unpaidTotal,
+  contentStats,
+  contentTrend,
+  teamContentStats,
+  currentMonth,
 }: DashboardAdminProps) {
-  const thisMonth = new Date().toISOString().slice(0, 7);
-  const thisMonthWorkItems = allWorkItems.filter((item) =>
-    item.work_date.startsWith(thisMonth)
-  );
-  const activeUsers = allUsers.filter((u) => u.is_active && u.role !== 'ADMIN');
+  const activeMembers = allUsers.filter((u) => u.is_active && u.role !== 'ADMIN');
 
-  // Recent work items (last 5 by creation date)
-  const recentWorkItems = [...allWorkItems]
+  // Items needing action
+  const pendingApproval = allWorkItems
+    .filter((i) => i.status === 'DRAFT')
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 5);
+    .slice(0, 6);
 
-  const draftCount = allWorkItems.filter((i) => i.status === 'DRAFT').length;
+  const pendingPayment = allWorkItems
+    .filter((i) => i.status === 'APPROVED' && i.cost)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 6);
 
-  const stats = [
-    {
-      title: tr.dashboard.totalWorkItems,
-      value: thisMonthWorkItems.length.toString(),
-      description: tr.dashboard.thisMonth,
-      icon: FileText,
-      color: 'text-[var(--color-text-primary)]',
-    },
-    {
-      title: tr.dashboard.pendingPayments,
-      value: paymentStats.pending.toString(),
-      description: tr.dashboard.awaitingProcessing,
-      icon: CreditCard,
-      color: 'text-[var(--color-warning)]',
-    },
-    {
-      title: tr.dashboard.teamMembers,
-      value: activeUsers.length.toString(),
-      description: tr.dashboard.activeUsers,
-      icon: Users,
-      color: 'text-[var(--color-text-primary)]',
-    },
-    {
-      title: 'Net Bakiye',
-      value: formatCurrency(financeStats.netBalance),
-      description: `${formatCurrency(financeStats.totalIncome)} gelir / ${formatCurrency(financeStats.totalExpenses)} gider`,
-      icon: TrendingUp,
-      color: financeStats.netBalance >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]',
-    },
-  ];
-
-  const quickActions = [
-    {
-      label: 'Onay Bekleyenler',
-      description: `${draftCount} taslak iş`,
-      href: '/work-items?status=DRAFT',
-      icon: ClipboardCheck,
-    },
-    {
-      label: 'Ödeme Oluştur',
-      description: 'Onaylı işlerden ödeme',
-      href: '/work-items?status=APPROVED',
-      icon: CreditCard,
-    },
-    {
-      label: 'İşlem Ekle',
-      description: 'Gelir veya gider kaydı',
-      href: '/payments?tab=realized',
-      icon: Receipt,
-    },
-    {
-      label: 'Rapor Oluştur',
-      description: 'Aylık performans raporu',
-      href: '/reports',
-      icon: FileOutput,
-    },
-  ];
+  // Format month label
+  const TR_MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+    'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+  const [, m] = currentMonth.split('-').map(Number);
+  const monthLabel = TR_MONTHS[m - 1];
 
   return (
-    <PageShell title={tr.dashboard.title} description={tr.dashboard.subtitle}>
-      {/* Stat Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={stat.title}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-[var(--color-text-secondary)]">
-                  {stat.title}
-                </CardTitle>
-                <Icon className="h-4 w-4 text-[var(--color-text-muted)]" />
-              </CardHeader>
-              <CardContent>
-                <div className={cn('text-2xl font-semibold', stat.color)}>
-                  {stat.value}
-                </div>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  {stat.description}
-                </p>
-              </CardContent>
-            </Card>
-          );
-        })}
+    <PageShell
+      title="Genel Bakış"
+      description={`${monthLabel} ayı operasyon özeti`}
+    >
+      {/* ═══════════════════════════════════════════════
+          BÖLÜM 1: FİNANSAL KONTROL
+          ═══════════════════════════════════════════════ */}
+      <div className="mb-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
+          Finansal Durum
+        </p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Kritik: Ödenmemiş */}
+        <StatCard
+          title="Ödenmemiş Tutar"
+          value={formatCurrency(unpaidTotal)}
+          description={`${paymentStats.pending} onaylı iş bekliyor`}
+          icon={AlertCircle}
+          color={unpaidTotal > 0 ? 'orange' : 'green'}
+          change={unpaidTotal > 0 ? { value: 'Ödeme Bekliyor', positive: false } : undefined}
+        />
+        <StatCard
+          title={`${monthLabel} Gideri`}
+          value={formatCurrency(monthlyFinanceStats.totalExpenses)}
+          description="Bu ayki toplam gider"
+          icon={TrendingDown}
+          color="red"
+        />
+        <StatCard
+          title={`${monthLabel} Geliri`}
+          value={formatCurrency(monthlyFinanceStats.totalIncome)}
+          description="Bu ayki toplam gelir"
+          icon={TrendingUp}
+          color="green"
+        />
+        <StatCard
+          title="Net Bakiye"
+          value={formatCurrency(monthlyFinanceStats.netBalance)}
+          description={monthlyFinanceStats.netBalance >= 0 ? 'Kârlı ay' : 'Zararlı ay'}
+          icon={DollarSign}
+          color={monthlyFinanceStats.netBalance >= 0 ? 'teal' : 'red'}
+          change={
+            monthlyFinanceStats.netBalance !== 0
+              ? {
+                  value: monthlyFinanceStats.netBalance >= 0 ? 'Pozitif' : 'Negatif',
+                  positive: monthlyFinanceStats.netBalance >= 0,
+                }
+              : undefined
+          }
+        />
       </div>
 
-      {/* Recent Activity + Quick Actions */}
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>{tr.dashboard.recentActivity}</CardTitle>
-            <Link
-              href="/work-items"
-              className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition-colors"
-            >
-              Tümünü Gör
-            </Link>
+      {/* ═══════════════════════════════════════════════
+          BÖLÜM 2: İÇERİK ÜRETİMİ
+          ═══════════════════════════════════════════════ */}
+      <div className="mb-2 mt-8">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
+          İçerik Üretimi — {monthLabel}
+        </p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Toplam İçerik"
+          value={contentStats.thisMonth.total.toString()}
+          description={`Geçen ay: ${contentStats.lastMonth.total}`}
+          icon={Video}
+          color="orange"
+          change={
+            contentStats.lastMonth.total > 0 || contentStats.thisMonth.total > 0
+              ? {
+                  value: `${Math.abs(contentStats.change)}%`,
+                  positive: contentStats.change >= 0,
+                }
+              : undefined
+          }
+        />
+        <StatCard
+          title="Seslendirme"
+          value={contentStats.thisMonth.voice.toString()}
+          description={`Geçen ay: ${contentStats.lastMonth.voice}`}
+          icon={Mic}
+          color="blue"
+        />
+        <StatCard
+          title="Kurgu"
+          value={contentStats.thisMonth.edit.toString()}
+          description={`Geçen ay: ${contentStats.lastMonth.edit}`}
+          icon={Scissors}
+          color="purple"
+        />
+        <StatCard
+          title="Aktif Üye"
+          value={activeMembers.length.toString()}
+          description="İçerik üretiyor"
+          icon={Users}
+          color="teal"
+        />
+      </div>
+
+      {/* ═══════════════════════════════════════════════
+          BÖLÜM 3: CHARTS
+          ═══════════════════════════════════════════════ */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-5">
+        {/* İçerik Trendi — 3/5 */}
+        <Card className="lg:col-span-3">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
+              İçerik Üretim Trendi
+            </CardTitle>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              Son 6 ay — Seslendirme + Kurgu toplamı
+            </p>
           </CardHeader>
           <CardContent>
-            {recentWorkItems.length === 0 ? (
-              <div
-                className={cn(
-                  'flex h-32 items-center justify-center',
-                  'rounded-[var(--radius-md)]',
-                  'border border-dashed border-[var(--color-border)]',
-                  'text-sm text-[var(--color-text-muted)]'
-                )}
-              >
-                Henüz iş kaydı yok
+            <ContentTrendChart data={contentTrend} />
+          </CardContent>
+        </Card>
+
+        {/* Ekip Performansı — 2/5 */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
+              Ekip Performansı
+            </CardTitle>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              {monthLabel} — kişi bazlı içerik
+            </p>
+          </CardHeader>
+          <CardContent>
+            {teamContentStats.length === 0 ? (
+              <div className="flex h-40 items-center justify-center text-sm text-[var(--color-text-muted)]">
+                Bu ay henüz içerik yok
               </div>
             ) : (
-              <div className="space-y-2">
-                {recentWorkItems.map((item) => (
-                  <div key={item.id} className={ROW_CLASS}>
+              <TeamContentChart data={teamContentStats} />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ═══════════════════════════════════════════════
+          BÖLÜM 4: AKSİYON GEREKTİREN İŞLER
+          ═══════════════════════════════════════════════ */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        {/* Ödeme Bekleyenler */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div>
+              <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
+                Ödeme Bekleyenler
+              </CardTitle>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                Onaylı — ödeme oluşturulmayı bekliyor
+              </p>
+            </div>
+            <Link
+              href="/work-items?status=APPROVED"
+              className="flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline"
+            >
+              Tümü <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardHeader>
+          <CardContent className="p-0">
+            {pendingPayment.length === 0 ? (
+              <div className="flex h-32 items-center justify-center text-sm text-[var(--color-text-muted)]">
+                <CheckCircle2 className="mr-2 h-4 w-4 text-[var(--color-success)]" />
+                Bekleyen ödeme yok
+              </div>
+            ) : (
+              <div>
+                {pendingPayment.map((item, idx) => (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      'flex items-center justify-between px-6 py-3',
+                      'border-b border-[var(--color-border)] last:border-0',
+                      idx % 2 === 0 ? 'bg-[var(--color-bg-secondary)]' : 'bg-[var(--color-bg-primary)]'
+                    )}
+                  >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-[var(--color-text-primary)]">
-                        {getWorkItemLabel(item)}
+                        {getWorkItemTitle(item)}
                       </p>
                       <p className="text-xs text-[var(--color-text-muted)]">
-                        {item.user?.full_name} &middot; {formatDate(item.work_date)}
+                        {item.user?.full_name} · {formatDate(item.work_date)}
                       </p>
                     </div>
-                    <div className="ml-3 text-right">
-                      {item.cost ? (
-                        <span className="font-mono text-sm font-medium text-[var(--color-text-primary)]">
-                          {formatCurrency(item.cost)}
-                        </span>
-                      ) : (
-                        <span
-                          className={cn(
-                            'inline-block rounded-full px-2 py-0.5',
-                            'text-xs font-medium',
-                            item.status === 'DRAFT'
-                              ? 'bg-[var(--color-warning)]/15 text-[var(--color-warning)]'
-                              : item.status === 'APPROVED'
-                                ? 'bg-[var(--color-info)]/15 text-[var(--color-info)]'
-                                : 'bg-[var(--color-success)]/15 text-[var(--color-success)]'
-                          )}
-                        >
-                          {item.status === 'DRAFT' ? 'Taslak' : item.status === 'APPROVED' ? 'Onaylı' : 'Ödendi'}
-                        </span>
-                      )}
-                    </div>
+                    <span className="ml-4 font-mono text-sm font-semibold text-[var(--color-success)]">
+                      {formatCurrency(item.cost ?? 0)}
+                    </span>
                   </div>
                 ))}
+                <div className="border-t border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-6 py-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[var(--color-text-muted)]">Toplam bekleyen</span>
+                    <span className="font-mono text-sm font-bold text-[var(--color-accent)]">
+                      {formatCurrency(unpaidTotal)}
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
+        {/* Onay Bekleyenler */}
         <Card>
-          <CardHeader>
-            <CardTitle>{tr.dashboard.quickActions}</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div>
+              <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
+                Onay Bekleyenler
+              </CardTitle>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                Taslak — inceleme ve onay bekliyor
+              </p>
+            </div>
+            <Link
+              href="/work-items?status=DRAFT"
+              className="flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline"
+            >
+              Tümü <ArrowRight className="h-3 w-3" />
+            </Link>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {quickActions.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <Link
-                    key={action.href}
-                    href={action.href}
+          <CardContent className="p-0">
+            {pendingApproval.length === 0 ? (
+              <div className="flex h-32 items-center justify-center text-sm text-[var(--color-text-muted)]">
+                <CheckCircle2 className="mr-2 h-4 w-4 text-[var(--color-success)]" />
+                Bekleyen onay yok
+              </div>
+            ) : (
+              <div>
+                {pendingApproval.map((item, idx) => (
+                  <div
+                    key={item.id}
                     className={cn(
-                      ROW_CLASS,
-                      'group transition-colors hover:bg-[var(--color-accent-muted)]'
+                      'flex items-center justify-between px-6 py-3',
+                      'border-b border-[var(--color-border)] last:border-0',
+                      idx % 2 === 0 ? 'bg-[var(--color-bg-secondary)]' : 'bg-[var(--color-bg-primary)]'
                     )}
                   >
-                    <div className="flex items-center gap-3">
-                      <Icon className="h-4 w-4 text-[var(--color-text-muted)] group-hover:text-[var(--color-accent)]" />
-                      <div>
-                        <p className="text-sm font-medium text-[var(--color-text-primary)]">
-                          {action.label}
-                        </p>
-                        <p className="text-xs text-[var(--color-text-muted)]">
-                          {action.description}
-                        </p>
-                      </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-[var(--color-text-primary)]">
+                        {getWorkItemTitle(item)}
+                      </p>
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        {item.user?.full_name} · {formatDate(item.work_date)}
+                      </p>
                     </div>
-                    <ArrowRight className="h-4 w-4 text-[var(--color-text-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+                    <div className="ml-4 flex items-center gap-2">
+                      <span
+                        className={cn(
+                          'rounded-full px-2 py-0.5 text-xs font-medium',
+                          item.work_type === 'VOICE'
+                            ? 'bg-[var(--color-info-muted)] text-[var(--color-info)]'
+                            : item.work_type === 'EDIT'
+                              ? 'bg-[var(--color-success-muted)] text-[var(--color-success)]'
+                              : 'bg-[var(--color-accent-muted)] text-[var(--color-accent)]'
+                        )}
+                      >
+                        {item.work_type === 'VOICE' ? 'Ses' : item.work_type === 'EDIT' ? 'Kurgu' : 'Yayın'}
+                      </span>
+                      <Clock className="h-3.5 w-3.5 text-[var(--color-warning)]" />
+                    </div>
+                  </div>
+                ))}
+                <div className="border-t border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-6 py-3">
+                  <Link
+                    href="/work-items?status=DRAFT"
+                    className="flex items-center justify-center gap-1 text-xs font-medium text-[var(--color-accent)] hover:underline"
+                  >
+                    Hepsini İncele <ArrowRight className="h-3 w-3" />
                   </Link>
-                );
-              })}
-            </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -759,3 +759,64 @@ export interface CS2PlayerLeaderboardEntry {
   avg_kda: number;
   hs_percent: number;
 }
+
+
+// =============================================================================
+// Content Plans
+// İçerik planlama ve takvim
+// =============================================================================
+
+export type ContentPlanStatus = 'PLANNED' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED';
+export type ContentPlanPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+export type ContentPlanType = 'VOICE' | 'EDIT' | 'STREAM';
+export type ContentPlatform = 'YOUTUBE' | 'INSTAGRAM' | 'X';
+export type ContentSubtype = 'VIDEO' | 'SHORTS' | 'REELS' | 'POST';
+
+export interface ContentPlan {
+  id: string;
+  title: string;
+  content_type: ContentPlanType;
+  planned_date: string;
+  assigned_to: string | null;
+  created_by: string | null;
+  status: ContentPlanStatus;
+  priority: ContentPlanPriority;
+  notes: string | null;
+  work_item_id: string | null;
+  platform: ContentPlatform | null;
+  content_subtype: ContentSubtype | null;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  assignee?: { id: string; full_name: string; avatar_url: string | null } | null;
+}
+
+export interface CreateContentPlanInput {
+  title: string;
+  content_type: ContentPlanType;
+  planned_date: string;
+  assigned_to?: string | null;
+  priority?: ContentPlanPriority;
+  notes?: string | null;
+  platform?: ContentPlatform | null;
+  content_subtype?: ContentSubtype | null;
+}
+
+export interface ContentGoal {
+  id: string;
+  platform: ContentPlatform;
+  sub_type: ContentSubtype;
+  weekly_target: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WeeklyGoalProgress {
+  platform: ContentPlatform;
+  sub_type: ContentSubtype;
+  weekly_target: number;
+  done_this_week: number;
+  pct: number; // 0-100
+  on_track: boolean;
+}

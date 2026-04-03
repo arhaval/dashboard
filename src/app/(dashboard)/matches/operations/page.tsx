@@ -28,7 +28,7 @@ export default async function OperationsPage() {
       actions={
         <Link
           href="/matches"
-          className="rounded border border-[#2A2A2A] px-3 py-1.5 text-sm text-[#A1A1A1] hover:text-[#FAFAFA]"
+          className="rounded border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
         >
           Maclar
         </Link>

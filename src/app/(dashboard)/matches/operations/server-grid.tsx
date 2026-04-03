@@ -11,7 +11,7 @@ interface ServerGridProps {
 export function ServerGrid({ servers, teams }: ServerGridProps) {
   if (servers.length === 0) {
     return (
-      <p className="text-sm text-[#6B6B6B]">
+      <p className="text-sm text-[var(--color-text-muted)]">
         Kayitli sunucu yok. Asagidan sunucu ekleyin.
       </p>
     );

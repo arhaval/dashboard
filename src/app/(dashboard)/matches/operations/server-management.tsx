@@ -41,35 +41,35 @@ export function ServerManagement({ servers }: ServerManagementProps) {
   }
 
   return (
-    <div className="rounded-md border border-[#2A2A2A] bg-[#141414]">
+    <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg-tertiary)]">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-[#FAFAFA] hover:bg-[#1F1F1F]"
+        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]"
       >
         {t.serverManagement}
-        <span className="text-[#6B6B6B]">{isOpen ? '▲' : '▼'}</span>
+        <span className="text-[var(--color-text-muted)]">{isOpen ? '▲' : '▼'}</span>
       </button>
 
       {isOpen && (
-        <div className="border-t border-[#2A2A2A] px-4 py-4 space-y-4">
+        <div className="border-t border-[var(--color-border)] px-4 py-4 space-y-4">
           {/* Add Server Form */}
           <form action={addAction} className="flex items-end gap-3">
             <div>
-              <label className="block text-xs text-[#A1A1A1] mb-1">{t.serverId}</label>
+              <label className="block text-xs text-[var(--color-text-secondary)] mb-1">{t.serverId}</label>
               <input
                 name="dathost_server_id"
                 required
                 placeholder="abc123..."
-                className="rounded border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] placeholder-[#6B6B6B]"
+                className="rounded border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)]"
               />
             </div>
             <div>
-              <label className="block text-xs text-[#A1A1A1] mb-1">{t.serverName}</label>
+              <label className="block text-xs text-[var(--color-text-secondary)] mb-1">{t.serverName}</label>
               <input
                 name="name"
                 required
                 placeholder="EU-1"
-                className="rounded border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] placeholder-[#6B6B6B]"
+                className="rounded border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)]"
               />
             </div>
             <button
@@ -97,11 +97,11 @@ export function ServerManagement({ servers }: ServerManagementProps) {
                 return (
                   <div
                     key={server.id}
-                    className="flex items-center justify-between rounded border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2"
+                    className="flex items-center justify-between rounded border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-[#FAFAFA]">{server.name}</span>
-                      <span className="text-xs text-[#6B6B6B] font-mono">{server.dathost_server_id.slice(0, 8)}...</span>
+                      <span className="text-sm text-[var(--color-text-primary)]">{server.name}</span>
+                      <span className="text-xs text-[var(--color-text-muted)] font-mono">{server.dathost_server_id.slice(0, 8)}...</span>
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColor}`}>
                         {statusLabel}
                       </span>
@@ -109,7 +109,7 @@ export function ServerManagement({ servers }: ServerManagementProps) {
                     <button
                       onClick={() => handleRemove(server.id)}
                       disabled={server.server_status === 'IN_MATCH'}
-                      className="text-xs text-[#6B6B6B] hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="text-xs text-[var(--color-text-muted)] hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       Sil
                     </button>

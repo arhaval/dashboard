@@ -63,23 +63,23 @@ export function LiveMatchCard({ match }: LiveMatchCardProps) {
   return (
     <Link
       href={`/matches/${match.id}`}
-      className="block rounded-md border border-[#2A2A2A] bg-[#141414] p-4 hover:border-[#FF4D00]/30 transition-colors"
+      className="block rounded-md border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] p-4 hover:border-[#FF4D00]/30 transition-colors"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-[#FAFAFA]">
+        <span className="text-sm font-medium text-[var(--color-text-primary)]">
           {team1Tag} vs {team2Tag}
         </span>
-        <span className="text-xs text-[#6B6B6B]">
+        <span className="text-xs text-[var(--color-text-muted)]">
           BO{maps.length > 0 ? Math.max(maps.length, 3) : 3}
         </span>
       </div>
 
       {/* Series Score */}
       <div className="flex items-center justify-center gap-3 mb-3">
-        <span className="text-lg font-bold text-[#FAFAFA] tabular-nums">{seriesTeam1}</span>
-        <span className="text-xs text-[#6B6B6B]">—</span>
-        <span className="text-lg font-bold text-[#FAFAFA] tabular-nums">{seriesTeam2}</span>
+        <span className="text-lg font-bold text-[var(--color-text-primary)] tabular-nums">{seriesTeam1}</span>
+        <span className="text-xs text-[var(--color-text-muted)]">—</span>
+        <span className="text-lg font-bold text-[var(--color-text-primary)] tabular-nums">{seriesTeam2}</span>
       </div>
 
       {/* Active Map */}
@@ -94,17 +94,17 @@ export function LiveMatchCard({ match }: LiveMatchCardProps) {
                 {statusLabel}
               </span>
             )}
-            <span className="text-xs text-[#A1A1A1]">
+            <span className="text-xs text-[var(--color-text-secondary)]">
               Map {activeMap.map_number}: {activeMap.map.replace('de_', '')}
             </span>
           </div>
 
           {statusBadge === 'LIVE' && (
             <div className="flex items-center justify-center gap-3">
-              <span className="text-sm font-medium text-[#FAFAFA] tabular-nums">{mapScore1}</span>
-              <span className="text-xs text-[#6B6B6B]">—</span>
-              <span className="text-sm font-medium text-[#FAFAFA] tabular-nums">{mapScore2}</span>
-              <span className="text-xs text-[#6B6B6B]">R:{rounds}</span>
+              <span className="text-sm font-medium text-[var(--color-text-primary)] tabular-nums">{mapScore1}</span>
+              <span className="text-xs text-[var(--color-text-muted)]">—</span>
+              <span className="text-sm font-medium text-[var(--color-text-primary)] tabular-nums">{mapScore2}</span>
+              <span className="text-xs text-[var(--color-text-muted)]">R:{rounds}</span>
             </div>
           )}
         </div>
@@ -112,7 +112,7 @@ export function LiveMatchCard({ match }: LiveMatchCardProps) {
 
       {/* No active map */}
       {!activeMap && maps.length > 0 && (
-        <p className="text-xs text-[#6B6B6B]">{t.startNextMap}</p>
+        <p className="text-xs text-[var(--color-text-muted)]">{t.startNextMap}</p>
       )}
     </Link>
   );

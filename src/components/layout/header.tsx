@@ -10,6 +10,7 @@ import * as React from 'react';
 import { LogOut, User as UserIcon, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Breadcrumb } from '@/components/layout/breadcrumb';
 import { tr } from '@/lib/i18n';
 import type { User } from '@/types';
 
@@ -56,13 +57,13 @@ export function Header({ user, onSignOut }: HeaderProps) {
         'h-[var(--header-height)]',
         'left-[var(--sidebar-width)]',
         'border-b border-[var(--color-border)]',
-        'bg-[var(--color-bg-primary)]'
+        'bg-[var(--color-bg-secondary)]'
       )}
     >
       <div className="flex h-full items-center justify-between px-6">
-        {/* Left side - can be used for breadcrumbs or search */}
+        {/* Left side - Breadcrumb navigation */}
         <div className="flex items-center gap-4">
-          {/* Placeholder for breadcrumbs or search */}
+          <Breadcrumb />
         </div>
 
         {/* Right side - User menu */}
@@ -78,14 +79,15 @@ export function Header({ user, onSignOut }: HeaderProps) {
                   'hover:bg-[var(--color-bg-tertiary)]',
                   isMenuOpen && 'bg-[var(--color-bg-tertiary)]'
                 )}
+                aria-label="User menu"
               >
                 {/* Avatar */}
                 <div
                   className={cn(
                     'flex h-8 w-8 items-center justify-center',
                     'rounded-full',
-                    'bg-[var(--color-bg-tertiary)]',
-                    'text-sm font-medium text-[var(--color-text-primary)]'
+                    'bg-[var(--color-accent-muted)]',
+                    'text-sm font-semibold text-[var(--color-accent)]'
                   )}
                 >
                   {user.avatar_url ? (
@@ -134,12 +136,13 @@ export function Header({ user, onSignOut }: HeaderProps) {
                 <div
                   className={cn(
                     'absolute right-0 top-full mt-2',
-                    'w-56 rounded-[var(--radius-md)]',
+                    'w-56 rounded-[var(--radius-lg)]',
                     'border border-[var(--color-border)]',
                     'bg-[var(--color-bg-secondary)]',
                     'py-1',
                     'animate-fade-in'
                   )}
+                  style={{ boxShadow: 'var(--shadow-card)' }}
                 >
                   {/* User info (mobile) */}
                   <div className="border-b border-[var(--color-border)] px-4 py-3 md:hidden">

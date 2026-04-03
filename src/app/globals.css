@@ -7,37 +7,49 @@
    ========================================================================== */
 
 :root {
-  /* Background Colors */
-  --color-bg-primary: #0A0A0A;
-  --color-bg-secondary: #141414;
-  --color-bg-tertiary: #1F1F1F;
-  --color-border: #2A2A2A;
-  --color-border-hover: #3A3A3A;
+  /* Background Colors - Light Theme */
+  --color-bg-primary: #F4F7FE;
+  --color-bg-secondary: #FFFFFF;
+  --color-bg-tertiary: #EDF2F7;
+  --color-border: #E2E8F0;
+  --color-border-hover: #CBD5E0;
+
+  /* Sidebar - Dark Navy */
+  --color-sidebar-bg: #0B1437;
+  --color-sidebar-bg-hover: rgba(255, 255, 255, 0.08);
+  --color-sidebar-bg-active: rgba(255, 255, 255, 0.12);
+  --color-sidebar-text: #A3AED0;
+  --color-sidebar-text-active: #FFFFFF;
+  --color-sidebar-label: #4A5568;
+  --color-sidebar-border: rgba(255, 255, 255, 0.06);
 
   /* Text Colors */
-  --color-text-primary: #FAFAFA;
-  --color-text-secondary: #A1A1A1;
-  --color-text-muted: #6B6B6B;
+  --color-text-primary: #1B2559;
+  --color-text-secondary: #68769A;
+  --color-text-muted: #A3AED0;
 
   /* Arhaval Brand Colors */
   --color-accent: #FF4D00;
   --color-accent-light: #FF6B2C;
-  --color-accent-muted: rgba(255, 77, 0, 0.15);
+  --color-accent-muted: rgba(255, 77, 0, 0.10);
   --color-accent-hover: #FF6B2C;
 
   /* Semantic Colors */
-  --color-success: #22C55E;
-  --color-success-muted: rgba(34, 197, 94, 0.15);
-  --color-warning: #EAB308;
-  --color-warning-muted: rgba(234, 179, 8, 0.15);
-  --color-error: #EF4444;
-  --color-error-muted: rgba(239, 68, 68, 0.15);
-  --color-info: #3B82F6;
-  --color-info-muted: rgba(59, 130, 246, 0.15);
+  --color-success: #01B574;
+  --color-success-muted: rgba(1, 181, 116, 0.12);
+  --color-warning: #FFB547;
+  --color-warning-muted: rgba(255, 181, 71, 0.12);
+  --color-error: #EE5D50;
+  --color-error-muted: rgba(238, 93, 80, 0.12);
+  --color-info: #3965FF;
+  --color-info-muted: rgba(57, 101, 255, 0.12);
 
   /* Table Colors */
-  --color-table-row-odd: #141414;
-  --color-table-row-even: #0F0F0F;
+  --color-table-row-odd: #FFFFFF;
+  --color-table-row-even: #F8FAFD;
+
+  /* Card Shadow */
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
 
   /* Spacing Scale (4px base) */
   --spacing-1: 4px;
@@ -109,7 +121,7 @@
 
 /* Base Styles */
 html {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
@@ -135,8 +147,8 @@ body {
 
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -144,12 +156,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: var(--color-border-hover);
   border-radius: var(--radius-sm);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-border-hover);
+  background: var(--color-text-muted);
 }
 
 /* Typography Classes */

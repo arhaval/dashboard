@@ -32,18 +32,18 @@ export function IdleServerForm({ serverId, teams }: IdleServerFormProps) {
         <select
           name="team1_id"
           required
-          className="w-full bg-[#1F1F1F] border border-[#2A2A2A] rounded-[4px] px-2 py-1.5 text-sm text-[#FAFAFA]"
+          className="w-full bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-[4px] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
         >
           <option value="">Takim 1</option>
           {teams.map((t) => (
             <option key={t.id} value={t.id}>{t.tag} - {t.name}</option>
           ))}
         </select>
-        <span className="text-[#6B6B6B] text-xs">vs</span>
+        <span className="text-[var(--color-text-muted)] text-xs">vs</span>
         <select
           name="team2_id"
           required
-          className="w-full bg-[#1F1F1F] border border-[#2A2A2A] rounded-[4px] px-2 py-1.5 text-sm text-[#FAFAFA]"
+          className="w-full bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-[4px] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
         >
           <option value="">Takim 2</option>
           {teams.map((t) => (
@@ -56,7 +56,7 @@ export function IdleServerForm({ serverId, teams }: IdleServerFormProps) {
         <select
           name="map"
           required
-          className="flex-1 bg-[#1F1F1F] border border-[#2A2A2A] rounded-[4px] px-2 py-1.5 text-sm text-[#FAFAFA]"
+          className="flex-1 bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-[4px] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
         >
           <option value="">Harita</option>
           {CS2_MAPS.map((m) => (

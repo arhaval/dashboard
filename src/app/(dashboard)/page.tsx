@@ -7,6 +7,7 @@
 
 import { redirect } from 'next/navigation';
 import { userService, workItemService, paymentService, financeService } from '@/services';
+import { getCurrentMonth } from '@/services/finance.service';
 import { DashboardAdmin } from './dashboard-admin';
 import { DashboardMember } from './dashboard-member';
 
@@ -20,11 +21,26 @@ export default async function DashboardPage() {
   const isAdmin = currentUser.role === 'ADMIN';
 
   if (isAdmin) {
-    const [allWorkItems, allUsers, paymentStats, financeStats] = await Promise.all([
+    const currentMonth = getCurrentMonth();
+
+    const [
+      allWorkItems,
+      allUsers,
+      paymentStats,
+      monthlyFinanceStats,
+      unpaidTotal,
+      contentStats,
+      contentTrend,
+      teamContentStats,
+    ] = await Promise.all([
       workItemService.getAll(),
       userService.getAll(),
       paymentService.getStats(),
-      financeService.getStats(),
+      financeService.getStatsByMonth(currentMonth),
+      workItemService.getUnpaidTotal(),
+      workItemService.getContentStats(currentMonth),
+      workItemService.getContentTrend(6),
+      workItemService.getTeamContentStats(currentMonth),
     ]);
 
     return (
@@ -32,7 +48,12 @@ export default async function DashboardPage() {
         allWorkItems={allWorkItems}
         allUsers={allUsers}
         paymentStats={paymentStats}
-        financeStats={financeStats}
+        monthlyFinanceStats={monthlyFinanceStats}
+        unpaidTotal={unpaidTotal}
+        contentStats={contentStats}
+        contentTrend={contentTrend}
+        teamContentStats={teamContentStats}
+        currentMonth={currentMonth}
       />
     );
   }

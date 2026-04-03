@@ -283,4 +283,61 @@ export const financeService = {
 
     return Array.from(months).sort((a, b) => b.localeCompare(a));
   },
+
+  /**
+   * Returns income & expense totals for the last N months (or all available).
+   * Used for the monthly trend bar chart on the Finance page.
+   */
+  async getMonthlyTrend(limit = 6): Promise<
+    Array<{ month: string; label: string; income: number; expense: number; net: number }>
+  > {
+    const months = await financeService.getAvailableMonths();
+    const recent = months.slice(0, limit).reverse(); // oldest → newest
+
+    const TR_MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+
+    const results = await Promise.all(
+      recent.map(async (month) => {
+        const stats = await financeService.getStatsByMonth(month);
+        const [year, m] = month.split('-');
+        const label = `${TR_MONTHS[parseInt(m) - 1]} ${year.slice(2)}`;
+        return {
+          month,
+          label,
+          income: stats.totalIncome,
+          expense: stats.totalExpenses,
+          net: stats.netBalance,
+        };
+      })
+    );
+
+    return results;
+  },
+
+  /**
+   * Returns expense totals grouped by category for a given month.
+   * Used for the category donut chart.
+   */
+  async getCategoryBreakdown(
+    month: string,
+    type: 'INCOME' | 'EXPENSE' = 'EXPENSE'
+  ): Promise<Array<{ name: string; value: number }>> {
+    const dateFrom = `${month}-01`;
+    const dateBefore = getNextMonthStart(month);
+
+    const transactions = await financeService.getAll({
+      type,
+      date_from: dateFrom,
+      date_before: dateBefore,
+    });
+
+    const grouped = new Map<string, number>();
+    for (const t of transactions) {
+      grouped.set(t.category, (grouped.get(t.category) ?? 0) + Number(t.amount));
+    }
+
+    return Array.from(grouped.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  },
 };

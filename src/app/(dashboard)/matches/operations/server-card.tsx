@@ -38,10 +38,10 @@ export function ServerCard({ server, teams }: ServerCardProps) {
   const isSeriesComplete = match && allMaps.length >= 3 && !activeMap && match.status === 'LIVE';
 
   return (
-    <div className="border border-[#2A2A2A] rounded-[6px] bg-[#141414] p-4 space-y-3">
+    <div className="border border-[var(--color-border)] rounded-[6px] bg-[var(--color-bg-tertiary)] p-4 space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-[#FAFAFA]">{server.name}</span>
+        <span className="text-sm font-medium text-[var(--color-text-primary)]">{server.name}</span>
         {isIdle && <span className="rounded-full px-2 py-0.5 text-xs bg-green-500/15 text-green-400">IDLE</span>}
         {isLive && <span className="rounded-full px-2 py-0.5 text-xs bg-red-500/15 text-red-400">LIVE</span>}
         {isBetweenMaps && <span className="rounded-full px-2 py-0.5 text-xs bg-yellow-500/15 text-yellow-400">Seri: {team1Wins}-{team2Wins}</span>}
@@ -52,12 +52,12 @@ export function ServerCard({ server, teams }: ServerCardProps) {
       {match && (
         <Link
           href={`/matches/${match.id}`}
-          className="block text-center text-sm text-[#A1A1A1] transition-colors hover:text-[#FF4D00]"
+          className="block text-center text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-accent)]"
         >
-          <span className="text-[#FAFAFA]">{match.team1?.name}</span>
-          {isSeriesComplete && <span className="font-mono text-[#FF4D00]"> {team1Wins}-{team2Wins} </span>}
-          {!isSeriesComplete && <span className="text-[#6B6B6B]"> vs </span>}
-          <span className="text-[#FAFAFA]">{match.team2?.name}</span>
+          <span className="text-[var(--color-text-primary)]">{match.team1?.name}</span>
+          {isSeriesComplete && <span className="font-mono text-[var(--color-accent)]"> {team1Wins}-{team2Wins} </span>}
+          {!isSeriesComplete && <span className="text-[var(--color-text-muted)]"> vs </span>}
+          <span className="text-[var(--color-text-primary)]">{match.team2?.name}</span>
         </Link>
       )}
 
@@ -121,7 +121,7 @@ function NextMapForm({ serverId }: { serverId: string }) {
       <select
         name="map"
         required
-        className="flex-1 bg-[#1F1F1F] border border-[#2A2A2A] rounded-[4px] px-2 py-1.5 text-sm text-[#FAFAFA]"
+        className="flex-1 bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-[4px] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
       >
         <option value="">Harita sec</option>
         {CS2_MAPS.map((m) => (

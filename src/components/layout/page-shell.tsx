@@ -36,17 +36,17 @@ export function PageShell({
         className={cn(
           'flex flex-col gap-4',
           'border-b border-[var(--color-border)]',
-          'bg-[var(--color-bg-primary)]',
-          'px-6 py-6',
+          'bg-[var(--color-bg-secondary)]',
+          'px-6 py-5',
           'sm:flex-row sm:items-center sm:justify-between'
         )}
       >
         <div>
-          <h1 className="text-display text-2xl text-[var(--color-text-primary)]">
+          <h1 className="text-display text-xl font-semibold text-[var(--color-text-primary)]">
             {title}
           </h1>
           {description && (
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+            <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">
               {description}
             </p>
           )}

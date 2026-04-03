@@ -1,12 +1,14 @@
 /**
  * Finance Page
- * Shows financial summary and transaction history
- * Admin-only access (enforced by RLS)
- * Grouped by month with month picker
+ * Shows financial summary and transaction history — Admin only.
+ * Features: monthly trend chart, category breakdown donut, StatCards, table.
  */
 
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StatCard } from '@/components/ui/stat-card';
+import { MonthlyTrendChart, CategoryDonut } from '@/components/charts/finance-charts';
 import { financeService, userService } from '@/services';
 import { getCurrentMonth, getNextMonthStart } from '@/services/finance.service';
 import { cn, formatDate, formatCurrency, getTransactionTypeLabel, getTransactionTypeBadgeClass } from '@/lib/utils';
@@ -16,13 +18,14 @@ import { FinanceFilters } from './filters';
 import { FinanceMonthPicker } from './month-picker';
 import { FinanceExportButtons } from './export-buttons';
 import { TransactionDeleteButton } from './delete-button';
+import { TrendingUp, TrendingDown, Scale, Hash } from 'lucide-react';
 import type { Transaction, TransactionType } from '@/types';
 
-interface TransactionsTableProps {
-  transactions: Transaction[];
-}
+// ─────────────────────────────────────────────
+// Transaction Table
+// ─────────────────────────────────────────────
 
-function TransactionsTable({ transactions }: TransactionsTableProps) {
+function TransactionsTable({ transactions }: { transactions: Transaction[] }) {
   if (transactions.length === 0) {
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] text-[var(--color-text-muted)]">
@@ -32,26 +35,26 @@ function TransactionsTable({ transactions }: TransactionsTableProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
+    <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)]" style={{ boxShadow: 'var(--shadow-card)' }}>
       <table className="w-full">
         <thead>
           <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
               {tr.transaction.fields.date}
             </th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
               {tr.transaction.fields.type}
             </th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
               {tr.transaction.fields.category}
             </th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
               {tr.transaction.fields.description}
             </th>
-            <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
+            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
               {tr.transaction.fields.amount}
             </th>
-            <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
+            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
               {tr.table.actions}
             </th>
           </tr>
@@ -61,7 +64,7 @@ function TransactionsTable({ transactions }: TransactionsTableProps) {
             <tr
               key={transaction.id}
               className={cn(
-                'border-b border-[var(--color-border)] last:border-b-0',
+                'border-b border-[var(--color-border)] last:border-b-0 transition-colors hover:bg-[var(--color-bg-tertiary)]',
                 index % 2 === 0
                   ? 'bg-[var(--color-table-row-even)]'
                   : 'bg-[var(--color-table-row-odd)]'
@@ -73,7 +76,7 @@ function TransactionsTable({ transactions }: TransactionsTableProps) {
               <td className="px-4 py-3">
                 <span
                   className={cn(
-                    'inline-block rounded-full px-2 py-0.5',
+                    'inline-block rounded-full px-2.5 py-0.5',
                     'text-xs font-medium',
                     getTransactionTypeBadgeClass(transaction.type)
                   )}
@@ -81,7 +84,7 @@ function TransactionsTable({ transactions }: TransactionsTableProps) {
                   {getTransactionTypeLabel(transaction.type)}
                 </span>
               </td>
-              <td className="px-4 py-3 text-sm text-[var(--color-text-primary)]">
+              <td className="px-4 py-3 text-sm font-medium text-[var(--color-text-primary)]">
                 {transaction.category}
               </td>
               <td className="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
@@ -89,7 +92,7 @@ function TransactionsTable({ transactions }: TransactionsTableProps) {
               </td>
               <td
                 className={cn(
-                  'px-4 py-3 text-right text-sm font-mono',
+                  'px-4 py-3 text-right font-mono text-sm font-semibold',
                   transaction.type === 'INCOME'
                     ? 'text-[var(--color-success)]'
                     : 'text-[var(--color-error)]'
@@ -111,6 +114,10 @@ function TransactionsTable({ transactions }: TransactionsTableProps) {
   );
 }
 
+// ─────────────────────────────────────────────
+// Page
+// ─────────────────────────────────────────────
+
 interface PageProps {
   searchParams: Promise<{
     type?: string;
@@ -122,23 +129,17 @@ interface PageProps {
 export default async function FinancePage({ searchParams }: PageProps) {
   const params = await searchParams;
 
-  // Get current user and verify admin access
   const currentUser = await userService.getCurrentUser();
-
-  if (!currentUser) {
-    redirect('/login');
-  }
-
-  if (currentUser.role !== 'ADMIN') {
-    redirect('/');
-  }
+  if (!currentUser) redirect('/login');
+  if (currentUser.role !== 'ADMIN') redirect('/');
 
   // Determine active month
-  // If no month param, prefer the most recent month with data (fallback to current month)
   const availableMonthsList = await financeService.getAvailableMonths();
-  const activeMonth = params.month || (availableMonthsList.length > 0 ? availableMonthsList[0] : getCurrentMonth());
+  const activeMonth =
+    params.month ||
+    (availableMonthsList.length > 0 ? availableMonthsList[0] : getCurrentMonth());
 
-  // Build filters from search params
+  // Build filters
   const filters: {
     type?: TransactionType;
     category?: string;
@@ -152,18 +153,25 @@ export default async function FinancePage({ searchParams }: PageProps) {
   if (params.type && (TRANSACTION_TYPES as readonly string[]).includes(params.type)) {
     filters.type = params.type as TransactionType;
   }
+  if (params.category) filters.category = params.category;
 
-  if (params.category) {
-    filters.category = params.category;
-  }
+  // Fetch all data in parallel
+  const [transactions, stats, categories, trendData, expenseBreakdown, incomeBreakdown] =
+    await Promise.all([
+      financeService.getAll(filters),
+      financeService.getStatsByMonth(activeMonth),
+      financeService.getCategories(),
+      financeService.getMonthlyTrend(6),
+      financeService.getCategoryBreakdown(activeMonth, 'EXPENSE'),
+      financeService.getCategoryBreakdown(activeMonth, 'INCOME'),
+    ]);
 
-  // Fetch data (availableMonths already fetched above)
-  const [transactions, stats, categories] = await Promise.all([
-    financeService.getAll(filters),
-    financeService.getStatsByMonth(activeMonth),
-    financeService.getCategories(),
-  ]);
-  const availableMonths = availableMonthsList;
+  // Map trend data for the chart component
+  const chartTrendData = trendData.map((d) => ({
+    month: d.label,
+    income: d.income,
+    expense: d.expense,
+  }));
 
   return (
     <PageShell
@@ -176,53 +184,114 @@ export default async function FinancePage({ searchParams }: PageProps) {
             stats={stats}
             currentMonth={activeMonth}
           />
-          <FinanceMonthPicker months={availableMonths} currentMonth={activeMonth} />
+          <FinanceMonthPicker months={availableMonthsList} currentMonth={activeMonth} />
         </div>
       }
     >
-      {/* Stats Summary */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-4">
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Toplam {tr.transaction.type.INCOME}</p>
-          <p className="text-2xl font-semibold text-[var(--color-success)]">
-            {formatCurrency(stats.totalIncome)}
-          </p>
-        </div>
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Toplam {tr.transaction.type.EXPENSE}</p>
-          <p className="text-2xl font-semibold text-[var(--color-error)]">
-            {formatCurrency(stats.totalExpenses)}
-          </p>
-        </div>
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Net Bakiye</p>
-          <p
-            className={cn(
-              'text-2xl font-semibold',
-              stats.netBalance >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'
-            )}
-          >
-            {formatCurrency(stats.netBalance)}
-          </p>
-        </div>
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">İşlem Sayısı</p>
-          <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
-            {stats.transactionCount}
-          </p>
-        </div>
+      {/* ── Stat Cards ── */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Toplam Gelir"
+          value={formatCurrency(stats.totalIncome)}
+          description={activeMonth}
+          icon={TrendingUp}
+          color="green"
+        />
+        <StatCard
+          title="Toplam Gider"
+          value={formatCurrency(stats.totalExpenses)}
+          description={activeMonth}
+          icon={TrendingDown}
+          color="red"
+        />
+        <StatCard
+          title="Net Bakiye"
+          value={formatCurrency(stats.netBalance)}
+          description={stats.netBalance >= 0 ? 'Kârlı ay' : 'Zararlı ay'}
+          icon={Scale}
+          color={stats.netBalance >= 0 ? 'teal' : 'orange'}
+        />
+        <StatCard
+          title="İşlem Sayısı"
+          value={stats.transactionCount.toString()}
+          description="Bu ay toplam kayıt"
+          icon={Hash}
+          color="blue"
+        />
       </div>
 
-      {/* Filters */}
-      <FinanceFilters
-        currentType={params.type}
-        currentCategory={params.category}
-        currentMonth={activeMonth}
-        categories={categories}
-      />
+      {/* ── Charts Row ── */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        {/* Monthly Trend — takes 2/3 width */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
+              Aylık Gelir / Gider Trendi
+            </CardTitle>
+            <p className="text-xs text-[var(--color-text-muted)]">Son 6 aylık karşılaştırma</p>
+          </CardHeader>
+          <CardContent>
+            <MonthlyTrendChart data={chartTrendData} />
+          </CardContent>
+        </Card>
 
-      {/* Transactions Table */}
-      <TransactionsTable transactions={transactions} />
+        {/* Category Breakdown — takes 1/3 width */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
+              Gider Dağılımı
+            </CardTitle>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              {activeMonth} — kategoriye göre
+            </p>
+          </CardHeader>
+          <CardContent>
+            <CategoryDonut
+              data={expenseBreakdown}
+              total={stats.totalExpenses}
+              label="Kategoriler"
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Gelir Dağılımı (eğer veri varsa) ── */}
+      {incomeBreakdown.length > 1 && (
+        <div className="mt-6">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
+                Gelir Dağılımı
+              </CardTitle>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {activeMonth} — kaynak bazlı
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="max-w-xs">
+                <CategoryDonut
+                  data={incomeBreakdown}
+                  total={stats.totalIncome}
+                  label="Gelir kaynakları"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ── Filters + Table ── */}
+      <div className="mt-6">
+        <FinanceFilters
+          currentType={params.type}
+          currentCategory={params.category}
+          currentMonth={activeMonth}
+          categories={categories}
+        />
+        <div className="mt-4">
+          <TransactionsTable transactions={transactions} />
+        </div>
+      </div>
     </PageShell>
   );
 }

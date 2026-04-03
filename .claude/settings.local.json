@@ -83,7 +83,25 @@
       "Bash(sed -i 's/match_map_id/map_id/g' import_matches_simple.sql)",
       "Bash(echo \"Fixed match_map_id -> map_id\")",
       "WebFetch(domain:dribbble.com)",
-      "Bash(node scripts/analyze-matches.js)"
+      "Bash(node scripts/analyze-matches.js)",
+      "WebFetch(domain:php.spruko.com)",
+      "Bash(ls C:Usershamitdashboard/src/app/\\\\\\(dashboard\\\\\\)/)",
+      "Bash(ls /c/Users/hamit/dashboard/src/app/\\\\\\(dashboard\\\\\\)/)",
+      "Bash(ls /c/Users/hamit/dashboard/src/app/\\\\\\(dashboard\\\\\\)/matches/)",
+      "Bash(ls /c/Users/hamit/dashboard/src/app/\\\\\\(auth\\\\\\)/)",
+      "Bash(cat /c/Users/hamit/dashboard/src/app/\\\\\\(auth\\\\\\)/login/page.tsx)",
+      "Bash(cat /c/Users/hamit/dashboard/src/app/\\\\\\(auth\\\\\\)/layout.tsx)",
+      "Bash(grep -r text-whiteb /c/Users/hamit/dashboard/src/app/ --include=*.tsx -l)",
+      "Bash(for file:*)",
+      "Bash(do)",
+      "Bash(__NEW_LINE_6fcbeeaa5cbd26b0__ sed:*)",
+      "Bash(echo \"Fixed: $file\")",
+      "Bash(done)",
+      "Bash(cat /c/Users/hamit/dashboard/src/app/\\\\\\(dashboard\\\\\\)/social/trend-charts.tsx)",
+      "Bash(cat /c/Users/hamit/dashboard/src/app/\\\\\\(dashboard\\\\\\)/finance/page.tsx)",
+      "Bash(cat /c/Users/hamit/dashboard/src/app/\\\\\\(dashboard\\\\\\)/work-items/page.tsx)",
+      "Bash(cat /c/Users/hamit/dashboard/src/app/\\\\\\(dashboard\\\\\\)/payments/page.tsx)",
+      "Bash(git add:*)"
     ]
   }
 }

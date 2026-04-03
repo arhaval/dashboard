@@ -9,10 +9,12 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StatCard } from '@/components/ui/stat-card';
 import { paymentService, userService, financeService, workItemService } from '@/services';
 import { cn, formatDate, formatCurrency, getPaymentStatusBadgeClass } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
-import { Plus } from 'lucide-react';
+import { Plus, Clock, CheckCircle2, DollarSign, TrendingUp } from 'lucide-react';
 import { PaymentFilters } from './filters';
 import { PaymentDeleteButton } from './delete-button';
 import { PaymentsTabs } from './payments-tabs';
@@ -175,34 +177,11 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         <PaymentsTabs activeTab={activeTab} />
 
         {/* Stats Summary for Realized Transactions */}
-        <div className="mb-6 grid gap-4 sm:grid-cols-4">
-          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-            <p className="text-sm text-[var(--color-text-muted)]">Toplam İşlem</p>
-            <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
-              {financeStats.transactionCount}
-            </p>
-          </div>
-          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-            <p className="text-sm text-[var(--color-text-muted)]">{tr.transaction.type.INCOME}</p>
-            <p className="text-2xl font-semibold text-[var(--color-success)]">
-              {formatCurrency(financeStats.totalIncome)}
-            </p>
-          </div>
-          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-            <p className="text-sm text-[var(--color-text-muted)]">{tr.transaction.type.EXPENSE}</p>
-            <p className="text-2xl font-semibold text-[var(--color-error)]">
-              {formatCurrency(financeStats.totalExpenses)}
-            </p>
-          </div>
-          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-            <p className="text-sm text-[var(--color-text-muted)]">Net Bakiye</p>
-            <p className={cn(
-              'text-2xl font-semibold',
-              financeStats.netBalance >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'
-            )}>
-              {formatCurrency(financeStats.netBalance)}
-            </p>
-          </div>
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard title="Toplam İşlem" value={financeStats.transactionCount.toString()} description="Kayıtlı işlem" icon={CheckCircle2} color="blue" />
+          <StatCard title="Gelir" value={formatCurrency(financeStats.totalIncome)} description="Toplam" icon={TrendingUp} color="green" />
+          <StatCard title="Gider" value={formatCurrency(financeStats.totalExpenses)} description="Toplam" icon={DollarSign} color="red" />
+          <StatCard title="Net Bakiye" value={formatCurrency(financeStats.netBalance)} description={financeStats.netBalance >= 0 ? 'Kârlı' : 'Zararlı'} icon={DollarSign} color={financeStats.netBalance >= 0 ? 'teal' : 'orange'} />
         </div>
 
         {/* Add Transaction Form */}
@@ -242,16 +221,8 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
         {/* Stats Summary */}
         <div className="mb-6 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-            <p className="text-sm text-[var(--color-text-muted)]">Tamamlanan Ödeme</p>
-            <p className="text-2xl font-semibold text-[var(--color-success)]">{payments.length}</p>
-          </div>
-          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-            <p className="text-sm text-[var(--color-text-muted)]">Toplam Ödenen</p>
-            <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
-              {formatCurrency(totalPaidAmount)}
-            </p>
-          </div>
+          <StatCard title="Tamamlanan Ödeme" value={payments.length.toString()} description="Tüm zamanlar" icon={CheckCircle2} color="green" />
+          <StatCard title="Toplam Ödenen" value={formatCurrency(totalPaidAmount)} description="Kümülatif" icon={DollarSign} color="blue" />
         </div>
 
         {/* User filter only (no status filter) */}
@@ -298,25 +269,90 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     >
       <PaymentsTabs activeTab={activeTab} />
 
-      {/* Stats Summary */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">{tr.payment.status.PENDING}</p>
-          <p className="text-2xl font-semibold text-[var(--color-warning)]">{stats.pending}</p>
-        </div>
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">{tr.payment.status.COMPLETED}</p>
-          <p className="text-2xl font-semibold text-[var(--color-success)]">{stats.paid}</p>
-        </div>
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Toplam Ödenen</p>
-          <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
-            {formatCurrency(stats.totalAmount)}
-          </p>
-        </div>
+      {/* ── Stat Cards ── */}
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Bekleyen Ödeme"
+          value={stats.pending.toString()}
+          description="İşlem bekliyor"
+          icon={Clock}
+          color="yellow"
+        />
+        <StatCard
+          title="Tamamlanan"
+          value={stats.paid.toString()}
+          description="Ödenmiş"
+          icon={CheckCircle2}
+          color="green"
+        />
+        <StatCard
+          title="Toplam Ödenen"
+          value={formatCurrency(stats.totalAmount)}
+          description="Tüm zamanlar"
+          icon={DollarSign}
+          color="blue"
+        />
+        <StatCard
+          title="Bu Sefer Ödenecek"
+          value={formatCurrency(payments.reduce((s, p) => s + (p.amount || 0), 0))}
+          description={`${payments.length} ödeme seçili`}
+          icon={TrendingUp}
+          color="orange"
+        />
       </div>
 
-      {/* User filter only (status is already fixed to PENDING) */}
+      {/* ── Per-User Breakdown ── */}
+      {payments.length > 0 && (() => {
+        const byUser = new Map<string, { name: string; amount: number; count: number }>();
+        for (const p of payments) {
+          const key = p.user_id;
+          const ex = byUser.get(key) ?? { name: p.user?.full_name ?? '—', amount: 0, count: 0 };
+          ex.amount += p.amount || 0;
+          ex.count += 1;
+          byUser.set(key, ex);
+        }
+        const userList = Array.from(byUser.values()).sort((a, b) => b.amount - a.amount);
+
+        return (
+          <Card className="mb-6">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
+                Kişi Bazlı Ödeme Özeti
+              </CardTitle>
+              <p className="text-xs text-[var(--color-text-muted)]">Bekleyen ödemeler kişiye göre</p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {userList.map((u) => {
+                  const maxAmount = userList[0].amount;
+                  const pct = maxAmount > 0 ? Math.round((u.amount / maxAmount) * 100) : 0;
+                  return (
+                    <div key={u.name}>
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="text-sm font-medium text-[var(--color-text-primary)]">{u.name}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-[var(--color-text-muted)]">{u.count} ödeme</span>
+                          <span className="font-mono text-sm font-semibold text-[var(--color-text-primary)]">
+                            {formatCurrency(u.amount)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-bg-tertiary)]">
+                        <div
+                          className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* User filter */}
       <PaymentFilters
         currentUserId={params.user_id}
         users={users}
