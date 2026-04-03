@@ -70,10 +70,12 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
           width={48}
         />
         <Tooltip
-          formatter={(value: number, name: string) => [
-            `${value.toLocaleString('tr-TR')}₺`,
-            name === 'income' ? 'Gelir' : 'Gider',
-          ]}
+          formatter={
+            ((value: unknown, name: unknown) => [
+              `${Number(value).toLocaleString('tr-TR')}₺`,
+              name === 'income' ? 'Gelir' : 'Gider',
+            ]) as never
+          }
           contentStyle={{
             background: 'var(--color-bg-secondary)',
             border: '1px solid var(--color-border)',
@@ -163,7 +165,7 @@ export function CategoryDonut({ data, total, label }: CategoryDonutProps) {
               ))}
             </Pie>
             <Tooltip
-              formatter={(value: number) => [`${value.toLocaleString('tr-TR')}₺`, '']}
+              formatter={((value: unknown) => [`${Number(value).toLocaleString('tr-TR')}₺`, '']) as never}
               contentStyle={{
                 background: 'var(--color-bg-secondary)',
                 border: '1px solid var(--color-border)',

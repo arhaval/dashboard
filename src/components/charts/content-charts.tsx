@@ -64,10 +64,12 @@ export function ContentTrendChart({ data }: { data: ContentTrendPoint[] }) {
             fontSize: '12px',
             color: 'var(--color-text-primary)',
           }}
-          formatter={(value: number, name: string) => [
-            value,
-            name === 'voice' ? 'Seslendirme' : name === 'edit' ? 'Kurgu' : 'Toplam',
-          ]}
+          formatter={
+            ((value: unknown, name: unknown) => [
+              value,
+              name === 'voice' ? 'Seslendirme' : name === 'edit' ? 'Kurgu' : 'Toplam',
+            ]) as never
+          }
         />
         <Legend
           formatter={(v) => v === 'voice' ? 'Seslendirme' : v === 'edit' ? 'Kurgu' : 'Toplam'}

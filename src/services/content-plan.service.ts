@@ -31,7 +31,7 @@ export const contentPlanService = {
       .order('planned_date', { ascending: true })
       .order('priority', { ascending: false });
 
-    return (data ?? []) as ContentPlan[];
+    return (data ?? []) as unknown as ContentPlan[];
   },
 
   /** Get stats for a month */
@@ -80,7 +80,7 @@ export const contentPlanService = {
       .single();
 
     if (error) return null;
-    return data as ContentPlan;
+    return data as unknown as ContentPlan;
   },
 
   /** Update status */

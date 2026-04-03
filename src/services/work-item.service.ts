@@ -307,7 +307,7 @@ export const workItemService = {
     const userMap = new Map<string, { userId: string; name: string; voice: number; edit: number; total: number }>();
 
     for (const item of items) {
-      const user = item.users as { full_name: string } | null;
+      const user = item.users as unknown as { full_name: string } | null;
       const name = user?.full_name ?? 'Bilinmiyor';
       const existing = userMap.get(item.user_id) ?? {
         userId: item.user_id,

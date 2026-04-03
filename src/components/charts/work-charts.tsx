@@ -132,7 +132,7 @@ export function WorkTypeDonut({ stream, voice, edit }: WorkTypeDonutProps) {
             ))}
           </Pie>
           <Tooltip
-            formatter={(value: number, name: string) => [value, name]}
+            formatter={((value: unknown, name: unknown) => [value, name]) as never}
             contentStyle={{
               background: 'var(--color-bg-secondary)',
               border: '1px solid var(--color-border)',

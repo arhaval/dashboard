@@ -78,6 +78,13 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const month = params.month ?? currentMonth;
 
+  // Generate last 12 months for the picker
+  const months: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+
   const [report, trend] = await Promise.all([
     intelligenceReportService.getMonthlyReport(month),
     intelligenceReportService.getGrowthTrend(6),
@@ -99,7 +106,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           </Link>
         </div>
         <div className="ml-4 flex items-center gap-2">
-          <MonthPicker currentMonth={month} />
+          <MonthPicker months={months} currentMonth={month} />
           <button
             onClick={undefined}
             id="print-btn"
