@@ -8,6 +8,8 @@
 import { redirect } from 'next/navigation';
 import { userService, workItemService, paymentService, financeService } from '@/services';
 import { getCurrentMonth } from '@/services/finance.service';
+import { contentGoalService } from '@/services/content-goal.service';
+import { weeklyScheduleService } from '@/services/weekly-schedule.service';
 import { DashboardAdmin } from './dashboard-admin';
 import { DashboardMember } from './dashboard-member';
 
@@ -32,6 +34,8 @@ export default async function DashboardPage() {
       contentStats,
       contentTrend,
       teamContentStats,
+      weeklyGoalProgress,
+      weeklySchedule,
     ] = await Promise.all([
       workItemService.getAll(),
       userService.getAll(),
@@ -41,6 +45,8 @@ export default async function DashboardPage() {
       workItemService.getContentStats(currentMonth),
       workItemService.getContentTrend(6),
       workItemService.getTeamContentStats(currentMonth),
+      contentGoalService.getWeeklyProgress(),
+      weeklyScheduleService.getAll(),
     ]);
 
     return (
@@ -53,6 +59,8 @@ export default async function DashboardPage() {
         contentStats={contentStats}
         contentTrend={contentTrend}
         teamContentStats={teamContentStats}
+        weeklyGoalProgress={weeklyGoalProgress}
+        weeklySchedule={weeklySchedule}
         currentMonth={currentMonth}
       />
     );

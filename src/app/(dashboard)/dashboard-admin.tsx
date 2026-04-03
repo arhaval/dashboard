@@ -21,10 +21,14 @@ import {
   CheckCircle2,
   DollarSign,
   Users,
+  Target,
+  CalendarDays,
 } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
-import type { WorkItem, User } from '@/types';
+import type { WorkItem, User, WeeklyGoalProgress } from '@/types';
+import type { DaySchedule } from '@/services/weekly-schedule.utils';
+import { ACTIVITY_LABELS, DAY_SHORT } from '@/services/weekly-schedule.utils';
 
 // ─────────────────────────────────────────────
 // Types
@@ -76,6 +80,8 @@ export interface DashboardAdminProps {
   contentStats: ContentStats;
   contentTrend: ContentTrendPoint[];
   teamContentStats: TeamContentEntry[];
+  weeklyGoalProgress: WeeklyGoalProgress[];
+  weeklySchedule: DaySchedule[];
   currentMonth: string;
 }
 
@@ -118,6 +124,8 @@ export function DashboardAdmin({
   contentStats,
   contentTrend,
   teamContentStats,
+  weeklyGoalProgress,
+  weeklySchedule,
   currentMonth,
 }: DashboardAdminProps) {
   const activeMembers = allUsers.filter((u) => u.is_active && u.role !== 'ADMIN');
@@ -282,7 +290,158 @@ export function DashboardAdmin({
       </div>
 
       {/* ═══════════════════════════════════════════════
-          BÖLÜM 4: AKSİYON GEREKTİREN İŞLER
+          BÖLÜM 4: BU HAFTA — HEDEFLER + PROGRAM
+          ═══════════════════════════════════════════════ */}
+      <div className="mb-2 mt-8">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
+          Bu Hafta
+        </p>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+
+        {/* Haftalık Hedefler */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-[var(--color-accent)]" />
+              <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
+                İçerik Hedefleri
+              </CardTitle>
+            </div>
+            <Link
+              href="/content/goals"
+              className="flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline"
+            >
+              Düzenle <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            {weeklyGoalProgress.length === 0 ? (
+              <p className="text-xs text-[var(--color-text-muted)]">Henüz hedef tanımlanmamış.</p>
+            ) : (
+              <div className="space-y-3">
+                {(['YOUTUBE', 'INSTAGRAM', 'X'] as const).map((platform) => {
+                  const items = weeklyGoalProgress.filter(
+                    (g) => g.platform === platform && g.weekly_target > 0
+                  );
+                  if (items.length === 0) return null;
+                  const platformLabel =
+                    platform === 'YOUTUBE' ? 'YouTube' :
+                    platform === 'INSTAGRAM' ? 'Instagram' : 'Twitter/X';
+                  return (
+                    <div key={platform}>
+                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                        {platformLabel}
+                      </p>
+                      <div className="space-y-2">
+                        {items.map((g) => {
+                          const subtypeLabel =
+                            g.sub_type === 'VIDEO' ? 'Video' :
+                            g.sub_type === 'SHORTS' ? 'Shorts' :
+                            g.sub_type === 'REELS' ? 'Reels' :
+                            g.sub_type === 'POST' ? 'Gönderi' : g.sub_type;
+                          return (
+                            <div key={g.sub_type}>
+                              <div className="mb-1 flex items-center justify-between">
+                                <span className="text-xs text-[var(--color-text-secondary)]">
+                                  {subtypeLabel}
+                                </span>
+                                <span className={cn(
+                                  'text-xs font-bold tabular-nums',
+                                  g.on_track ? 'text-[var(--color-success)]' :
+                                  g.pct >= 50 ? 'text-[var(--color-warning)]' :
+                                  'text-[var(--color-text-primary)]'
+                                )}>
+                                  {g.done_this_week}/{g.weekly_target}
+                                </span>
+                              </div>
+                              <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-bg-tertiary)]">
+                                <div
+                                  className={cn(
+                                    'h-full rounded-full transition-all',
+                                    g.on_track ? 'bg-[var(--color-success)]' :
+                                    g.pct >= 50 ? 'bg-[var(--color-warning)]' :
+                                    'bg-[var(--color-accent)]'
+                                  )}
+                                  style={{ width: `${g.pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Haftalık Program */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-[var(--color-accent)]" />
+              <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
+                Haftalık Program
+              </CardTitle>
+            </div>
+            <Link
+              href="/content/schedule"
+              className="flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline"
+            >
+              Düzenle <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            {weeklySchedule.length === 0 ? (
+              <p className="text-xs text-[var(--color-text-muted)]">Program henüz oluşturulmamış.</p>
+            ) : (
+              <div className="space-y-2">
+                {weeklySchedule.map((day) => {
+                  const today = new Date().getDay(); // 0=Sun
+                  const isoDay = today === 0 ? 7 : today; // 1=Mon..7=Sun
+                  const isToday = day.day_of_week === isoDay;
+                  return (
+                    <div
+                      key={day.day_of_week}
+                      className={cn(
+                        'flex items-start gap-3 rounded-[var(--radius-sm)] px-2 py-1.5',
+                        isToday && 'bg-[var(--color-accent-muted)]'
+                      )}
+                    >
+                      <span className={cn(
+                        'w-8 shrink-0 text-xs font-semibold',
+                        isToday ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted)]'
+                      )}>
+                        {DAY_SHORT[day.day_of_week - 1]}
+                      </span>
+                      <div className="flex min-w-0 flex-wrap gap-1">
+                        {day.activities.length === 0 ? (
+                          <span className="text-xs text-[var(--color-text-muted)]">—</span>
+                        ) : (
+                          day.activities.map((act) => (
+                            <span
+                              key={act}
+                              className="rounded-full border px-2 py-0.5 text-[10px] font-medium bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] border-[var(--color-border)]"
+                            >
+                              {ACTIVITY_LABELS[act]}
+                            </span>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ═══════════════════════════════════════════════
+          BÖLÜM 5: AKSİYON GEREKTİREN İŞLER
           ═══════════════════════════════════════════════ */}
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         {/* Ödeme Bekleyenler */}
