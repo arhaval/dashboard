@@ -467,8 +467,11 @@ export const cs2Service = {
 
     const { data: teams } = await supabase
       .from('cs2_teams')
-      .select('id, name, tag');
+      .select('id, name, tag, is_disqualified');
     if (!teams) return [];
+
+    // Filter out disqualified teams from standings
+    const activeTeams = teams.filter((t) => !t.is_disqualified);
 
     // Get finished matches with maps_won columns
     const { data: matches } = await supabase
@@ -485,7 +488,7 @@ export const cs2Service = {
       rounds_won: number;
     }>();
 
-    for (const t of teams) {
+    for (const t of activeTeams) {
       standings.set(t.id, { matches_played: 0, matches_won: 0, maps_played: 0, maps_won: 0, rounds_won: 0 });
     }
 
@@ -528,7 +531,7 @@ export const cs2Service = {
       }
     }
 
-    return teams
+    return activeTeams
       .map((t) => {
         const s = standings.get(t.id) || { matches_played: 0, matches_won: 0, maps_played: 0, maps_won: 0, rounds_won: 0 };
         return {

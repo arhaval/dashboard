@@ -101,7 +101,10 @@
       "Bash(cat /c/Users/hamit/dashboard/src/app/\\\\\\(dashboard\\\\\\)/finance/page.tsx)",
       "Bash(cat /c/Users/hamit/dashboard/src/app/\\\\\\(dashboard\\\\\\)/work-items/page.tsx)",
       "Bash(cat /c/Users/hamit/dashboard/src/app/\\\\\\(dashboard\\\\\\)/payments/page.tsx)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(grep -r \"import_csv\\\\|importCsv\\\\|matchzy\\\\|csv.*import\\\\|import.*match\" C:/Users/hamit/dashboard/src/app/api --include=*.ts -l)",
+      "Bash(find C:/Users/hamit/dashboard/src/app/api -name *.ts)",
+      "Bash(grep -n \"maps_played\\\\|team1_maps_won\\\\|team2_maps_won\" C:/Users/hamit/dashboard/supabase/migrations/*.sql)"
     ]
   }
 }
