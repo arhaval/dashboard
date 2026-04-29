@@ -29,7 +29,7 @@ export default async function TeamPage() {
     >
       {/* Stats Summary (Admin only) */}
       {isAdmin && (
-        <div className="mb-6 grid gap-4 sm:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
             <p className="text-sm text-[var(--color-text-muted)]">{tr.team.totalMembers}</p>
             <p className="text-2xl font-semibold text-[var(--color-text-primary)]">

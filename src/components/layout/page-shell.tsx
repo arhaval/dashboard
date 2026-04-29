@@ -34,10 +34,10 @@ export function PageShell({
       {/* Page Header */}
       <div
         className={cn(
-          'flex flex-col gap-4',
+          'flex flex-col gap-3',
           'border-b border-[var(--color-border)]',
           'bg-[var(--color-bg-secondary)]',
-          'px-6 py-5',
+          'px-4 py-4 sm:px-6 sm:py-5',
           'sm:flex-row sm:items-center sm:justify-between'
         )}
       >
@@ -58,7 +58,7 @@ export function PageShell({
       </div>
 
       {/* Page Content */}
-      <div className={cn('flex-1 p-6', className)}>{children}</div>
+      <div className={cn('flex-1 p-4 sm:p-6', className)}>{children}</div>
     </div>
   );
 }

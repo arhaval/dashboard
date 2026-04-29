@@ -156,7 +156,8 @@ export default async function WeeklyReportPage({ searchParams }: WeeklyReportPag
                   Haftalık hedef belirlenmemiş
                 </div>
               ) : (
-                <table className="w-full">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[420px]">
                   <thead>
                     <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
                       {['Platform', 'Tür', 'Hedef', 'Yapılan', 'Fark', 'Durum'].map((h) => (
@@ -225,6 +226,7 @@ export default async function WeeklyReportPage({ searchParams }: WeeklyReportPag
                     </tr>
                   </tfoot>
                 </table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -235,7 +237,7 @@ export default async function WeeklyReportPage({ searchParams }: WeeklyReportPag
               <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">Haftalık Finans</CardTitle>
             </CardHeader>
             <CardContent className="p-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                 {[
                   { label: 'Gelir', value: report.weekIncome, color: 'text-[var(--color-success)]' },
                   { label: 'Gider', value: report.weekExpense, color: 'text-[var(--color-error)]' },

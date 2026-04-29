@@ -58,22 +58,23 @@ function CompletedPaymentsTable({ payments }: PaymentsTableProps) {
 
   return (
     <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
-      <table className="w-full">
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[460px]">
         <thead>
           <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
+            <th className="px-3 py-3 text-left text-xs font-medium text-[var(--color-text-secondary)] sm:px-4">
               {tr.payment.fields.date}
             </th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
+            <th className="px-3 py-3 text-left text-xs font-medium text-[var(--color-text-secondary)] sm:px-4">
               {tr.payment.fields.user}
             </th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
+            <th className="hidden px-3 py-3 text-left text-xs font-medium text-[var(--color-text-secondary)] sm:table-cell sm:px-4">
               {tr.payment.fields.items}
             </th>
-            <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
+            <th className="px-3 py-3 text-right text-xs font-medium text-[var(--color-text-secondary)] sm:px-4">
               {tr.payment.fields.amount}
             </th>
-            <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
+            <th className="px-3 py-3 text-right text-xs font-medium text-[var(--color-text-secondary)] sm:px-4">
               {tr.table.actions}
             </th>
           </tr>
@@ -89,25 +90,26 @@ function CompletedPaymentsTable({ payments }: PaymentsTableProps) {
                   : 'bg-[var(--color-table-row-odd)]'
               )}
             >
-              <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
+              <td className="px-3 py-3 text-xs text-[var(--color-text-muted)] sm:px-4 sm:text-sm">
                 {formatDate(payment.payment_date)}
               </td>
-              <td className="px-4 py-3 text-sm text-[var(--color-text-primary)]">
+              <td className="px-3 py-3 text-xs text-[var(--color-text-primary)] sm:px-4 sm:text-sm">
                 {payment.user?.full_name || '—'}
               </td>
-              <td className="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
+              <td className="hidden px-3 py-3 text-xs text-[var(--color-text-secondary)] sm:table-cell sm:px-4 sm:text-sm">
                 {getWorkItemsSummary(payment)}
               </td>
-              <td className="px-4 py-3 text-right text-sm font-mono text-[var(--color-text-primary)]">
+              <td className="px-3 py-3 text-right text-xs font-mono text-[var(--color-text-primary)] sm:px-4 sm:text-sm">
                 {formatCurrency(payment.amount)}
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-3 py-3 text-right sm:px-4">
                 <PaymentDeleteButton paymentId={payment.id} />
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

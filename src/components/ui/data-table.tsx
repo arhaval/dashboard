@@ -82,7 +82,7 @@ export function DataTable<T>({
     }
   }, [dataLength, currentPage, pageSize]);
 
-  const cellPadding = compact ? 'px-3 py-2' : 'px-4 py-3';
+  const cellPadding = compact ? 'px-2 py-2 sm:px-3' : 'px-3 py-3 sm:px-4';
 
   const alignClass = (align?: 'left' | 'right' | 'center') => {
     if (align === 'right') return 'text-right';
@@ -156,31 +156,31 @@ export function DataTable<T>({
 
       {/* Pagination */}
       {isPaginated && (
-        <div className="mt-4 flex items-center justify-between">
-          <p className="text-sm text-[var(--color-text-muted)]">
-            {totalItems} kayıttan{' '}
-            {(currentPage - 1) * pageSize + 1}-
-            {Math.min(currentPage * pageSize, totalItems)} arası
-            gösteriliyor
+        <div className="mt-4 flex items-center justify-between gap-4">
+          <p className="text-xs text-[var(--color-text-muted)] sm:text-sm">
+            <span className="hidden sm:inline">{totalItems} kayıttan </span>
+            {(currentPage - 1) * pageSize + 1}–
+            {Math.min(currentPage * pageSize, totalItems)}
+            <span className="hidden sm:inline"> arası gösteriliyor</span>
           </p>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] disabled:pointer-events-none disabled:opacity-40"
+              className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] disabled:pointer-events-none disabled:opacity-40"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
 
-            <span className="min-w-[80px] text-center text-sm text-[var(--color-text-secondary)]">
+            <span className="min-w-[60px] text-center text-sm text-[var(--color-text-secondary)]">
               {currentPage} / {totalPages}
             </span>
 
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] disabled:pointer-events-none disabled:opacity-40"
+              className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] disabled:pointer-events-none disabled:opacity-40"
             >
               <ChevronRight className="h-4 w-4" />
             </button>

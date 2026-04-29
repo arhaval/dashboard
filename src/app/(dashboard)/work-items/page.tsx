@@ -72,127 +72,115 @@ function WorkItemsTable({ items, currentUserId, isAdmin, paymentStatuses }: Work
 
   return (
     <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.workItem.fields.date}
-            </th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.workItem.fields.type}
-            </th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              Başlık
-            </th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.workItem.fields.user}
-            </th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.workItem.fields.status}
-            </th>
-            <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-              {tr.workItem.fields.cost}
-            </th>
-            {isAdmin && (
-              <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">
-                {tr.table.actions}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[600px]">
+          <thead>
+            <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+              <th className="px-3 py-3 text-left text-xs font-medium text-[var(--color-text-secondary)] sm:px-4">
+                {tr.workItem.fields.date}
               </th>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item, index) => (
-            <tr
-              key={item.id}
-              className={cn(
-                'border-b border-[var(--color-border)] last:border-b-0',
-                index % 2 === 0
-                  ? 'bg-[var(--color-table-row-even)]'
-                  : 'bg-[var(--color-table-row-odd)]'
-              )}
-            >
-              <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
-                {formatDate(item.work_date)}
-              </td>
-              <td className="px-4 py-3">
-                <span
-                  className={cn(
-                    'inline-block rounded-full px-2 py-0.5',
-                    'text-xs font-medium',
-                    getTypeBadgeStyles(item.work_type)
-                  )}
-                >
-                  {getWorkTypeLabel(item.work_type)}
-                </span>
-              </td>
-              <td className="px-4 py-3">
-                <span className="font-medium text-[var(--color-text-primary)]">
-                  {getWorkItemTitle(item)}
-                </span>
-                {item.work_type === 'STREAM' && item.duration_minutes && (
-                  <span className="ml-2 text-sm text-[var(--color-text-muted)]">
-                    ({item.duration_minutes} min)
-                  </span>
-                )}
-                {(item.work_type === 'VOICE' || item.work_type === 'EDIT') &&
-                  item.content_length && (
-                    <span className="ml-2 text-sm text-[var(--color-text-muted)]">
-                      ({item.content_length})
-                    </span>
-                  )}
-              </td>
-              <td className="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                {item.user?.full_name || '—'}
-              </td>
-              <td className="px-4 py-3">
-                <StatusControl
-                  workItemId={item.id}
-                  currentStatus={item.status}
-                  isAdmin={isAdmin}
-                  isOwnItem={item.user_id === currentUserId}
-                />
-              </td>
-              <td className="px-4 py-3 text-right">
-                <CostEditor
-                  workItemId={item.id}
-                  currentCost={item.cost}
-                  canEdit={isAdmin && item.user_id !== currentUserId && item.status === 'DRAFT'}
-                />
-              </td>
+              <th className="px-3 py-3 text-left text-xs font-medium text-[var(--color-text-secondary)] sm:px-4">
+                {tr.workItem.fields.type}
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-[var(--color-text-secondary)] sm:px-4">
+                Başlık
+              </th>
+              <th className="hidden px-3 py-3 text-left text-xs font-medium text-[var(--color-text-secondary)] sm:table-cell sm:px-4">
+                {tr.workItem.fields.user}
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-[var(--color-text-secondary)] sm:px-4">
+                {tr.workItem.fields.status}
+              </th>
+              <th className="px-3 py-3 text-right text-xs font-medium text-[var(--color-text-secondary)] sm:px-4">
+                {tr.workItem.fields.cost}
+              </th>
               {isAdmin && (
-                <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    {item.status === 'APPROVED' && item.user_id !== currentUserId && item.cost && (
-                      paymentStatuses[item.id] === 'PENDING' ? (
-                        <span className={cn(
-                          'inline-block rounded-full px-2 py-0.5',
-                          'text-xs font-medium',
-                          'bg-[var(--color-warning-muted)] text-[var(--color-warning)]'
-                        )}>
-                          Ödeme Bekliyor
-                        </span>
-                      ) : paymentStatuses[item.id] === 'PAID' ? (
-                        <span className={cn(
-                          'inline-block rounded-full px-2 py-0.5',
-                          'text-xs font-medium',
-                          'bg-[var(--color-success-muted)] text-[var(--color-success)]'
-                        )}>
-                          Ödendi
-                        </span>
-                      ) : (
-                        <CreatePaymentButton workItemId={item.id} userId={item.user_id} />
-                      )
-                    )}
-                    {item.status !== 'PAID' && !paymentStatuses[item.id] && (
-                      <WorkItemDeleteButton workItemId={item.id} />
-                    )}
-                  </div>
-                </td>
+                <th className="px-3 py-3 text-right text-xs font-medium text-[var(--color-text-secondary)] sm:px-4">
+                  {tr.table.actions}
+                </th>
               )}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {items.map((item, index) => (
+              <tr
+                key={item.id}
+                className={cn(
+                  'border-b border-[var(--color-border)] last:border-b-0',
+                  index % 2 === 0
+                    ? 'bg-[var(--color-table-row-even)]'
+                    : 'bg-[var(--color-table-row-odd)]'
+                )}
+              >
+                <td className="px-3 py-3 text-xs text-[var(--color-text-muted)] sm:px-4 sm:text-sm">
+                  {formatDate(item.work_date)}
+                </td>
+                <td className="px-3 py-3 sm:px-4">
+                  <span
+                    className={cn(
+                      'inline-block rounded-full px-2 py-0.5',
+                      'text-xs font-medium',
+                      getTypeBadgeStyles(item.work_type)
+                    )}
+                  >
+                    {getWorkTypeLabel(item.work_type)}
+                  </span>
+                </td>
+                <td className="px-3 py-3 sm:px-4">
+                  <span className="block max-w-[140px] truncate text-xs font-medium text-[var(--color-text-primary)] sm:max-w-none sm:text-sm">
+                    {getWorkItemTitle(item)}
+                  </span>
+                  {item.work_type === 'STREAM' && item.duration_minutes && (
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      {item.duration_minutes} min
+                    </span>
+                  )}
+                </td>
+                <td className="hidden px-3 py-3 text-sm text-[var(--color-text-secondary)] sm:table-cell sm:px-4">
+                  {item.user?.full_name || '—'}
+                </td>
+                <td className="px-3 py-3 sm:px-4">
+                  <StatusControl
+                    workItemId={item.id}
+                    currentStatus={item.status}
+                    isAdmin={isAdmin}
+                    isOwnItem={item.user_id === currentUserId}
+                  />
+                </td>
+                <td className="px-3 py-3 text-right sm:px-4">
+                  <CostEditor
+                    workItemId={item.id}
+                    currentCost={item.cost}
+                    canEdit={isAdmin && item.user_id !== currentUserId && item.status === 'DRAFT'}
+                  />
+                </td>
+                {isAdmin && (
+                  <td className="px-3 py-3 text-right sm:px-4">
+                    <div className="flex items-center justify-end gap-2">
+                      {item.status === 'APPROVED' && item.user_id !== currentUserId && item.cost && (
+                        paymentStatuses[item.id] === 'PENDING' ? (
+                          <span className={cn('inline-block rounded-full px-2 py-0.5 text-xs font-medium bg-[var(--color-warning-muted)] text-[var(--color-warning)]')}>
+                            Bekliyor
+                          </span>
+                        ) : paymentStatuses[item.id] === 'PAID' ? (
+                          <span className={cn('inline-block rounded-full px-2 py-0.5 text-xs font-medium bg-[var(--color-success-muted)] text-[var(--color-success)]')}>
+                            Ödendi
+                          </span>
+                        ) : (
+                          <CreatePaymentButton workItemId={item.id} userId={item.user_id} />
+                        )
+                      )}
+                      {item.status !== 'PAID' && !paymentStatuses[item.id] && (
+                        <WorkItemDeleteButton workItemId={item.id} />
+                      )}
+                    </div>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

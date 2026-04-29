@@ -36,80 +36,68 @@ function TransactionsTable({ transactions }: { transactions: Transaction[] }) {
 
   return (
     <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)]" style={{ boxShadow: 'var(--shadow-card)' }}>
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-              {tr.transaction.fields.date}
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-              {tr.transaction.fields.type}
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-              {tr.transaction.fields.category}
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-              {tr.transaction.fields.description}
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-              {tr.transaction.fields.amount}
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-              {tr.table.actions}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {transactions.map((transaction, index) => (
-            <tr
-              key={transaction.id}
-              className={cn(
-                'border-b border-[var(--color-border)] last:border-b-0 transition-colors hover:bg-[var(--color-bg-tertiary)]',
-                index % 2 === 0
-                  ? 'bg-[var(--color-table-row-even)]'
-                  : 'bg-[var(--color-table-row-odd)]'
-              )}
-            >
-              <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
-                {formatDate(transaction.transaction_date)}
-              </td>
-              <td className="px-4 py-3">
-                <span
-                  className={cn(
-                    'inline-block rounded-full px-2.5 py-0.5',
-                    'text-xs font-medium',
-                    getTransactionTypeBadgeClass(transaction.type)
-                  )}
-                >
-                  {getTransactionTypeLabel(transaction.type)}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-sm font-medium text-[var(--color-text-primary)]">
-                {transaction.category}
-              </td>
-              <td className="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                {transaction.description || '—'}
-              </td>
-              <td
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[520px]">
+          <thead>
+            <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] sm:px-4">
+                {tr.transaction.fields.date}
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] sm:px-4">
+                {tr.transaction.fields.type}
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] sm:px-4">
+                {tr.transaction.fields.category}
+              </th>
+              <th className="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] sm:table-cell sm:px-4">
+                {tr.transaction.fields.description}
+              </th>
+              <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] sm:px-4">
+                {tr.transaction.fields.amount}
+              </th>
+              <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] sm:px-4">
+                {tr.table.actions}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {transactions.map((transaction, index) => (
+              <tr
+                key={transaction.id}
                 className={cn(
-                  'px-4 py-3 text-right font-mono text-sm font-semibold',
-                  transaction.type === 'INCOME'
-                    ? 'text-[var(--color-success)]'
-                    : 'text-[var(--color-error)]'
+                  'border-b border-[var(--color-border)] last:border-b-0 transition-colors hover:bg-[var(--color-bg-tertiary)]',
+                  index % 2 === 0
+                    ? 'bg-[var(--color-table-row-even)]'
+                    : 'bg-[var(--color-table-row-odd)]'
                 )}
               >
-                {transaction.type === 'INCOME' ? '+' : '-'}
-                {formatCurrency(transaction.amount)}
-              </td>
-              <td className="px-4 py-3 text-right">
-                {!transaction.payment_id && (
-                  <TransactionDeleteButton transactionId={transaction.id} />
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                <td className="px-3 py-3 text-xs text-[var(--color-text-muted)] sm:px-4 sm:text-sm">
+                  {formatDate(transaction.transaction_date)}
+                </td>
+                <td className="px-3 py-3 sm:px-4">
+                  <span className={cn('inline-block rounded-full px-2 py-0.5 text-xs font-medium', getTransactionTypeBadgeClass(transaction.type))}>
+                    {getTransactionTypeLabel(transaction.type)}
+                  </span>
+                </td>
+                <td className="px-3 py-3 text-xs font-medium text-[var(--color-text-primary)] sm:px-4 sm:text-sm">
+                  {transaction.category}
+                </td>
+                <td className="hidden px-3 py-3 text-xs text-[var(--color-text-secondary)] sm:table-cell sm:px-4 sm:text-sm">
+                  {transaction.description || '—'}
+                </td>
+                <td className={cn('px-3 py-3 text-right font-mono text-xs font-semibold sm:px-4 sm:text-sm', transaction.type === 'INCOME' ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]')}>
+                  {transaction.type === 'INCOME' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                </td>
+                <td className="px-3 py-3 text-right sm:px-4">
+                  {!transaction.payment_id && (
+                    <TransactionDeleteButton transactionId={transaction.id} />
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -221,7 +209,7 @@ export default async function FinancePage({ searchParams }: PageProps) {
       </div>
 
       {/* ── Charts Row ── */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <div className="mt-6 grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Monthly Trend — takes 2/3 width */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
@@ -268,7 +256,7 @@ export default async function FinancePage({ searchParams }: PageProps) {
               </p>
             </CardHeader>
             <CardContent>
-              <div className="max-w-xs">
+              <div className="max-w-full sm:max-w-xs">
                 <CategoryDonut
                   data={incomeBreakdown}
                   total={stats.totalIncome}
