@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/layout/breadcrumb';
 import { NotificationButton } from '@/components/notifications/notification-button';
+import { InstallButton } from '@/components/notifications/install-button';
 import { tr } from '@/lib/i18n';
 import type { User } from '@/types';
 
@@ -77,6 +78,7 @@ export function Header({ user, onSignOut, onMenuToggle }: HeaderProps) {
 
         {/* Right side - User menu */}
         <div className="flex items-center gap-3">
+          <InstallButton />
           <NotificationButton />
 
           {user && (
