@@ -1,9 +1,3 @@
-/**
- * Sidebar Component
- * Main navigation sidebar for the dashboard
- * Fixed width: 256px — Dark navy theme (YZEN-inspired)
- */
-
 'use client';
 
 import * as React from 'react';
@@ -23,6 +17,7 @@ import {
   CalendarDays,
   Target,
   ClipboardList,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -44,114 +39,66 @@ const navSections: NavSection[] = [
   {
     label: 'ANA MENÜ',
     items: [
-      {
-        label: tr.nav.dashboard,
-        href: '/',
-        icon: LayoutDashboard,
-      },
+      { label: tr.nav.dashboard, href: '/', icon: LayoutDashboard },
     ],
   },
   {
     label: 'YÖNETİM',
     items: [
-      {
-        label: tr.nav.team,
-        href: '/team',
-        icon: Users,
-        adminOnly: true,
-      },
-      {
-        label: tr.nav.workItems,
-        href: '/work-items',
-        icon: FileText,
-      },
-      {
-        label: tr.nav.payments,
-        href: '/payments',
-        icon: CreditCard,
-      },
-      {
-        label: tr.nav.finance,
-        href: '/finance',
-        icon: PiggyBank,
-        adminOnly: true,
-      },
+      { label: tr.nav.team, href: '/team', icon: Users, adminOnly: true },
+      { label: tr.nav.workItems, href: '/work-items', icon: FileText },
+      { label: tr.nav.payments, href: '/payments', icon: CreditCard },
+      { label: tr.nav.finance, href: '/finance', icon: PiggyBank, adminOnly: true },
     ],
   },
   {
     label: 'ANALİTİK',
     items: [
-      {
-        label: 'İçerik Takvimi',
-        href: '/content',
-        icon: CalendarDays,
-      },
-      {
-        label: 'İçerik Hedefleri',
-        href: '/content/goals',
-        icon: Target,
-      },
-      {
-        label: 'Haftalık Program',
-        href: '/content/schedule',
-        icon: CalendarDays,
-      },
-      {
-        label: tr.nav.social,
-        href: '/social',
-        icon: BarChart3,
-      },
-      {
-        label: tr.cs2.nav,
-        href: '/matches',
-        icon: Crosshair,
-      },
-      {
-        label: tr.cs2.dathost.operations,
-        href: '/matches/operations',
-        icon: Radio,
-        adminOnly: true,
-      },
+      { label: 'İçerik Takvimi', href: '/content', icon: CalendarDays },
+      { label: 'İçerik Hedefleri', href: '/content/goals', icon: Target },
+      { label: 'Haftalık Program', href: '/content/schedule', icon: CalendarDays },
+      { label: tr.nav.social, href: '/social', icon: BarChart3 },
+      { label: tr.cs2.nav, href: '/matches', icon: Crosshair },
+      { label: tr.cs2.dathost.operations, href: '/matches/operations', icon: Radio, adminOnly: true },
     ],
   },
   {
     label: 'DİĞER',
     items: [
-      {
-        label: 'Aylık Rapor',
-        href: '/reports',
-        icon: FileOutput,
-        adminOnly: true,
-      },
-      {
-        label: 'Haftalık Rapor',
-        href: '/reports/weekly',
-        icon: ClipboardList,
-        adminOnly: true,
-      },
+      { label: 'Aylık Rapor', href: '/reports', icon: FileOutput, adminOnly: true },
+      { label: 'Haftalık Rapor', href: '/reports/weekly', icon: ClipboardList, adminOnly: true },
     ],
   },
 ];
 
 interface SidebarProps {
   userRole?: string;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export function Sidebar({ userRole = 'ADMIN' }: SidebarProps) {
+export function Sidebar({ userRole = 'ADMIN', isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   return (
     <aside
-      className="fixed left-0 top-0 z-40 h-screen w-[var(--sidebar-width)] flex-shrink-0"
+      className={cn(
+        'fixed left-0 top-0 z-40 h-screen w-[var(--sidebar-width)] flex-shrink-0',
+        'transition-transform duration-300 ease-in-out',
+        // Desktop: always visible
+        'lg:translate-x-0',
+        // Mobile: hidden by default, slides in when open
+        isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      )}
       style={{ backgroundColor: 'var(--color-sidebar-bg)' }}
     >
       <div className="flex h-full flex-col">
         {/* Logo Section */}
         <div
-          className="flex h-[var(--header-height)] items-center px-6"
+          className="flex h-[var(--header-height)] items-center justify-between px-6"
           style={{ borderBottom: '1px solid var(--color-sidebar-border)' }}
         >
-          <Link href="/" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3" onClick={onClose}>
             <Image
               src="/logo.png"
               alt="Arhaval Logo"
@@ -163,6 +110,15 @@ export function Sidebar({ userRole = 'ADMIN' }: SidebarProps) {
               Yönetim Paneli
             </span>
           </Link>
+
+          {/* Mobile close button */}
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] text-white/60 hover:bg-white/10 hover:text-white lg:hidden"
+            aria-label="Menüyü kapat"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Navigation */}
@@ -193,6 +149,7 @@ export function Sidebar({ userRole = 'ADMIN' }: SidebarProps) {
                       <li key={item.href}>
                         <Link
                           href={item.href}
+                          onClick={onClose}
                           className={cn(
                             'flex items-center gap-3',
                             'rounded-[var(--radius-md)] px-3 py-2',
@@ -200,20 +157,14 @@ export function Sidebar({ userRole = 'ADMIN' }: SidebarProps) {
                           )}
                           style={
                             isActive
-                              ? {
-                                  backgroundColor: 'var(--color-accent)',
-                                  color: '#FFFFFF',
-                                }
-                              : {
-                                  color: 'var(--color-sidebar-text)',
-                                }
+                              ? { backgroundColor: 'var(--color-accent)', color: '#FFFFFF' }
+                              : { color: 'var(--color-sidebar-text)' }
                           }
                           onMouseEnter={(e) => {
                             if (!isActive) {
                               (e.currentTarget as HTMLAnchorElement).style.backgroundColor =
                                 'var(--color-sidebar-bg-hover)';
-                              (e.currentTarget as HTMLAnchorElement).style.color =
-                                '#FFFFFF';
+                              (e.currentTarget as HTMLAnchorElement).style.color = '#FFFFFF';
                             }
                           }}
                           onMouseLeave={(e) => {

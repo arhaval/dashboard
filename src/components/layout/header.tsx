@@ -7,7 +7,7 @@
 'use client';
 
 import * as React from 'react';
-import { LogOut, User as UserIcon, ChevronDown } from 'lucide-react';
+import { LogOut, User as UserIcon, ChevronDown, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/layout/breadcrumb';
@@ -18,9 +18,10 @@ import type { User } from '@/types';
 interface HeaderProps {
   user?: User | null;
   onSignOut?: () => void;
+  onMenuToggle?: () => void;
 }
 
-export function Header({ user, onSignOut }: HeaderProps) {
+export function Header({ user, onSignOut, onMenuToggle }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
@@ -56,14 +57,21 @@ export function Header({ user, onSignOut }: HeaderProps) {
       className={cn(
         'fixed right-0 top-0 z-30',
         'h-[var(--header-height)]',
-        'left-[var(--sidebar-width)]',
+        'left-0 lg:left-[var(--sidebar-width)]',
         'border-b border-[var(--color-border)]',
         'bg-[var(--color-bg-secondary)]'
       )}
     >
-      <div className="flex h-full items-center justify-between px-6">
-        {/* Left side - Breadcrumb navigation */}
-        <div className="flex items-center gap-4">
+      <div className="flex h-full items-center justify-between px-4 lg:px-6">
+        {/* Left side - Hamburger (mobile) + Breadcrumb */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onMenuToggle}
+            className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)] lg:hidden"
+            aria-label="Menüyü aç"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
           <Breadcrumb />
         </div>
 
