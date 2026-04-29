@@ -107,7 +107,7 @@ export function Sidebar({ userRole = 'ADMIN', isOpen = false, onClose }: Sidebar
               className="h-8 w-8 rounded-[var(--radius-sm)]"
             />
             <span className="text-display text-base font-semibold text-white">
-              Yönetim Paneli
+              Arhaval Yönetim
             </span>
           </Link>
 
