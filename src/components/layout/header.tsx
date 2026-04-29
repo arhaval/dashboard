@@ -11,6 +11,7 @@ import { LogOut, User as UserIcon, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/layout/breadcrumb';
+import { NotificationButton } from '@/components/notifications/notification-button';
 import { tr } from '@/lib/i18n';
 import type { User } from '@/types';
 
@@ -67,7 +68,9 @@ export function Header({ user, onSignOut }: HeaderProps) {
         </div>
 
         {/* Right side - User menu */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <NotificationButton />
+
           {user && (
             <div className="relative" ref={menuRef}>
               <button

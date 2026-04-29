@@ -35,20 +35,28 @@ export const metadata: Metadata = {
     template: '%s | Arhaval',
   },
   description: 'Ekip yönetimi, iş takibi, ödemeler ve finansal işlemler için dahili yönetim paneli.',
+  manifest: '/manifest.json',
   icons: {
-    icon: '/logo.png',
-    apple: '/logo.png',
+    icon: '/icons/icon-192.png',
+    apple: '/icons/icon-192.png',
+    shortcut: '/icons/icon-192.png',
   },
   robots: {
     index: false,
     follow: false,
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Arhaval',
   },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#F4F7FE',
+  minimumScale: 1,
+  themeColor: '#FF4D00',
 };
 
 export default function RootLayout({
