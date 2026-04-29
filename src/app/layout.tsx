@@ -6,6 +6,7 @@
 import type { Metadata, Viewport } from 'next';
 import { IBM_Plex_Sans, IBM_Plex_Mono, DM_Sans } from 'next/font/google';
 import './globals.css';
+import { ServiceWorkerRegister } from '@/components/notifications/service-worker-register';
 
 // Typography setup per CLAUDE.md specifications
 const ibmPlexSans = IBM_Plex_Sans({
@@ -70,6 +71,7 @@ export default function RootLayout({
       className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${dmSans.variable}`}
     >
       <body className="min-h-screen antialiased">
+        <ServiceWorkerRegister />
         {children}
       </body>
     </html>
