@@ -17,6 +17,7 @@ import {
   CalendarDays,
   Target,
   ClipboardList,
+  Tv2,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -60,6 +61,12 @@ const navSections: NavSection[] = [
       { label: tr.nav.social, href: '/social', icon: BarChart3 },
       { label: tr.cs2.nav, href: '/matches', icon: Crosshair },
       { label: tr.cs2.dathost.operations, href: '/matches/operations', icon: Radio, adminOnly: true },
+    ],
+  },
+  {
+    label: 'YAYIN',
+    items: [
+      { label: 'OBS Overlay', href: '/obs', icon: Tv2, adminOnly: true },
     ],
   },
   {
