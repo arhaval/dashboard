@@ -2,370 +2,949 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Arhaval OBS Overlay</title>
+<title>Arhaval OBS Overlay — Premium</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:wght@400;600;700;800;900&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/CustomEase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  body {
-    width: 1920px; height: 1080px;
-    background: transparent;
-    overflow: hidden;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    color: #fff;
-  }
+:root {
+  --accent:       #FF4D00;
+  --accent2:      #FF6B2C;
+  --accent-glow:  rgba(255, 77, 0, 0.55);
+  --gold:         #F5C842;
+  --green:        #22C55E;
+  --blue:         #3B82F6;
+  --dark:         rgba(5, 5, 5, 0.93);
+  --dark2:        rgba(20, 20, 20, 0.96);
+  --glass:        rgba(255,255,255,0.06);
+  --border:       rgba(255,255,255,0.10);
+  --border-accent:rgba(255,77,0,0.5);
+}
 
-  :root {
-    --accent:      #FF4D00;
-    --accent-glow: rgba(255, 77, 0, 0.6);
-    --dark:        rgba(0, 0, 0, 0.88);
-    --border:      rgba(255, 255, 255, 0.15);
-  }
+body {
+  width: 1920px; height: 1080px;
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Exo 2', 'Segoe UI', system-ui, sans-serif;
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+}
 
-  #root { position: absolute; inset: 0; pointer-events: none; }
+#root { position: absolute; inset: 0; pointer-events: none; }
 
-  /* ── 1. FULL-SCREEN AD ── */
-  .overlay-ad {
-    position: absolute; inset: 0;
-    background: rgba(0,0,0,0.92);
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 32px;
-    animation: fadeIn .4s ease; z-index: 100;
-  }
-  .overlay-ad .ad-badge {
-    font-size: 13px; font-weight: 700; letter-spacing: 3px;
-    text-transform: uppercase; color: var(--accent);
-    border: 1px solid var(--accent); padding: 6px 16px; border-radius: 4px;
-    animation: blink 2s infinite;
-  }
-  .overlay-ad .ad-title {
-    font-size: 72px; font-weight: 800; letter-spacing: -2px;
-    text-align: center; line-height: 1;
-    text-shadow: 0 0 60px var(--accent-glow);
-    animation: slideUp .5s ease .1s both;
-  }
-  .overlay-ad .ad-title span { color: var(--accent); }
-  .overlay-ad .ad-sub {
-    font-size: 24px; color: rgba(255,255,255,.6);
-    animation: slideUp .5s ease .2s both;
-  }
-  .overlay-ad .ad-count {
-    width: 80px; height: 80px; border-radius: 50%;
-    border: 3px solid var(--accent);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 32px; font-weight: 700; color: var(--accent);
-    box-shadow: 0 0 30px var(--accent-glow);
-    animation: slideUp .5s ease .3s both;
-  }
-  .overlay-ad .ad-bar {
-    position: absolute; bottom: 0; left: 0; right: 0; height: 4px;
-    background: var(--accent); transform-origin: left;
-    animation: shrink var(--dur, 15s) linear forwards;
-    box-shadow: 0 0 20px var(--accent-glow);
-  }
+/* ═══════════════════════════════════════════════════════
+   1. FULL-SCREEN AD — countdown ring + scanlines
+═══════════════════════════════════════════════════════ */
+.overlay-ad {
+  position: absolute; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.94);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 36px;
+  opacity: 0;
+}
+.overlay-ad::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,.015) 3px, rgba(255,255,255,.015) 4px);
+  pointer-events: none;
+}
+.ad-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px; font-weight: 600; letter-spacing: 4px;
+  text-transform: uppercase; color: var(--accent);
+  border: 1px solid var(--border-accent);
+  padding: 7px 20px; border-radius: 3px;
+  background: rgba(255,77,0,0.08);
+}
+.ad-title {
+  font-size: 80px; font-weight: 900; letter-spacing: -3px;
+  text-align: center; line-height: 1;
+  text-shadow: 0 0 80px var(--accent-glow);
+}
+.ad-title em { color: var(--accent); font-style: normal; }
+.ad-sub {
+  font-size: 22px; font-weight: 400;
+  color: rgba(255,255,255,.5); letter-spacing: .5px;
+}
+/* SVG countdown ring */
+.ad-ring-wrap {
+  position: relative; width: 110px; height: 110px;
+  display: flex; align-items: center; justify-content: center;
+}
+.ad-ring-wrap svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.ad-ring-bg { fill: none; stroke: rgba(255,255,255,.08); stroke-width: 4; }
+.ad-ring-fg { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round;
+  filter: drop-shadow(0 0 8px var(--accent)); }
+.ad-ring-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 36px; font-weight: 600; color: var(--accent);
+  position: relative; z-index: 1;
+}
+.ad-bar {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent);
+  transform-origin: left; transform: scaleX(1);
+  box-shadow: 0 0 16px var(--accent-glow);
+}
 
-  /* ── 2. BOTTOM BANNER ── */
-  .overlay-banner {
-    position: absolute; bottom: 0; left: 0; right: 0; height: 80px;
-    background: linear-gradient(90deg, rgba(0,0,0,.95) 0%, rgba(255,77,0,.12) 50%, rgba(0,0,0,.95) 100%);
-    border-top: 2px solid var(--accent);
-    display: flex; align-items: center; padding: 0 48px; gap: 24px;
-    animation: slideUpEl .5s cubic-bezier(.34,1.56,.64,1) both; z-index: 50;
-  }
-  .overlay-banner .b-dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    background: var(--accent); box-shadow: 0 0 12px var(--accent);
-    flex-shrink: 0; animation: blink 1.5s infinite;
-  }
-  .overlay-banner .b-label {
-    font-size: 11px; font-weight: 700; letter-spacing: 2px;
-    text-transform: uppercase; color: var(--accent); flex-shrink: 0;
-  }
-  .overlay-banner .b-div { width: 1px; height: 32px; background: var(--border); flex-shrink: 0; }
-  .overlay-banner .b-text { font-size: 22px; font-weight: 500; flex: 1; }
+/* ═══════════════════════════════════════════════════════
+   2. LOWER THIRD — pro broadcast style
+═══════════════════════════════════════════════════════ */
+.overlay-lower {
+  position: absolute; bottom: 80px; left: 0;
+  display: flex; align-items: stretch; z-index: 50; opacity: 0;
+}
+.lower-accent-bar { width: 5px; background: var(--accent); flex-shrink: 0; }
+.lower-body {
+  background: var(--dark);
+  border-top: 1px solid rgba(255,77,0,0.3);
+  border-bottom: 1px solid rgba(255,77,0,0.3);
+  padding: 14px 32px 14px 24px;
+  display: flex; flex-direction: column; justify-content: center; gap: 4px;
+  clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 50%, calc(100% - 24px) 100%, 0 100%);
+  padding-right: 56px;
+}
+.lower-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; font-weight: 600; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--accent);
+}
+.lower-name { font-size: 28px; font-weight: 800; letter-spacing: -.5px; line-height: 1; }
+.lower-sub  { font-size: 14px; font-weight: 500; color: rgba(255,255,255,.55); }
 
-  /* ── 3. CORNER POPUP ── */
-  .overlay-popup {
-    position: absolute; bottom: 100px; right: 40px; width: 380px;
-    background: var(--dark); border: 1px solid var(--border);
-    border-left: 3px solid var(--accent); border-radius: 8px;
-    padding: 20px 24px;
-    animation: slideInRight .4s cubic-bezier(.34,1.56,.64,1) both; z-index: 50;
-    box-shadow: 0 20px 60px rgba(0,0,0,.5), 0 0 40px rgba(255,77,0,.1);
-  }
-  .overlay-popup .p-title {
-    font-size: 13px; font-weight: 700; color: var(--accent);
-    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
-  }
-  .overlay-popup .p-text { font-size: 18px; font-weight: 500; line-height: 1.4; }
-  .overlay-popup .p-bar {
-    position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
-    background: var(--accent); border-radius: 0 0 8px 8px;
-    transform-origin: left; animation: shrink 6s linear forwards;
-    box-shadow: 0 0 10px var(--accent-glow);
-  }
+/* ═══════════════════════════════════════════════════════
+   3. CORNER POPUP — glassmorphism
+═══════════════════════════════════════════════════════ */
+.overlay-popup {
+  position: absolute; bottom: 110px; right: 48px; width: 400px;
+  background: rgba(12,12,12,0.88);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px; padding: 22px 26px;
+  z-index: 50; opacity: 0;
+  box-shadow: 0 24px 72px rgba(0,0,0,.6), 0 0 48px rgba(255,77,0,0.08);
+}
+.p-icon   { font-size: 28px; margin-bottom: 8px; line-height: 1; }
+.p-title  {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; font-weight: 600; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--accent); margin-bottom: 8px;
+}
+.p-text   { font-size: 19px; font-weight: 600; line-height: 1.45; }
+.p-bar    {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  background: var(--accent); border-radius: 0 0 6px 6px;
+  transform-origin: left; transform: scaleX(1);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
 
-  /* ── 4. CENTER ALERT ── */
-  .overlay-alert {
-    position: absolute; top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center; z-index: 90;
-  }
-  .overlay-alert .a-bg {
-    position: fixed; inset: 0;
-    background: radial-gradient(ellipse at center, rgba(255,77,0,.18) 0%, transparent 70%);
-    animation: fadeIn .5s ease;
-  }
-  .overlay-alert .a-box {
-    position: relative; background: var(--dark);
-    border: 1px solid var(--accent); border-radius: 12px;
-    padding: 48px 80px;
-    box-shadow: 0 0 0 1px var(--accent-glow), 0 0 80px var(--accent-glow), 0 40px 80px rgba(0,0,0,.6);
-    animation: popIn .6s cubic-bezier(.34,1.56,.64,1) both;
-  }
-  .overlay-alert .a-label {
-    font-size: 12px; font-weight: 700; letter-spacing: 4px;
-    text-transform: uppercase; color: var(--accent); margin-bottom: 16px;
-  }
-  .overlay-alert .a-text {
-    font-size: 52px; font-weight: 800; letter-spacing: -1px;
-    text-shadow: 0 0 40px var(--accent-glow); max-width: 800px;
-  }
-  .a-particles { position: absolute; inset: -40px; pointer-events: none; }
-  .particle {
-    position: absolute; width: 6px; height: 6px; border-radius: 50%;
-    background: var(--accent);
-    animation: fly var(--d,.8s) ease-out var(--delay,0s) forwards;
-  }
+/* ═══════════════════════════════════════════════════════
+   4. CENTER ALERT — shockwave + energy ring
+═══════════════════════════════════════════════════════ */
+.overlay-alert {
+  position: absolute; inset: 0; z-index: 90;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+}
+.a-backdrop {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, rgba(255,77,0,.14) 0%, transparent 65%);
+}
+.a-shockwave {
+  position: absolute; width: 200px; height: 200px;
+  border: 2px solid var(--accent); border-radius: 50%;
+  opacity: 0; pointer-events: none;
+}
+.a-box {
+  position: relative;
+  background: var(--dark2);
+  border: 1px solid rgba(255,77,0,0.45);
+  border-radius: 8px;
+  padding: 52px 96px;
+  box-shadow: 0 0 0 1px rgba(255,77,0,0.15),
+              0 0 120px rgba(255,77,0,0.2),
+              0 48px 96px rgba(0,0,0,.7);
+  text-align: center;
+  clip-path: polygon(16px 0, 100% 0, calc(100% - 16px) 100%, 0 100%);
+  opacity: 0;
+}
+.a-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; font-weight: 600; letter-spacing: 5px;
+  text-transform: uppercase; color: var(--accent); margin-bottom: 18px;
+}
+.a-text {
+  font-size: 58px; font-weight: 900; letter-spacing: -2px;
+  text-shadow: 0 0 60px var(--accent-glow); max-width: 900px; line-height: 1.1;
+}
+.a-particles { position: absolute; inset: -60px; pointer-events: none; }
+.particle {
+  position: absolute; border-radius: 50%; opacity: 0;
+  will-change: transform, opacity;
+}
 
-  /* ── 5. HYPE ── */
-  .overlay-hype {
-    position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    z-index: 80; animation: fadeIn .3s ease;
-  }
-  .overlay-hype .h-text {
-    font-size: 180px; font-weight: 900; letter-spacing: -8px;
-    text-transform: uppercase; color: transparent;
-    -webkit-text-stroke: 3px var(--accent);
-    text-shadow: 0 0 80px var(--accent-glow);
-    animation: popIn .8s cubic-bezier(.34,1.56,.64,1) both;
-  }
+/* ═══════════════════════════════════════════════════════
+   5. HYPE — screen shake + outline burst
+═══════════════════════════════════════════════════════ */
+.overlay-hype {
+  position: absolute; inset: 0; z-index: 80;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+}
+.h-bg-flash { position: absolute; inset: 0; background: var(--accent); opacity: 0; }
+.h-text {
+  font-size: 200px; font-weight: 900; letter-spacing: -10px;
+  text-transform: uppercase; color: transparent;
+  -webkit-text-stroke: 4px var(--accent);
+  paint-order: stroke fill;
+  line-height: 1; position: relative; z-index: 1;
+  opacity: 0;
+}
+.h-text-solid {
+  position: absolute;
+  font-size: 200px; font-weight: 900; letter-spacing: -10px;
+  text-transform: uppercase; color: var(--accent);
+  line-height: 1; opacity: 0;
+  filter: blur(40px);
+}
 
-  /* ── 6. GG ── */
-  .overlay-gg {
-    position: absolute; top: 50%; left: 50%;
-    transform: translate(-50%,-50%); text-align: center; z-index: 80;
-  }
-  .overlay-gg .g-label {
-    font-size: 14px; font-weight: 700; letter-spacing: 6px;
-    text-transform: uppercase; color: rgba(255,255,255,.4);
-    animation: slideUp .4s ease;
-  }
-  .overlay-gg .g-text {
-    font-size: 160px; font-weight: 900; color: var(--accent);
-    text-shadow: 0 0 100px var(--accent-glow); line-height: .9;
-    animation: popIn .6s cubic-bezier(.34,1.56,.64,1) .1s both;
-  }
+/* ═══════════════════════════════════════════════════════
+   6. GG — confetti + trophy reveal
+═══════════════════════════════════════════════════════ */
+.overlay-gg {
+  position: absolute; inset: 0; z-index: 80;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px;
+  opacity: 0;
+}
+.g-crown { font-size: 72px; line-height: 1; opacity: 0; filter: drop-shadow(0 0 30px rgba(245,200,66,.7)); }
+.g-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px; font-weight: 600; letter-spacing: 8px;
+  text-transform: uppercase; color: rgba(255,255,255,.4); opacity: 0;
+}
+.g-text {
+  font-size: 180px; font-weight: 900; color: var(--gold);
+  text-shadow: 0 0 120px rgba(245,200,66,.6); line-height: .85;
+  opacity: 0;
+}
+.confetti-wrap { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.confetti-piece {
+  position: absolute; width: 10px; height: 14px;
+  border-radius: 2px; opacity: 0;
+  will-change: transform, opacity;
+}
 
-  /* ── 7. BRB ── */
-  .overlay-brb {
-    position: absolute; inset: 0; background: rgba(0,0,0,.88);
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 24px;
-    animation: fadeIn .5s ease; z-index: 100;
-  }
-  .overlay-brb .r-title {
-    font-size: 96px; font-weight: 900; letter-spacing: -4px;
-  }
-  .overlay-brb .r-title span { color: var(--accent); }
-  .overlay-brb .r-sub { font-size: 22px; color: rgba(255,255,255,.5); letter-spacing: 2px; }
-  .overlay-brb .r-dots { display: flex; gap: 12px; margin-top: 8px; }
-  .overlay-brb .r-dot {
-    width: 12px; height: 12px; border-radius: 50%;
-    background: var(--accent); animation: blink 1.5s infinite;
-  }
-  .overlay-brb .r-dot:nth-child(2) { animation-delay: .3s; }
-  .overlay-brb .r-dot:nth-child(3) { animation-delay: .6s; }
+/* ═══════════════════════════════════════════════════════
+   7. BRB — ambient pulse + clock
+═══════════════════════════════════════════════════════ */
+.overlay-brb {
+  position: absolute; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.91); opacity: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 28px;
+}
+.brb-logo-ring {
+  position: relative; width: 140px; height: 140px;
+  display: flex; align-items: center; justify-content: center;
+}
+.brb-logo-ring svg { position: absolute; inset: 0; }
+.brb-ring-pulse { fill: none; stroke: rgba(255,77,0,.15); stroke-width: 2; }
+.brb-ring-spin  { fill: none; stroke: var(--accent); stroke-width: 2.5;
+  stroke-linecap: round; stroke-dasharray: 60 220;
+  filter: drop-shadow(0 0 6px var(--accent)); }
+.brb-icon { font-size: 52px; line-height: 1; position: relative; z-index: 1; }
+.brb-title {
+  font-size: 80px; font-weight: 900; letter-spacing: -4px; text-align: center;
+}
+.brb-title em { color: var(--accent); font-style: normal; }
+.brb-sub {
+  font-size: 20px; color: rgba(255,255,255,.4);
+  letter-spacing: 2px; text-align: center;
+}
+.brb-dots { display: flex; gap: 12px; }
+.brb-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent);
+}
 
-  /* ── KEYFRAMES ── */
-  @keyframes fadeIn    { from { opacity:0 } to { opacity:1 } }
-  @keyframes fadeOut   { from { opacity:1 } to { opacity:0 } }
-  @keyframes slideUp   { from { opacity:0; transform:translateY(30px) } to { opacity:1; transform:translateY(0) } }
-  @keyframes slideUpEl { from { transform:translateY(100%) } to { transform:translateY(0) } }
-  @keyframes slideDown { from { transform:translateY(0) } to { transform:translateY(100%) } }
-  @keyframes slideInRight  { from { opacity:0; transform:translateX(120%) } to { opacity:1; transform:translateX(0) } }
-  @keyframes slideOutRight { from { opacity:1; transform:translateX(0) } to { opacity:0; transform:translateX(120%) } }
-  @keyframes shrink    { from { transform:scaleX(1) } to { transform:scaleX(0) } }
-  @keyframes blink     { 0%,100%{opacity:1} 50%{opacity:.3} }
-  @keyframes popIn     { from { opacity:0; transform:scale(.5) } to { opacity:1; transform:scale(1) } }
-  @keyframes fly {
-    0%   { opacity:1; transform:translate(0,0) scale(1) }
-    100% { opacity:0; transform:translate(var(--tx,40px),var(--ty,-80px)) scale(0) }
-  }
+/* ═══════════════════════════════════════════════════════
+   8. CS2 SCORE BOARD
+═══════════════════════════════════════════════════════ */
+.overlay-score {
+  position: absolute; top: 32px; left: 50%; z-index: 60;
+  transform: translateX(-50%); opacity: 0;
+  min-width: 600px;
+}
+.score-wrap {
+  background: var(--dark2);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px; overflow: hidden;
+  box-shadow: 0 16px 60px rgba(0,0,0,.7);
+  display: flex; align-items: stretch;
+}
+.score-team {
+  padding: 18px 28px; flex: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.score-team.left  { background: rgba(239,68,68,0.08); }
+.score-team.right { background: rgba(59,130,246,0.08); }
+.team-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; letter-spacing: 3px; font-weight: 600;
+  text-transform: uppercase; color: rgba(255,255,255,.4);
+}
+.team-name { font-size: 22px; font-weight: 800; text-align: center; }
+.team-score {
+  font-size: 56px; font-weight: 900; line-height: 1;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.score-team.left  .team-score { color: #EF4444; text-shadow: 0 0 30px rgba(239,68,68,.4); }
+.score-team.right .team-score { color: var(--blue); text-shadow: 0 0 30px rgba(59,130,246,.4); }
+.score-mid {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 18px 20px;
+  border-left: 1px solid rgba(255,255,255,0.06);
+  border-right: 1px solid rgba(255,255,255,0.06);
+  gap: 4px;
+}
+.score-map-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; letter-spacing: 3px;
+  text-transform: uppercase; color: rgba(255,255,255,.3);
+}
+.score-sep  { color: rgba(255,255,255,.15); font-size: 18px; }
+.score-map  {
+  font-size: 13px; font-weight: 600;
+  color: rgba(255,255,255,.6); letter-spacing: 1px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   9. CLIP IT! — short viral flash
+═══════════════════════════════════════════════════════ */
+.overlay-clip {
+  position: absolute; top: 0; right: 0; z-index: 70;
+  padding: 40px 56px; opacity: 0;
+}
+.clip-box {
+  background: var(--accent);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 20px 100%);
+  padding: 14px 32px 14px 24px;
+  display: flex; align-items: center; gap: 14px;
+  box-shadow: 0 8px 40px rgba(255,77,0,.5);
+}
+.clip-icon { font-size: 32px; line-height: 1; }
+.clip-text {
+  font-size: 28px; font-weight: 900; letter-spacing: 1px; color: #fff;
+  text-transform: uppercase;
+}
+.clip-sub {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; letter-spacing: 3px; font-weight: 600;
+  color: rgba(255,255,255,.75); text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════
+   10. COUNTDOWN — big number
+═══════════════════════════════════════════════════════ */
+.overlay-countdown {
+  position: absolute; inset: 0; z-index: 95;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px;
+  background: rgba(0,0,0,0.88); opacity: 0;
+}
+.countdown-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px; letter-spacing: 5px;
+  text-transform: uppercase; color: rgba(255,255,255,.4);
+}
+.countdown-num {
+  font-size: 280px; font-weight: 900; letter-spacing: -16px;
+  color: var(--accent); line-height: 1;
+  text-shadow: 0 0 120px var(--accent-glow);
+}
+.countdown-sub {
+  font-size: 20px; color: rgba(255,255,255,.3); letter-spacing: 3px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   BANNER — wide info bar
+═══════════════════════════════════════════════════════ */
+.overlay-banner {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 88px; z-index: 50;
+  background: linear-gradient(90deg,
+    rgba(0,0,0,.96) 0%,
+    rgba(255,77,0,.08) 40%,
+    rgba(0,0,0,.96) 100%);
+  border-top: 2px solid var(--accent);
+  display: flex; align-items: center; padding: 0 56px; gap: 28px;
+  opacity: 0;
+  box-shadow: 0 -8px 40px rgba(255,77,0,0.12);
+}
+.b-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 14px var(--accent);
+  flex-shrink: 0;
+}
+.b-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; font-weight: 600; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--accent); flex-shrink: 0;
+}
+.b-div { width: 1px; height: 36px; background: rgba(255,255,255,.12); flex-shrink: 0; }
+.b-text { font-size: 24px; font-weight: 600; flex: 1; }
+.b-bar {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  background: var(--accent); transform-origin: left; transform: scaleX(1);
+}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script>
-// ── CONFIG ──────────────────────────────────────────────────────────────────
-const SUPABASE_URL  = 'https://ysceuihdsatttnpnypjx.supabase.co';
-const SUPABASE_KEY  = 'sb_publishable_qST7eQaiw0uOqcFQ95DIWw__XtiMbHf';
-const CHANNEL_NAME  = 'obs-overlay';
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://ysceuihdsatttnpnypjx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_qST7eQaiw0uOqcFQ95DIWw__XtiMbHf';
+const CHANNEL_NAME = 'obs-overlay';
 const root = document.getElementById('root');
 
-// ── SUPABASE REALTIME ────────────────────────────────────────────────────────
+// ── GSAP CustomEase ──────────────────────────────────────────────────────────
+CustomEase.create('bounce4', 'M0,0 C0,0 0.058,0.408 0.2,0.6 0.342,0.792 0.458,0.84 0.5,0.85 0.542,0.86 0.7,0.92 0.8,1.012 0.9,1.104 0.92,1.085 1,1');
+CustomEase.create('snap',   'M0,0 C0.4,0 0.7,0.6 1,1');
+
+// ── WEB AUDIO SOUND ENGINE ───────────────────────────────────────────────────
+const SFX = (() => {
+  let ctx = null;
+  function getCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return ctx;
+  }
+  function osc(freq, type, gain, attack, decay, start) {
+    const ac = getCtx();
+    const g = ac.createGain();
+    const o = ac.createOscillator();
+    o.type = type; o.frequency.setValueAtTime(freq, start);
+    g.gain.setValueAtTime(0, start);
+    g.gain.linearRampToValueAtTime(gain, start + attack);
+    g.gain.exponentialRampToValueAtTime(0.001, start + attack + decay);
+    o.connect(g); g.connect(ac.destination);
+    o.start(start); o.stop(start + attack + decay + 0.05);
+  }
+  function noise(dur, gain, start) {
+    const ac = getCtx();
+    const buf = ac.createBuffer(1, ac.sampleRate * dur, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1);
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const g = ac.createGain();
+    const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 800;
+    g.gain.setValueAtTime(gain, start);
+    g.gain.exponentialRampToValueAtTime(0.001, start + dur);
+    src.connect(f); f.connect(g); g.connect(ac.destination);
+    src.start(start); src.stop(start + dur);
+  }
+  return {
+    alert() {
+      const ac = getCtx(), t = ac.currentTime;
+      osc(220, 'sawtooth', 0.3, 0.01, 0.08, t);
+      osc(440, 'square',   0.2, 0.01, 0.12, t + 0.05);
+      osc(880, 'sine',     0.25, 0.02, 0.3,  t + 0.12);
+      noise(0.08, 0.15, t);
+    },
+    popup() {
+      const ac = getCtx(), t = ac.currentTime;
+      osc(523, 'sine', 0.2, 0.01, 0.18, t);
+      osc(784, 'sine', 0.15, 0.01, 0.15, t + 0.07);
+    },
+    hype() {
+      const ac = getCtx(), t = ac.currentTime;
+      [180, 220, 280, 360, 480].forEach((f, i) => {
+        osc(f, 'sawtooth', 0.18, 0.02, 0.25, t + i * 0.06);
+      });
+      noise(0.15, 0.2, t);
+      noise(0.1,  0.15, t + 0.3);
+    },
+    gg() {
+      const ac = getCtx(), t = ac.currentTime;
+      [523, 659, 784, 1047].forEach((f, i) => {
+        osc(f, 'sine', 0.18, 0.02, 0.4, t + i * 0.1);
+      });
+    },
+    clip() {
+      const ac = getCtx(), t = ac.currentTime;
+      osc(1047, 'sine', 0.25, 0.005, 0.12, t);
+      osc(1319, 'sine', 0.2,  0.005, 0.1,  t + 0.08);
+      noise(0.06, 0.1, t);
+    },
+    countdown() {
+      const ac = getCtx(), t = ac.currentTime;
+      osc(330, 'sine', 0.3, 0.01, 0.15, t);
+    },
+    countdownGo() {
+      const ac = getCtx(), t = ac.currentTime;
+      osc(523, 'sine', 0.3, 0.01, 0.3, t);
+      osc(784, 'sine', 0.2, 0.01, 0.4, t + 0.05);
+      osc(1047,'sine', 0.25, 0.01, 0.5, t + 0.12);
+    },
+  };
+})();
+
+// ── SUPABASE ─────────────────────────────────────────────────────────────────
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-const channel = sb.channel(CHANNEL_NAME, {
-  config: { broadcast: { self: false } }
-});
-
+const channel = sb.channel(CHANNEL_NAME, { config: { broadcast: { self: false } } });
 channel
   .on('broadcast', { event: 'trigger' }, ({ payload }) => {
-    console.log('[Overlay] Trigger:', payload);
+    console.log('[Overlay]', payload);
     handleTrigger(payload);
   })
-  .subscribe((status) => {
-    console.log('[Overlay] Kanal durumu:', status);
-  });
+  .subscribe(s => console.log('[Overlay] Status:', s));
 
-// ── TRIGGER HANDLER ──────────────────────────────────────────────────────────
+// ── TRIGGER ROUTER ───────────────────────────────────────────────────────────
 function handleTrigger({ overlay, data = {} }) {
   switch (overlay) {
-    case 'ad':     showAd(data);     break;
-    case 'banner': showBanner(data); break;
-    case 'popup':  showPopup(data);  break;
-    case 'alert':  showAlert(data);  break;
-    case 'hype':   showHype(data);   break;
-    case 'gg':     showGG(data);     break;
-    case 'brb':    showBRB(data);    break;
+    case 'ad':        showAd(data);        break;
+    case 'banner':    showBanner(data);    break;
+    case 'lower':     showLower(data);     break;
+    case 'popup':     showPopup(data);     break;
+    case 'alert':     showAlert(data);     break;
+    case 'hype':      showHype(data);      break;
+    case 'gg':        showGG(data);        break;
+    case 'brb':       showBRB(data);       break;
+    case 'score':     showScore(data);     break;
+    case 'clip':      showClip(data);      break;
+    case 'countdown': showCountdown(data); break;
   }
 }
 
-// ── 1. AD ────────────────────────────────────────────────────────────────────
-function showAd({ duration = 15, title = 'Arhaval', subtitle = 'İzlediğin için teşekkürler!' } = {}) {
-  const el = make('div', 'overlay-ad', `
-    <div class="ad-badge">🔴 REKLAM ARASI</div>
-    <div class="ad-title">${title.replace(/(\S+)$/, '<span>$1</span>')}</div>
-    <div class="ad-sub">${subtitle}</div>
-    <div class="ad-count" id="adc">${duration}</div>
-    <div class="ad-bar" style="--dur:${duration}s"></div>
-  `);
-  root.appendChild(el);
-  let r = duration;
-  const t = setInterval(() => { r--; const c=el.querySelector('#adc'); if(c) c.textContent=r; if(r<=0){clearInterval(t);dismiss(el,'fadeOut',.5);} }, 1000);
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function make(cls, html) {
+  const el = document.createElement('div');
+  el.className = cls; el.innerHTML = html;
+  return el;
+}
+function kill(el, dur = 0.4) {
+  if (!el?.parentNode) return;
+  gsap.to(el, { opacity: 0, duration: dur, ease: 'power2.in', onComplete: () => el.remove() });
+}
+function killClass(cls) {
+  root.querySelectorAll('.' + cls).forEach(e => kill(e));
 }
 
-// ── 2. BANNER ────────────────────────────────────────────────────────────────
+// ── 1. AD ─────────────────────────────────────────────────────────────────────
+function showAd({ duration = 15, title = 'Arhaval', subtitle = 'İzlediğin için teşekkürler!' } = {}) {
+  const circ = 282; // 2π × 45
+  const el = make('overlay-ad', `
+    <div class="ad-badge">🔴 &nbsp;REKLAM ARASI</div>
+    <div class="ad-title">${title.replace(/(\S+)$/, '<em>$1</em>')}</div>
+    <div class="ad-sub">${subtitle}</div>
+    <div class="ad-ring-wrap">
+      <svg viewBox="0 0 100 100" width="110" height="110">
+        <circle class="ad-ring-bg" cx="50" cy="50" r="45"/>
+        <circle class="ad-ring-fg" id="adRing" cx="50" cy="50" r="45"
+          stroke-dasharray="${circ}" stroke-dashoffset="0"/>
+      </svg>
+      <div class="ad-ring-num" id="adNum">${duration}</div>
+    </div>
+    <div class="ad-bar" id="adBar"></div>
+  `);
+  root.appendChild(el);
+
+  const tl = gsap.timeline();
+  tl.to(el, { opacity: 1, duration: 0.5, ease: 'power2.out' })
+    .from('.ad-badge',  { y: 20, opacity: 0, duration: 0.5, ease: 'power3.out' }, 0.1)
+    .from('.ad-title',  { y: 40, opacity: 0, duration: 0.6, ease: 'bounce4' }, 0.2)
+    .from('.ad-sub',    { y: 20, opacity: 0, duration: 0.5, ease: 'power3.out' }, 0.35)
+    .from('.ad-ring-wrap', { scale: 0.5, opacity: 0, duration: 0.6, ease: 'back.out(2)' }, 0.4);
+
+  // Progress bar
+  gsap.to('#adBar', { scaleX: 0, duration, ease: 'none', transformOrigin: 'left' });
+
+  // Ring countdown
+  let rem = duration;
+  const ring = el.querySelector('#adRing');
+  const num  = el.querySelector('#adNum');
+  const iv = setInterval(() => {
+    rem--;
+    if (num) num.textContent = rem;
+    if (ring) {
+      const offset = circ * (1 - rem / duration);
+      ring.style.strokeDashoffset = offset;
+    }
+    if (rem <= 0) {
+      clearInterval(iv);
+      kill(el, 0.6);
+    }
+  }, 1000);
+}
+
+// ── 2. BANNER ─────────────────────────────────────────────────────────────────
 function showBanner({ text = 'Arhaval ile izliyorsunuz!', duration = 8 } = {}) {
-  root.querySelectorAll('.overlay-banner').forEach(b => b.remove());
-  const el = make('div', 'overlay-banner', `
+  killClass('overlay-banner');
+  const el = make('overlay-banner', `
     <div class="b-dot"></div>
     <div class="b-label">Arhaval</div>
     <div class="b-div"></div>
     <div class="b-text">${text}</div>
+    <div class="b-bar" id="bBar"></div>
   `);
   root.appendChild(el);
-  setTimeout(() => dismiss(el, 'slideDown', .5), duration * 1000);
-}
 
-// ── 3. POPUP ─────────────────────────────────────────────────────────────────
-function showPopup({ text = '🎉 Yeni bildirim!', title = 'BİLDİRİM', duration = 6 } = {}) {
-  root.querySelectorAll('.overlay-popup').forEach(p => {
-    p.style.bottom = (parseInt(p.style.bottom || '100') + 160) + 'px';
+  gsap.timeline()
+    .to(el, { opacity: 1, y: 0, duration: 0 })
+    .from(el, { y: '100%', opacity: 0, duration: 0.5, ease: 'power3.out' });
+
+  gsap.to(el.querySelector('.b-dot'), {
+    opacity: 0.2, duration: 0.8, repeat: -1, yoyo: true, ease: 'sine.inOut'
   });
-  const el = make('div', 'overlay-popup', `
-    <div class="p-title">${title}</div>
-    <div class="p-text">${text}</div>
-    <div class="p-bar" style="animation-duration:${duration}s"></div>
-  `);
-  root.appendChild(el);
-  setTimeout(() => dismiss(el, 'slideOutRight', .4), duration * 1000);
+
+  gsap.to('#bBar', { scaleX: 0, duration, ease: 'none', transformOrigin: 'left',
+    onComplete: () => {
+      gsap.to(el, { y: '100%', opacity: 0, duration: 0.5, ease: 'power2.in',
+        onComplete: () => el.remove() });
+    }
+  });
 }
 
-// ── 4. ALERT ─────────────────────────────────────────────────────────────────
-function showAlert({ text = '⚡ ALERT!', duration = 4 } = {}) {
-  const el = make('div', 'overlay-alert', `
-    <div class="a-bg"></div>
-    <div class="a-box">
-      <div class="a-label">⚡ ARHAVAL ALERT</div>
-      <div class="a-text">${text}</div>
-      <div class="a-particles"></div>
+// ── 3. LOWER THIRD ───────────────────────────────────────────────────────────
+function showLower({ name = 'Player', tag = 'ARHAVAL', sub = '', duration = 6 } = {}) {
+  killClass('overlay-lower');
+  const el = make('overlay-lower', `
+    <div class="lower-accent-bar"></div>
+    <div class="lower-body">
+      <div class="lower-tag">${tag}</div>
+      <div class="lower-name">${name}</div>
+      ${sub ? `<div class="lower-sub">${sub}</div>` : ''}
     </div>
   `);
   root.appendChild(el);
-  spawnParticles(el.querySelector('.a-particles'));
-  setTimeout(() => dismiss(el, 'fadeOut', .5), duration * 1000);
+
+  gsap.set(el, { opacity: 1 });
+  gsap.from(el, { x: '-100%', duration: 0.6, ease: 'power3.out' });
+  gsap.from('.lower-body > *', { x: -30, opacity: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out', delay: 0.2 });
+
+  setTimeout(() => {
+    gsap.to(el, { x: '-105%', opacity: 0, duration: 0.5, ease: 'power2.in', onComplete: () => el.remove() });
+  }, duration * 1000);
+}
+
+// ── 4. POPUP ─────────────────────────────────────────────────────────────────
+function showPopup({ text = '🎉 Yeni bildirim!', title = 'BİLDİRİM', icon = '', duration = 6 } = {}) {
+  // Stack existing ones upward
+  root.querySelectorAll('.overlay-popup').forEach(p => {
+    gsap.to(p, { bottom: '+=' + 170, duration: 0.3, ease: 'power2.out' });
+  });
+
+  const el = make('overlay-popup', `
+    ${icon ? `<div class="p-icon">${icon}</div>` : ''}
+    <div class="p-title">${title}</div>
+    <div class="p-text">${text}</div>
+    <div class="p-bar" id="pBar"></div>
+  `);
+  root.appendChild(el);
+
+  SFX.popup();
+
+  gsap.set(el, { opacity: 0, x: 60 });
+  gsap.to(el, { opacity: 1, x: 0, duration: 0.45, ease: 'back.out(1.5)' });
+  gsap.to('#pBar', { scaleX: 0, duration, ease: 'none', transformOrigin: 'left',
+    onComplete: () => {
+      gsap.to(el, { opacity: 0, x: 60, duration: 0.4, ease: 'power2.in', onComplete: () => el.remove() });
+    }
+  });
+}
+
+// ── 5. ALERT ─────────────────────────────────────────────────────────────────
+function showAlert({ text = '⚡ ALERT!', duration = 4 } = {}) {
+  const el = make('overlay-alert', `
+    <div class="a-backdrop"></div>
+    <div class="a-shockwave" id="sw1"></div>
+    <div class="a-shockwave" id="sw2"></div>
+    <div class="a-box" id="aBox">
+      <div class="a-label">⚡ &nbsp;ARHAVAL &nbsp;·&nbsp; ALERT</div>
+      <div class="a-text">${text}</div>
+      <div class="a-particles" id="aPart"></div>
+    </div>
+  `);
+  root.appendChild(el);
+  SFX.alert();
+
+  const tl = gsap.timeline();
+  tl.to(el, { opacity: 1, duration: 0 })
+    .fromTo('#aBox', { opacity: 0, scale: 0.6, skewX: -4 },
+            { opacity: 1, scale: 1, skewX: 0, duration: 0.5, ease: 'back.out(2)' })
+    .to('#sw1', { scale: 8, opacity: 0, duration: 0.8, ease: 'power2.out' }, 0)
+    .to('#sw2', { scale: 12, opacity: 0, duration: 1.1, ease: 'power2.out' }, 0.1);
+
+  // Screen flash
+  gsap.from(document.body, { backgroundColor: 'rgba(255,77,0,0.12)', duration: 0.3 });
+
+  // Particles
+  spawnParticles(el.querySelector('#aPart'));
+
+  setTimeout(() => kill(el, 0.5), duration * 1000);
 }
 
 function spawnParticles(c) {
-  for (let i = 0; i < 24; i++) {
+  const colors = ['#FF4D00', '#FF6B2C', '#fff', '#FFB300'];
+  for (let i = 0; i < 36; i++) {
     const p = document.createElement('div');
     p.className = 'particle';
-    const a = Math.random() * 360, r = 100 + Math.random() * 200, rad = a * Math.PI / 180;
-    p.style.cssText = `left:${40+Math.random()*20}%;top:${40+Math.random()*20}%;--tx:${Math.cos(rad)*r}px;--ty:${Math.sin(rad)*r}px;--d:${.6+Math.random()*.8}s;--delay:${Math.random()*.3}s;background:${Math.random()>.5?'#FF4D00':'#fff'}`;
+    const size = 4 + Math.random() * 8;
+    const angle = (Math.random() * 360) * Math.PI / 180;
+    const dist  = 120 + Math.random() * 260;
+    p.style.cssText = `
+      left:${45+Math.random()*10}%; top:${40+Math.random()*20}%;
+      width:${size}px; height:${size}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      border-radius:${Math.random()>.5?'50%':'2px'};
+    `;
     c.appendChild(p);
+    gsap.fromTo(p,
+      { opacity: 1, x: 0, y: 0, scale: 1 },
+      { opacity: 0, x: Math.cos(angle)*dist, y: Math.sin(angle)*dist,
+        scale: 0, duration: 0.6 + Math.random() * 0.8,
+        delay: Math.random() * 0.25, ease: 'power2.out' }
+    );
   }
 }
 
-// ── 5. HYPE ──────────────────────────────────────────────────────────────────
+// ── 6. HYPE ──────────────────────────────────────────────────────────────────
 function showHype({ duration = 3 } = {}) {
-  const el = make('div', 'overlay-hype', `<div class="h-text">HYPE!</div>`);
-  root.appendChild(el);
-  setTimeout(() => dismiss(el, 'fadeOut', .5), duration * 1000);
-}
-
-// ── 6. GG ────────────────────────────────────────────────────────────────────
-function showGG({ duration = 4 } = {}) {
-  const el = make('div', 'overlay-gg', `
-    <div class="g-label">Match Over</div>
-    <div class="g-text">GG</div>
+  const el = make('overlay-hype', `
+    <div class="h-bg-flash" id="hFlash"></div>
+    <div class="h-text-solid" id="hGlow">HYPE!</div>
+    <div class="h-text" id="hMain">HYPE!</div>
   `);
   root.appendChild(el);
-  setTimeout(() => dismiss(el, 'fadeOut', .6), duration * 1000);
+  SFX.hype();
+
+  const tl = gsap.timeline();
+  tl.to(el, { opacity: 1, duration: 0 })
+    .fromTo('#hFlash', { opacity: 0.3 }, { opacity: 0, duration: 0.4, ease: 'power2.out' })
+    .fromTo('#hMain',  { opacity: 0, scale: 1.8, rotation: -6 },
+            { opacity: 1, scale: 1, rotation: 0, duration: 0.5, ease: 'back.out(2)' }, 0)
+    .fromTo('#hGlow',  { opacity: 0.7, scale: 1.2 },
+            { opacity: 0, scale: 2, duration: 0.8, ease: 'power2.out' }, 0);
+
+  // Screen shake
+  gsap.to(root, { x: 8, duration: 0.05, repeat: 8, yoyo: true, ease: 'none',
+    onComplete: () => gsap.set(root, { x: 0 }) });
+
+  setTimeout(() => kill(el, 0.5), duration * 1000);
 }
 
-// ── 7. BRB ───────────────────────────────────────────────────────────────────
+// ── 7. GG ─────────────────────────────────────────────────────────────────────
+function showGG({ duration = 5 } = {}) {
+  const el = make('overlay-gg', `
+    <div class="confetti-wrap" id="confWrap"></div>
+    <div class="g-crown" id="gCrown">🏆</div>
+    <div class="g-label" id="gLabel">MATCH OVER</div>
+    <div class="g-text" id="gText">GG</div>
+  `);
+  root.appendChild(el);
+  SFX.gg();
+
+  gsap.to(el, { opacity: 1, duration: 0 });
+  gsap.fromTo('#gCrown', { opacity: 0, y: -60, scale: 0.3 },
+    { opacity: 1, y: 0, scale: 1, duration: 0.7, ease: 'back.out(2)' });
+  gsap.fromTo('#gText',  { opacity: 0, scale: 0.4, rotation: -10 },
+    { opacity: 1, scale: 1, rotation: 0, duration: 0.8, ease: 'elastic.out(1, 0.5)', delay: 0.2 });
+  gsap.fromTo('#gLabel', { opacity: 0, y: 10 },
+    { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out', delay: 0.4 });
+
+  // Confetti
+  launchConfetti(el.querySelector('#confWrap'));
+  setTimeout(() => kill(el, 0.8), duration * 1000);
+}
+
+function launchConfetti(c) {
+  const colors = ['#FF4D00','#F5C842','#22C55E','#3B82F6','#fff','#FF6B2C','#A855F7'];
+  for (let i = 0; i < 80; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const startX = 20 + Math.random() * 60; // % from left
+    p.style.cssText = `left:${startX}%; top:-20px; background:${color};
+      transform: rotate(${Math.random()*360}deg);
+      width:${8+Math.random()*10}px; height:${12+Math.random()*14}px;`;
+    c.appendChild(p);
+    gsap.to(p, {
+      y: 1180 + Math.random() * 200,
+      x: (Math.random() - 0.5) * 400,
+      rotation: (Math.random() - 0.5) * 720,
+      opacity: [{ value: 1 }, { value: 0, delay: 0.8 }],
+      duration: 2 + Math.random() * 2.5,
+      delay: Math.random() * 1.5,
+      ease: 'power1.in',
+    });
+  }
+}
+
+// ── 8. BRB ───────────────────────────────────────────────────────────────────
 function showBRB({ text = 'Hemen Geri Dönüyorum' } = {}) {
   const existing = root.querySelector('.overlay-brb');
-  if (existing) { dismiss(existing, 'fadeOut', .4); return; } // ikinci basışta kapatır
-  const el = make('div', 'overlay-brb', `
-    <div class="r-title">Be <span>Right</span> Back</div>
-    <div class="r-sub">${text}</div>
-    <div class="r-dots"><div class="r-dot"></div><div class="r-dot"></div><div class="r-dot"></div></div>
+  if (existing) { kill(existing, 0.4); return; }
+
+  const el = make('overlay-brb', `
+    <div class="brb-logo-ring">
+      <svg viewBox="0 0 140 140" width="140" height="140">
+        <circle class="brb-ring-pulse" cx="70" cy="70" r="60"/>
+        <circle class="brb-ring-spin"  cx="70" cy="70" r="60"
+          stroke-dasharray="60 316" stroke-dashoffset="0"/>
+      </svg>
+      <div class="brb-icon">⏸</div>
+    </div>
+    <div class="brb-title">Be <em>Right</em> Back</div>
+    <div class="brb-sub">${text}</div>
+    <div class="brb-dots">
+      <div class="brb-dot" id="bd0"></div>
+      <div class="brb-dot" id="bd1"></div>
+      <div class="brb-dot" id="bd2"></div>
+    </div>
   `);
   root.appendChild(el);
+
+  gsap.to(el, { opacity: 1, duration: 0.6, ease: 'power2.out' });
+  gsap.from('.brb-title', { y: 30, opacity: 0, duration: 0.7, ease: 'back.out(2)', delay: 0.2 });
+  gsap.from('.brb-sub',   { y: 20, opacity: 0, duration: 0.5, ease: 'power2.out', delay: 0.4 });
+
+  // Spinning ring
+  const ring = el.querySelector('.brb-ring-spin');
+  gsap.to(ring, { strokeDashoffset: -376, duration: 2, ease: 'none', repeat: -1 });
+
+  // Pulsing outer ring
+  gsap.to('.brb-ring-pulse', { attr: { r: 65 }, opacity: 0, duration: 1.5, ease: 'power2.out', repeat: -1 });
+
+  // Stagger dots
+  [0,1,2].forEach(i => {
+    gsap.to(`#bd${i}`, { opacity: 0.2, duration: 0.6, repeat: -1, yoyo: true,
+      ease: 'sine.inOut', delay: i * 0.25 });
+  });
 }
 
-// ── YARDIMCILAR ──────────────────────────────────────────────────────────────
-function make(tag, cls, html) {
-  const el = document.createElement(tag);
-  el.className = cls;
-  el.innerHTML = html;
-  return el;
+// ── 9. SCORE ─────────────────────────────────────────────────────────────────
+function showScore({ team1 = 'TEAM A', team2 = 'TEAM B', score1 = 0, score2 = 0, map = 'MIRAGE', duration = 0 } = {}) {
+  killClass('overlay-score');
+  const el = make('overlay-score', `
+    <div class="score-wrap">
+      <div class="score-team left">
+        <div class="team-tag">CT</div>
+        <div class="team-name">${team1}</div>
+        <div class="team-score" id="s1">${score1}</div>
+      </div>
+      <div class="score-mid">
+        <div class="score-map-label">MAP</div>
+        <div class="score-map">${map}</div>
+        <div class="score-sep">—</div>
+        <div class="score-map-label">LIVE</div>
+      </div>
+      <div class="score-team right">
+        <div class="team-tag">T</div>
+        <div class="team-name">${team2}</div>
+        <div class="team-score" id="s2">${score2}</div>
+      </div>
+    </div>
+  `);
+  root.appendChild(el);
+
+  gsap.set(el, { opacity: 0, y: -30 });
+  gsap.to(el, { opacity: 1, y: 0, duration: 0.5, ease: 'back.out(1.5)' });
+
+  if (duration > 0) {
+    setTimeout(() => kill(el, 0.4), duration * 1000);
+  }
 }
 
-function dismiss(el, anim, dur) {
-  if (!el?.parentNode) return;
-  el.style.animation = `${anim} ${dur}s ease forwards`;
-  setTimeout(() => el.remove(), dur * 1000);
+// ── 10. CLIP ─────────────────────────────────────────────────────────────────
+function showClip({ text = 'Clip It!', duration = 3 } = {}) {
+  const el = make('overlay-clip', `
+    <div class="clip-box">
+      <div class="clip-icon">🎬</div>
+      <div>
+        <div class="clip-text">${text}</div>
+        <div class="clip-sub">Anı kaydet!</div>
+      </div>
+    </div>
+  `);
+  root.appendChild(el);
+  SFX.clip();
+
+  gsap.set(el, { opacity: 0, x: 80, y: -20 });
+  gsap.to(el, { opacity: 1, x: 0, y: 0, duration: 0.4, ease: 'back.out(2)' });
+  gsap.to(el.querySelector('.clip-box'), { boxShadow: '0 0 0 rgba(255,77,0,0)', duration: 0.5, repeat: 3, yoyo: true });
+
+  setTimeout(() => {
+    gsap.to(el, { opacity: 0, x: 80, y: -20, duration: 0.4, ease: 'power2.in', onComplete: () => el.remove() });
+  }, duration * 1000);
 }
 
-// ── TEST MODU (?test=1) ───────────────────────────────────────────────────────
+// ── 11. COUNTDOWN ────────────────────────────────────────────────────────────
+function showCountdown({ from = 5, text = 'Yayın Başlıyor' } = {}) {
+  const existing = root.querySelector('.overlay-countdown');
+  if (existing) { kill(existing, 0.3); return; }
+
+  const el = make('overlay-countdown', `
+    <div class="countdown-label">${text}</div>
+    <div class="countdown-num" id="cdNum">${from}</div>
+    <div class="countdown-sub">ARHAVAL</div>
+  `);
+  root.appendChild(el);
+
+  gsap.to(el, { opacity: 1, duration: 0.4, ease: 'power2.out' });
+
+  let rem = from;
+  const numEl = el.querySelector('#cdNum');
+  SFX.countdown();
+
+  const tick = () => {
+    if (!el.parentNode) return;
+    gsap.fromTo(numEl, { scale: 1.4, opacity: 0.4 }, { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(2)' });
+
+    const iv = setInterval(() => {
+      rem--;
+      if (!el.parentNode) { clearInterval(iv); return; }
+      if (rem <= 0) {
+        clearInterval(iv);
+        numEl.textContent = 'GİT!';
+        numEl.style.color = '#22C55E';
+        numEl.style.textShadow = '0 0 120px rgba(34,197,94,.7)';
+        SFX.countdownGo();
+        gsap.fromTo(numEl, { scale: 1.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(2)' });
+        setTimeout(() => kill(el, 0.6), 1800);
+      } else {
+        numEl.textContent = rem;
+        SFX.countdown();
+        gsap.fromTo(numEl, { scale: 1.4, opacity: 0.4 }, { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(2)' });
+      }
+    }, 1000);
+  };
+  setTimeout(tick, 400);
+}
+
+// ── TEST MODE (?test=1) ───────────────────────────────────────────────────────
 if (new URLSearchParams(location.search).get('test') === '1') {
   const demos = [
-    () => showBanner({ text: 'Arhaval ile CS2 izliyorsunuz!' }),
-    () => showPopup({ text: 'Hoşgeldin! 🎉', title: 'BİLDİRİM' }),
-    () => showAlert({ text: 'CLUTCH KAZANDI!' }),
-    () => showHype(),
-    () => showGG(),
+    () => showBanner({ text: 'Arhaval ile CS2 Turnuva Yayınını İzliyorsunuz!', duration: 6 }),
+    () => showLower({ name: 'Arhaval', tag: 'YAYINCI', sub: 'CS2 · Turnuva · Hafta 9', duration: 5 }),
+    () => showPopup({ text: 'Yeni izleyici katıldı! 🎉', title: 'HOŞGELDİN', icon: '👋', duration: 5 }),
+    () => showAlert({ text: 'CLUTCH KAZANDI!', duration: 4 }),
+    () => showHype({ duration: 3 }),
+    () => showScore({ team1: 'ARHAVAL', team2: 'RIVAL', score1: 14, score2: 11, map: 'MIRAGE', duration: 6 }),
+    () => showClip({ text: 'Clip It!', duration: 3 }),
+    () => showGG({ duration: 5 }),
     () => showAd({ duration: 8, title: 'Arhaval Espor', subtitle: 'CS2 Turnuva Yayını' }),
+    () => showCountdown({ from: 5, text: 'Maç Başlıyor' }),
   ];
   let i = 0;
-  const next = () => { if(i<demos.length) { demos[i++](); setTimeout(next, 5000); } };
-  setTimeout(next, 1000);
+  const next = () => { if (i < demos.length) { demos[i++](); setTimeout(next, 7000); } };
+  setTimeout(next, 1200);
 }
 </script>
 </body>
