@@ -117,18 +117,19 @@ select option { background: #0d0d0d; }
 @keyframes blink { to { opacity: .2; } }
 
 /* 1. Banner */
-#canvas .overlay-banner { position:absolute; bottom:0; left:0; right:0; height:72px; z-index:50; display:flex; align-items:stretch; background:rgba(4,4,9,.97); border-top:3px solid var(--acc); clip-path:inset(0 0 100% 0); }
-#canvas .bn-badge { background:var(--acc); clip-path:polygon(0 0,calc(100% - 22px) 0,100% 100%,0 100%); padding:0 46px 0 24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; min-width:96px; }
-#canvas .bn-badge img { height:36px; width:auto; object-fit:contain; filter:brightness(0) invert(1); }
-#canvas .bn-body { flex:1; display:flex; align-items:center; padding:0 36px; gap:20px; overflow:hidden; clip-path:inset(0 100% 0 0); position:relative; }
-#canvas .bn-label { font-family:var(--f-mono); font-size:10px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:var(--acc); flex-shrink:0; white-space:nowrap; }
-#canvas .bn-slash { width:1px; height:18px; background:rgba(255,255,255,.15); flex-shrink:0; transform:rotate(20deg); }
-#canvas .bn-text { font-family:var(--f-display); font-size:30px; font-weight:700; letter-spacing:.2px; white-space:nowrap; flex:1; overflow:hidden; }
-#canvas .bn-right { display:flex; align-items:center; gap:10px; padding:0 28px; flex-shrink:0; clip-path:inset(0 100% 0 0); }
-#canvas .bn-live-label { font-family:var(--f-mono); font-size:9px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:rgba(255,255,255,.32); }
-#canvas .bn-live-dot { width:6px; height:6px; border-radius:50%; background:var(--acc); animation:bnDot 1.6s ease-in-out infinite; }
-@keyframes bnDot { 0%,100%{opacity:1} 50%{opacity:.18} }
-#canvas .bn-bar { position:absolute; bottom:0; left:0; right:0; height:2px; background:rgba(255,255,255,.06); }
+#canvas .overlay-banner { position:absolute; bottom:0; left:0; right:0; height:80px; z-index:50; display:flex; align-items:stretch; background:linear-gradient(90deg,#08101E 0%,#0C1424 55%,#090E1A 100%); border-top:3px solid var(--acc); clip-path:inset(0 0 100% 0); }
+#canvas .bn-badge { background:var(--acc); clip-path:polygon(0 0,calc(100% - 30px) 0,100% 100%,0 100%); padding:0 60px 0 36px; display:flex; align-items:center; justify-content:center; flex-shrink:0; min-width:140px; position:relative; }
+#canvas .bn-badge::after { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:rgba(255,255,255,.22); pointer-events:none; }
+#canvas .bn-badge img { height:48px; width:auto; object-fit:contain; filter:brightness(0) invert(1); }
+#canvas .bn-sep { width:1px; background:rgba(255,255,255,.08); flex-shrink:0; }
+#canvas .bn-body { flex:1; display:flex; align-items:center; padding:0 44px; gap:0; overflow:hidden; clip-path:inset(0 100% 0 0); flex-direction:column; justify-content:center; }
+#canvas .bn-label { font-family:var(--f-mono); font-size:10px; font-weight:600; letter-spacing:4px; text-transform:uppercase; color:var(--acc); white-space:nowrap; line-height:1; margin-bottom:5px; }
+#canvas .bn-text { font-family:var(--f-display); font-size:36px; font-weight:800; letter-spacing:.5px; white-space:nowrap; overflow:hidden; line-height:1; color:#fff; text-shadow:0 1px 12px rgba(0,0,0,.5); }
+#canvas .bn-right { display:flex; align-items:center; gap:10px; padding:0 36px; flex-shrink:0; clip-path:inset(0 100% 0 0); border-left:1px solid rgba(255,255,255,.07); }
+#canvas .bn-live-label { font-family:var(--f-mono); font-size:9px; font-weight:600; letter-spacing:4px; text-transform:uppercase; color:rgba(255,255,255,.38); }
+#canvas .bn-live-dot { width:7px; height:7px; border-radius:50%; background:var(--acc); box-shadow:0 0 6px rgba(255,77,0,.8); animation:bnDot 1.6s ease-in-out infinite; }
+@keyframes bnDot { 0%,100%{opacity:1} 50%{opacity:.2} }
+#canvas .bn-bar { position:absolute; bottom:0; left:0; right:0; height:2px; background:rgba(255,255,255,.05); }
 #canvas .bn-bar-fill { height:100%; width:100%; background:var(--acc); transform-origin:left; }
 
 /* 2. Lower Third */

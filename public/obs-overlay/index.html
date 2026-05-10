@@ -97,69 +97,83 @@ body {
 ══════════════════════════════════════════════════════════════════════════ */
 .overlay-banner {
   position: absolute; bottom: 0; left: 0; right: 0;
-  height: 72px; z-index: 50;
+  height: 80px; z-index: 50;
   display: flex; align-items: stretch;
-  background: rgba(4,4,9,0.97);
+  /* Koyu lacivert — siyah değil, broadcast derinliği */
+  background: linear-gradient(90deg, #08101E 0%, #0C1424 55%, #090E1A 100%);
   border-top: 3px solid var(--acc);
-  clip-path: inset(0 0 100% 0); /* revealed on entry */
+  clip-path: inset(0 0 100% 0);
 }
 
-/* left: logo badge — parallelogram block */
+/* Sol: logo bloğu — büyük, baskın, paralel kenar */
 .bn-badge {
   background: var(--acc);
-  clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 100%, 0 100%);
-  padding: 0 46px 0 24px;
+  clip-path: polygon(0 0, calc(100% - 30px) 0, 100% 100%, 0 100%);
+  padding: 0 60px 0 36px;
   display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; min-width: 96px;
+  flex-shrink: 0; min-width: 140px; position: relative;
+}
+/* üstten ince highlight — badge derinliği */
+.bn-badge::after {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: rgba(255,255,255,0.22); pointer-events: none;
 }
 .bn-badge img {
-  height: 36px; width: auto; object-fit: contain;
+  height: 48px; width: auto; object-fit: contain;
   filter: brightness(0) invert(1);
 }
 
-/* center: label + text — this panel wipes in */
+/* Badge-body ayırıcı */
+.bn-sep {
+  width: 1px; background: rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+
+/* Merkez: etiket + ana metin */
 .bn-body {
   flex: 1; display: flex; align-items: center;
-  padding: 0 36px; gap: 20px; overflow: hidden;
-  clip-path: inset(0 100% 0 0); /* wipe reveal by JS */
-  position: relative;
+  padding: 0 44px; gap: 0; overflow: hidden;
+  clip-path: inset(0 100% 0 0);
+  flex-direction: column; justify-content: center;
 }
 .bn-label {
   font-family: var(--f-mono); font-size: 10px; font-weight: 600;
-  letter-spacing: 3px; text-transform: uppercase;
-  color: var(--acc); flex-shrink: 0; white-space: nowrap;
-}
-.bn-slash {
-  width: 1px; height: 18px; background: rgba(255,255,255,0.15);
-  flex-shrink: 0; transform: rotate(20deg);
+  letter-spacing: 4px; text-transform: uppercase;
+  color: var(--acc); white-space: nowrap;
+  line-height: 1; margin-bottom: 5px;
 }
 .bn-text {
-  font-family: var(--f-display); font-size: 30px; font-weight: 700;
-  letter-spacing: 0.2px; white-space: nowrap; flex: 1; overflow: hidden;
+  font-family: var(--f-display); font-size: 36px; font-weight: 800;
+  letter-spacing: 0.5px; white-space: nowrap; overflow: hidden;
+  line-height: 1; color: #fff;
+  text-shadow: 0 1px 12px rgba(0,0,0,0.5);
 }
 
-/* right: live indicator */
+/* Sağ: LIVE göstergesi */
 .bn-right {
   display: flex; align-items: center; gap: 10px;
-  padding: 0 28px; flex-shrink: 0;
-  clip-path: inset(0 100% 0 0); /* wipes in last */
+  padding: 0 36px; flex-shrink: 0;
+  clip-path: inset(0 100% 0 0);
+  border-left: 1px solid rgba(255,255,255,0.07);
 }
 .bn-live-label {
   font-family: var(--f-mono); font-size: 9px; font-weight: 600;
-  letter-spacing: 3px; text-transform: uppercase;
-  color: rgba(255,255,255,0.32);
+  letter-spacing: 4px; text-transform: uppercase;
+  color: rgba(255,255,255,0.38);
 }
 .bn-live-dot {
-  width: 6px; height: 6px; border-radius: 50%;
+  width: 7px; height: 7px; border-radius: 50%;
   background: var(--acc);
+  box-shadow: 0 0 6px rgba(255,77,0,0.8);
   animation: bnDot 1.6s ease-in-out infinite;
 }
-@keyframes bnDot { 0%,100%{opacity:1} 50%{opacity:0.18} }
+@keyframes bnDot { 0%,100%{opacity:1} 50%{opacity:0.2} }
 
-/* bottom progress strip */
+/* Alt: progress bar */
 .bn-bar {
   position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
-  background: rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.05);
 }
 .bn-bar-fill {
   height: 100%; width: 100%;
@@ -602,9 +616,9 @@ function showBanner({ messages, text='Arhaval CS2 Turnuva Yayını', label='CANL
   let msgIdx = 0, cycleTimer = null;
   const el = make('overlay-banner', `
     <div class="bn-badge"><img src="logo.png" alt="Arhaval"></div>
+    <div class="bn-sep"></div>
     <div class="bn-body">
       <div class="bn-label">${msgs[0].label || label}</div>
-      <div class="bn-slash"></div>
       <div class="bn-text">${msgs[0].text || text}</div>
     </div>
     <div class="bn-right">
