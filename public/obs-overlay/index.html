@@ -517,8 +517,9 @@ function handleTrigger({ overlay, data = {} }) {
     case 'hype':      showHype(data);      break;
     case 'gg':        showGG(data);        break;
     case 'brb':       showBRB(data);       break;
-    case 'score':     showScore(data);     break;
-    case 'clip':      showClip(data);      break;
+    case 'score':      showScore(data);     break;
+    case 'score_hide': killClass('overlay-score'); break;
+    case 'clip':       showClip(data);      break;
     case 'countdown': showCountdown(data); break;
   }
 }
