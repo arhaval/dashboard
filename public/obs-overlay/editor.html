@@ -437,6 +437,7 @@ function makeSlider(id, label, min, max, val, unit='') {
 
 function bindSlider(id, unit, cb) {
   const el = document.getElementById(id);
+  if (!el) return;
   const lbl = document.getElementById(`${id}_lbl`);
   const v   = document.getElementById(`${id}_v`);
   el.addEventListener('input', () => {
@@ -738,22 +739,25 @@ function showBanner(s) {
 function showAlert(s) {
   const el = make('overlay-alert', `
     <div class="a-backdrop"></div>
-    <div class="a-shockwave" id="sw1"></div>
-    <div class="a-shockwave" id="sw2"></div>
-    <div class="a-box" id="aBox">
+    <div class="a-shockwave sw1"></div>
+    <div class="a-shockwave sw2"></div>
+    <div class="a-box">
       <div class="a-label">${s.icon} &nbsp;${s.label}</div>
       <div class="a-text" style="font-size:${s.textSize}px">${s.text}</div>
-      <div class="a-particles" id="aPart"></div>
+      <div class="a-particles"></div>
     </div>
   `);
   canvas.appendChild(el);
   applyC(el, s.color);
+  const aBox = el.querySelector('.a-box');
+  const sw1  = el.querySelector('.sw1');
+  const sw2  = el.querySelector('.sw2');
   const tl = gsap.timeline();
   tl.to(el,{opacity:1,duration:0})
-    .fromTo('#aBox',{opacity:0,scale:0.6,skewX:-4},{opacity:1,scale:1,skewX:0,duration:0.5,ease:'back.out(2)'})
-    .to('#sw1',{scale:8,opacity:0,duration:0.8,ease:'power2.out'},0)
-    .to('#sw2',{scale:12,opacity:0,duration:1.1,ease:'power2.out'},0.1);
-  spawnParticles(el.querySelector('#aPart'), s.color);
+    .fromTo(aBox,{opacity:0,scale:0.6,skewX:-4},{opacity:1,scale:1,skewX:0,duration:0.5,ease:'back.out(2)'})
+    .to(sw1,{scale:8,opacity:0,duration:0.8,ease:'power2.out'},0)
+    .to(sw2,{scale:12,opacity:0,duration:1.1,ease:'power2.out'},0.1);
+  spawnParticles(el.querySelector('.a-particles'), s.color);
   setTimeout(()=>kill(el,0.5), s.duration*1000);
 }
 
@@ -812,33 +816,39 @@ function showLower(s) {
 
 function showHype(s) {
   const el = make('overlay-hype', `
-    <div class="h-bg-flash" id="hFlash" style="background:${s.color}"></div>
-    <div class="h-text-solid" id="hGlow" style="font-size:${s.textSize}px;color:${s.color}">${s.text}</div>
-    <div class="h-text" id="hMain" style="font-size:${s.textSize}px;-webkit-text-stroke:4px ${s.color}">${s.text}</div>
+    <div class="h-bg-flash" style="background:${s.color}"></div>
+    <div class="h-text-solid" style="font-size:${s.textSize}px;color:${s.color}">${s.text}</div>
+    <div class="h-text" style="font-size:${s.textSize}px;-webkit-text-stroke:4px ${s.color}">${s.text}</div>
   `);
   canvas.appendChild(el);
+  const hFlash = el.querySelector('.h-bg-flash');
+  const hMain  = el.querySelector('.h-text');
+  const hGlow  = el.querySelector('.h-text-solid');
   const tl=gsap.timeline();
   tl.to(el,{opacity:1,duration:0})
-    .fromTo('#hFlash',{opacity:0.3},{opacity:0,duration:0.4,ease:'power2.out'})
-    .fromTo('#hMain',{opacity:0,scale:1.8,rotation:-6},{opacity:1,scale:1,rotation:0,duration:0.5,ease:'back.out(2)'},0)
-    .fromTo('#hGlow',{opacity:0.7,scale:1.2},{opacity:0,scale:2,duration:0.8,ease:'power2.out'},0);
+    .fromTo(hFlash,{opacity:0.3},{opacity:0,duration:0.4,ease:'power2.out'})
+    .fromTo(hMain,{opacity:0,scale:1.8,rotation:-6},{opacity:1,scale:1,rotation:0,duration:0.5,ease:'back.out(2)'},0)
+    .fromTo(hGlow,{opacity:0.7,scale:1.2},{opacity:0,scale:2,duration:0.8,ease:'power2.out'},0);
   gsap.to(canvas,{x:8,duration:0.05,repeat:8,yoyo:true,ease:'none',onComplete:()=>gsap.set(canvas,{x:0})});
   setTimeout(()=>kill(el,0.5), s.duration*1000);
 }
 
 function showGG(s) {
   const el = make('overlay-gg', `
-    <div class="confetti-wrap" id="confWrap"></div>
-    <div class="g-crown" id="gCrown">🏆</div>
-    <div class="g-label" id="gLabel">${s.label}</div>
-    <div class="g-text" id="gText" style="font-size:${s.textSize}px">${s.text}</div>
+    <div class="confetti-wrap"></div>
+    <div class="g-crown">🏆</div>
+    <div class="g-label">${s.label}</div>
+    <div class="g-text" style="font-size:${s.textSize}px">${s.text}</div>
   `);
   canvas.appendChild(el);
+  const gCrown = el.querySelector('.g-crown');
+  const gText  = el.querySelector('.g-text');
+  const gLabel = el.querySelector('.g-label');
   gsap.to(el,{opacity:1,duration:0});
-  gsap.fromTo('#gCrown',{opacity:0,y:-60,scale:0.3},{opacity:1,y:0,scale:1,duration:0.7,ease:'back.out(2)'});
-  gsap.fromTo('#gText', {opacity:0,scale:0.4,rotation:-10},{opacity:1,scale:1,rotation:0,duration:0.8,ease:'elastic.out(1,0.5)',delay:0.2});
-  gsap.fromTo('#gLabel',{opacity:0,y:10},{opacity:1,y:0,duration:0.5,ease:'power2.out',delay:0.4});
-  launchConfetti(el.querySelector('#confWrap'));
+  gsap.fromTo(gCrown,{opacity:0,y:-60,scale:0.3},{opacity:1,y:0,scale:1,duration:0.7,ease:'back.out(2)'});
+  gsap.fromTo(gText, {opacity:0,scale:0.4,rotation:-10},{opacity:1,scale:1,rotation:0,duration:0.8,ease:'elastic.out(1,0.5)',delay:0.2});
+  gsap.fromTo(gLabel,{opacity:0,y:10},{opacity:1,y:0,duration:0.5,ease:'power2.out',delay:0.4});
+  launchConfetti(el.querySelector('.confetti-wrap'));
   setTimeout(()=>kill(el,0.8), s.duration*1000);
 }
 
@@ -874,11 +884,13 @@ function showBRB(s) {
   `);
   canvas.appendChild(el);
   gsap.to(el,{opacity:1,duration:0.6,ease:'power2.out'});
-  gsap.from('.brb-title',{y:30,opacity:0,duration:0.7,ease:'back.out(2)',delay:0.2});
-  gsap.from('.brb-sub',  {y:20,opacity:0,duration:0.5,ease:'power2.out',delay:0.4});
+  gsap.from(el.querySelector('.brb-title'),{y:30,opacity:0,duration:0.7,ease:'back.out(2)',delay:0.2});
+  gsap.from(el.querySelector('.brb-sub'),  {y:20,opacity:0,duration:0.5,ease:'power2.out',delay:0.4});
   const ring=el.querySelector('.brb-ring-spin');
   gsap.to(ring,{strokeDashoffset:-376,duration:2,ease:'none',repeat:-1});
-  [0,1,2].forEach(i=>{gsap.to(`#bd${i}`,{opacity:0.2,duration:0.6,repeat:-1,yoyo:true,ease:'sine.inOut',delay:i*.25});});
+  el.querySelectorAll('.brb-dot').forEach((dot,i)=>{
+    gsap.to(dot,{opacity:0.2,duration:0.6,repeat:-1,yoyo:true,ease:'sine.inOut',delay:i*.25});
+  });
 }
 
 function showScore(s) {
@@ -930,13 +942,13 @@ function showCountdown(s) {
   if(existing){kill(existing,0.3);return;}
   const el=make('overlay-countdown',`
     <div class="countdown-label">${s.label}</div>
-    <div class="countdown-num" style="color:${s.color};text-shadow:0 0 120px rgba(${hexToRgb(s.color)},.6)" id="cdNum">${s.from}</div>
+    <div class="countdown-num" style="color:${s.color};text-shadow:0 0 120px rgba(${hexToRgb(s.color)},.6)">${s.from}</div>
     <div class="countdown-sub">${s.sub}</div>
   `);
   canvas.appendChild(el);
   gsap.to(el,{opacity:1,duration:0.4,ease:'power2.out'});
   let rem=s.from;
-  const numEl=el.querySelector('#cdNum');
+  const numEl=el.querySelector('.countdown-num');
   gsap.fromTo(numEl,{scale:1.4,opacity:0.4},{scale:1,opacity:1,duration:0.35,ease:'back.out(2)'});
   const iv=setInterval(()=>{
     rem--;
@@ -964,23 +976,29 @@ function showAd(s) {
     <div class="ad-ring-wrap">
       <svg viewBox="0 0 100 100" width="110" height="110">
         <circle class="ad-ring-bg" cx="50" cy="50" r="45"/>
-        <circle class="ad-ring-fg" id="adRing" cx="50" cy="50" r="45" stroke-dasharray="${circ}" stroke-dashoffset="0"/>
+        <circle class="ad-ring-fg" cx="50" cy="50" r="45" stroke-dasharray="${circ}" stroke-dashoffset="0"/>
       </svg>
-      <div class="ad-ring-num" id="adNum">${s.duration}</div>
+      <div class="ad-ring-num">${s.duration}</div>
     </div>
-    <div class="ad-bar" id="adBar"></div>
+    <div class="ad-bar"></div>
   `);
   canvas.appendChild(el);
   applyC(el, s.color);
+  const adBadge   = el.querySelector('.ad-badge');
+  const adTitle   = el.querySelector('.ad-title');
+  const adSub     = el.querySelector('.ad-sub');
+  const adRingWrap= el.querySelector('.ad-ring-wrap');
+  const adBar     = el.querySelector('.ad-bar');
+  const ring      = el.querySelector('.ad-ring-fg');
+  const num       = el.querySelector('.ad-ring-num');
   const tl=gsap.timeline();
   tl.to(el,{opacity:1,duration:0.5,ease:'power2.out'})
-    .from('.ad-badge',{y:20,opacity:0,duration:0.5,ease:'power3.out'},0.1)
-    .from('.ad-title',{y:40,opacity:0,duration:0.6,ease:'bounce4'},0.2)
-    .from('.ad-sub',  {y:20,opacity:0,duration:0.5,ease:'power3.out'},0.35)
-    .from('.ad-ring-wrap',{scale:0.5,opacity:0,duration:0.6,ease:'back.out(2)'},0.4);
-  gsap.to('#adBar',{scaleX:0,duration:s.duration,ease:'none',transformOrigin:'left'});
+    .from(adBadge,   {y:20,opacity:0,duration:0.5,ease:'power3.out'},0.1)
+    .from(adTitle,   {y:40,opacity:0,duration:0.6,ease:'bounce4'},0.2)
+    .from(adSub,     {y:20,opacity:0,duration:0.5,ease:'power3.out'},0.35)
+    .from(adRingWrap,{scale:0.5,opacity:0,duration:0.6,ease:'back.out(2)'},0.4);
+  gsap.to(adBar,{scaleX:0,duration:s.duration,ease:'none',transformOrigin:'left'});
   let rem=s.duration;
-  const ring=el.querySelector('#adRing'); const num=el.querySelector('#adNum');
   const iv=setInterval(()=>{
     rem--; if(num) num.textContent=rem;
     if(ring) ring.style.strokeDashoffset=circ*(1-rem/s.duration);
