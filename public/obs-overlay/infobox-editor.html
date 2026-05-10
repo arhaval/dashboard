@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Info Box Editor — Arhaval OBS</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:    #0A0A0A;
+  --bg2:   #141414;
+  --bg3:   #1A1A1A;
+  --brd:   #2A2A2A;
+  --acc:   #FF4D00;
+  --acc2:  #E2FC03;
+  --txt:   #FAFAFA;
+  --txt2:  #A1A1A1;
+  --txt3:  #6B6B6B;
+  --f:     'IBM Plex Sans', sans-serif;
+  --fm:    'IBM Plex Mono', monospace;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--txt); font-family: var(--f); font-size: 14px; }
+
+/* ── LAYOUT ── */
+.shell {
+  display: grid;
+  grid-template-rows: 52px 1fr;
+  grid-template-columns: 1fr 360px;
+  height: 100vh;
+}
+
+/* ── HEADER ── */
+.hd {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--brd);
+  background: var(--bg2);
+}
+
+.hd-left { display: flex; align-items: center; gap: 12px; }
+
+.hd-logo {
+  font-family: var(--fm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--txt);
+  letter-spacing: 1px;
+}
+
+.hd-logo em { color: var(--acc); font-style: normal; }
+
+.hd-sep { width: 1px; height: 18px; background: var(--brd); }
+
+.hd-title { font-size: 13px; color: var(--txt2); }
+
+.hd-right { display: flex; align-items: center; gap: 10px; }
+
+/* ── PREVIEW PANEL ── */
+.preview-panel {
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--brd);
+  gap: 20px;
+  padding: 40px;
+  position: relative;
+}
+
+.preview-label {
+  position: absolute;
+  top: 20px; left: 24px;
+  font-family: var(--fm);
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--txt3);
+}
+
+/* Checkerboard = transparent bg simulation */
+.preview-canvas {
+  background-image:
+    linear-gradient(45deg, #1c1c1c 25%, transparent 25%),
+    linear-gradient(-45deg, #1c1c1c 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1c1c1c 75%),
+    linear-gradient(-45deg, transparent 75%, #1c1c1c 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+  background-color: #111;
+  padding: 32px;
+  border: 1px solid var(--brd);
+  border-radius: 4px;
+  position: relative;
+}
+
+.preview-canvas iframe {
+  display: block;
+  width: 400px;
+  height: 150px;
+  border: none;
+  border-radius: 0;
+}
+
+.preview-size {
+  font-family: var(--fm);
+  font-size: 10px;
+  color: var(--txt3);
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+/* OBS URL block */
+.obs-url-wrap {
+  width: 100%;
+  max-width: 480px;
+}
+
+.obs-url-label {
+  font-family: var(--fm);
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: 8px;
+}
+
+.obs-url-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.obs-url-input {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--brd);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-family: var(--fm);
+  font-size: 11px;
+  color: var(--txt2);
+  outline: none;
+  cursor: text;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── CONTROLS PANEL ── */
+.controls-panel {
+  background: var(--bg2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--brd);
+  flex-shrink: 0;
+}
+
+.tab {
+  flex: 1;
+  padding: 14px 8px;
+  font-size: 11px;
+  font-family: var(--fm);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--txt3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color .2s, border-color .2s;
+}
+.tab:hover { color: var(--txt2); }
+.tab.on { color: var(--txt); border-bottom-color: var(--acc); }
+
+/* Tab panels */
+.tab-panels { flex: 1; overflow-y: auto; }
+.tab-panels::-webkit-scrollbar { width: 4px; background: var(--bg2); }
+.tab-panels::-webkit-scrollbar-thumb { background: var(--brd); }
+
+.tab-panel { display: none; padding: 20px; }
+.tab-panel.on { display: block; }
+
+/* Form elements */
+.field { margin-bottom: 16px; }
+.field:last-child { margin-bottom: 0; }
+
+.field-label {
+  display: block;
+  font-family: var(--fm);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: 6px;
+}
+
+.field input[type="text"],
+.field input[type="number"],
+.field input[type="color"] + span {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--brd);
+  border-radius: 4px;
+  padding: 9px 12px;
+  font-family: var(--fm);
+  font-size: 12px;
+  color: var(--txt);
+  outline: none;
+  transition: border-color .2s;
+}
+.field input[type="text"]:focus,
+.field input[type="number"]:focus { border-color: var(--acc); }
+
+.field input[type="number"] { width: 100%; }
+
+/* Color picker row */
+.color-row { display: flex; gap: 8px; align-items: center; }
+.color-row input[type="color"] {
+  width: 36px; height: 36px;
+  padding: 2px;
+  background: var(--bg3);
+  border: 1px solid var(--brd);
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.color-row .color-hex {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--brd);
+  border-radius: 4px;
+  padding: 9px 12px;
+  font-family: var(--fm);
+  font-size: 12px;
+  color: var(--txt);
+  outline: none;
+  transition: border-color .2s;
+}
+.color-row .color-hex:focus { border-color: var(--acc); }
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: var(--brd);
+  margin: 20px 0;
+}
+
+.section-title {
+  font-family: var(--fm);
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--brd); }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: var(--f);
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background .15s, color .15s;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn-primary { background: var(--acc); color: #fff; }
+.btn-primary:hover { background: #FF6B2C; }
+
+.btn-ghost { background: transparent; color: var(--txt2); border: 1px solid var(--brd); }
+.btn-ghost:hover { border-color: #444; color: var(--txt); }
+
+.btn-sm { padding: 6px 12px; font-size: 11px; }
+
+/* ── BOTTOM BAR ── */
+.bottom-bar {
+  border-top: 1px solid var(--brd);
+  padding: 14px 20px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #1F1F1F;
+  border: 1px solid var(--brd);
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-size: 12px;
+  color: var(--txt2);
+  font-family: var(--fm);
+  letter-spacing: 1px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s, transform .2s;
+  z-index: 100;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── SLIDE INDICATOR ── */
+.slide-indicator {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--brd);
+  flex-shrink: 0;
+}
+
+.si-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--brd);
+  transition: background .3s;
+  cursor: pointer;
+}
+.si-dot.on { background: var(--acc2); }
+
+.si-label {
+  font-family: var(--fm);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--txt3);
+  margin-left: 4px;
+}
+
+/* Hint text */
+.hint {
+  font-size: 11px;
+  color: var(--txt3);
+  font-family: var(--fm);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- HEADER -->
+  <header class="hd">
+    <div class="hd-left">
+      <div class="hd-logo">ARHAVAL<em>.</em></div>
+      <div class="hd-sep"></div>
+      <div class="hd-title">Info Box Editörü</div>
+    </div>
+    <div class="hd-right">
+      <a href="/obs-overlay/" class="btn btn-ghost btn-sm">← Ana Overlay</a>
+    </div>
+  </header>
+
+  <!-- PREVIEW -->
+  <div class="preview-panel">
+    <div class="preview-label">Preview — 400 × 150 px</div>
+
+    <div class="preview-canvas">
+      <iframe id="preview-frame" src="infobox.html" scrolling="no"></iframe>
+    </div>
+
+    <div class="preview-size">OBS Browser Source: 400 × 150</div>
+
+    <div class="obs-url-wrap">
+      <div class="obs-url-label">OBS URL</div>
+      <div class="obs-url-row">
+        <input class="obs-url-input" id="obs-url" readonly value="" title="OBS'de kullanılacak URL">
+        <button class="btn btn-ghost btn-sm" onclick="copyURL()">Kopyala</button>
+      </div>
+      <div class="hint" style="margin-top:8px">Bu URL'yi OBS → Browser Source → URL alanına yapıştır.</div>
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls-panel">
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab on" onclick="switchTab('s1',this)">Slide 1</button>
+      <button class="tab"    onclick="switchTab('s2',this)">Slide 2</button>
+      <button class="tab"    onclick="switchTab('s3',this)">Slide 3</button>
+      <button class="tab"    onclick="switchTab('cfg',this)">Ayarlar</button>
+    </div>
+
+    <!-- Tab panels -->
+    <div class="tab-panels">
+
+      <!-- SLIDE 1 — Follow Us -->
+      <div class="tab-panel on" id="panel-s1">
+        <div class="section-title">Slide 1 — Sosyal Medya</div>
+
+        <div class="field">
+          <label class="field-label">Etiket</label>
+          <input type="text" id="s1_tag" value="Follow Us" oninput="liveUpdate()">
+        </div>
+        <div class="field">
+          <label class="field-label">Kullanıcı Adı (@ ile başlayabilir)</label>
+          <input type="text" id="s1_main" value="@ARHAVAL" oninput="liveUpdate()">
+        </div>
+        <div class="field">
+          <label class="field-label">Alt Metin (platformlar)</label>
+          <input type="text" id="s1_sub" value="twitch · youtube · instagram · x" oninput="liveUpdate()">
+          <div class="hint">Platformları · ile ayırabilirsin</div>
+        </div>
+      </div>
+
+      <!-- SLIDE 2 — Next Match -->
+      <div class="tab-panel" id="panel-s2">
+        <div class="section-title">Slide 2 — Maç Bilgisi</div>
+
+        <div class="field">
+          <label class="field-label">Etiket</label>
+          <input type="text" id="s2_tag" value="Next Match" oninput="liveUpdate()">
+        </div>
+        <div class="field">
+          <label class="field-label">Takım 1</label>
+          <input type="text" id="s2_t1" value="NaVi" oninput="liveUpdate()">
+        </div>
+        <div class="field">
+          <label class="field-label">Takım 2</label>
+          <input type="text" id="s2_t2" value="FaZe" oninput="liveUpdate()">
+        </div>
+        <div class="field">
+          <label class="field-label">Alt Metin (saat / tur)</label>
+          <input type="text" id="s2_sub" value="today · 21:00 · grand final" oninput="liveUpdate()">
+        </div>
+      </div>
+
+      <!-- SLIDE 3 — Sponsor -->
+      <div class="tab-panel" id="panel-s3">
+        <div class="section-title">Slide 3 — Sponsor / Partner</div>
+
+        <div class="field">
+          <label class="field-label">Rozet Metni</label>
+          <input type="text" id="s3_badge" value="Official Partner" oninput="liveUpdate()">
+        </div>
+        <div class="field">
+          <label class="field-label">Logo / Marka Adı</label>
+          <input type="text" id="s3_logo" value="SPONSOR" oninput="liveUpdate()">
+          <div class="hint">Kısa tut — max ~10 karakter sığar</div>
+        </div>
+        <div class="field">
+          <label class="field-label">URL / Açıklama</label>
+          <input type="text" id="s3_url" value="arhaval.gg/partner" oninput="liveUpdate()">
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="tab-panel" id="panel-cfg">
+        <div class="section-title">Genel Ayarlar</div>
+
+        <div class="field">
+          <label class="field-label">Slide Süresi (saniye)</label>
+          <input type="number" id="duration" value="10" min="3" max="60" oninput="liveUpdate()">
+          <div class="hint">Her slide kaç saniye gösterilsin</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="field">
+          <label class="field-label">Vurgu Rengi</label>
+          <div class="color-row">
+            <input type="color" id="accent-picker" value="#E2FC03" oninput="syncColorHex(this)">
+            <input type="text"  id="accent" class="color-hex" value="#E2FC03" maxlength="7" oninput="syncColorPicker(this); liveUpdate()">
+          </div>
+          <div class="hint">Varsayılan: #E2FC03 (ESL sarısı)</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="section-title">Hızlı Renkler</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="setAccent('#E2FC03')"style="border-left:3px solid #E2FC03">ESL Sarı</button>
+          <button class="btn btn-ghost btn-sm" onclick="setAccent('#00FFA3')"style="border-left:3px solid #00FFA3">Neon Yeşil</button>
+          <button class="btn btn-ghost btn-sm" onclick="setAccent('#FF4D00')"style="border-left:3px solid #FF4D00">Turuncu</button>
+          <button class="btn btn-ghost btn-sm" onclick="setAccent('#3B82F6')"style="border-left:3px solid #3B82F6">Mavi</button>
+          <button class="btn btn-ghost btn-sm" onclick="setAccent('#FF2D6B')"style="border-left:3px solid #FF2D6B">Pembe</button>
+          <button class="btn btn-ghost btn-sm" onclick="setAccent('#FFFFFF')"style="border-left:3px solid #fff">Beyaz</button>
+        </div>
+      </div>
+
+    </div><!-- /tab-panels -->
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <button class="btn btn-primary" style="flex:1" onclick="applyAndCopy()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+        URL'yi Kopyala
+      </button>
+      <button class="btn btn-ghost" onclick="resetDefaults()">Sıfırla</button>
+    </div>
+
+  </div><!-- /controls-panel -->
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  BASE URL
+// ══════════════════════════════════════════════════════
+const BASE = location.origin + location.pathname.replace('infobox-editor.html','') + 'infobox.html';
+const frame = document.getElementById('preview-frame');
+
+// ══════════════════════════════════════════════════════
+//  READ CONFIG FROM FORM
+// ══════════════════════════════════════════════════════
+function readCfg() {
+  return {
+    s1_tag:   v('s1_tag'),
+    s1_main:  v('s1_main'),
+    s1_sub:   v('s1_sub'),
+    s2_tag:   v('s2_tag'),
+    s2_t1:    v('s2_t1'),
+    s2_t2:    v('s2_t2'),
+    s2_sub:   v('s2_sub'),
+    s3_badge: v('s3_badge'),
+    s3_logo:  v('s3_logo'),
+    s3_url:   v('s3_url'),
+    duration: v('duration'),
+    accent:   v('accent'),
+  };
+}
+
+function v(id) { return document.getElementById(id).value.trim(); }
+
+// ══════════════════════════════════════════════════════
+//  LIVE UPDATE — postMessage to iframe (no reload)
+// ══════════════════════════════════════════════════════
+let debounce = null;
+function liveUpdate() {
+  clearTimeout(debounce);
+  debounce = setTimeout(() => {
+    const cfg = readCfg();
+    frame.contentWindow.postMessage({ type: 'infobox-update', cfg }, '*');
+    buildURL(cfg);
+  }, 200);
+}
+
+// ══════════════════════════════════════════════════════
+//  BUILD OBS URL
+// ══════════════════════════════════════════════════════
+function buildURL(cfg) {
+  const p = new URLSearchParams();
+  Object.entries(cfg).forEach(([k,vl]) => { if (vl) p.set(k, vl); });
+  const url = BASE + '?' + p.toString();
+  document.getElementById('obs-url').value = url;
+  return url;
+}
+
+// ══════════════════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════════════════
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('panel-' + id).classList.add('on');
+}
+
+// ══════════════════════════════════════════════════════
+//  COLOR SYNC
+// ══════════════════════════════════════════════════════
+function syncColorHex(picker) {
+  document.getElementById('accent').value = picker.value.toUpperCase();
+  liveUpdate();
+}
+
+function syncColorPicker(hexInput) {
+  const val = hexInput.value;
+  if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+    document.getElementById('accent-picker').value = val;
+  }
+}
+
+function setAccent(hex) {
+  document.getElementById('accent').value = hex;
+  document.getElementById('accent-picker').value = hex;
+  liveUpdate();
+}
+
+// ══════════════════════════════════════════════════════
+//  COPY URL
+// ══════════════════════════════════════════════════════
+function copyURL() {
+  const url = document.getElementById('obs-url').value;
+  navigator.clipboard.writeText(url).then(() => showToast('URL kopyalandı ✓'));
+}
+
+function applyAndCopy() {
+  liveUpdate();
+  setTimeout(copyURL, 250);
+}
+
+// ══════════════════════════════════════════════════════
+//  RESET
+// ══════════════════════════════════════════════════════
+function resetDefaults() {
+  const defs = {
+    s1_tag:'Follow Us', s1_main:'@ARHAVAL', s1_sub:'twitch · youtube · instagram · x',
+    s2_tag:'Next Match', s2_t1:'NaVi', s2_t2:'FaZe', s2_sub:'today · 21:00 · grand final',
+    s3_badge:'Official Partner', s3_logo:'SPONSOR', s3_url:'arhaval.gg/partner',
+    duration:'10', accent:'#E2FC03',
+  };
+  Object.entries(defs).forEach(([k,vl]) => {
+    const el = document.getElementById(k);
+    if (el) el.value = vl;
+  });
+  document.getElementById('accent-picker').value = '#E2FC03';
+  liveUpdate();
+  showToast('Varsayılanlara sıfırlandı');
+}
+
+// ══════════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════════
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ══════════════════════════════════════════════════════
+//  INIT — wait for iframe then push initial config
+// ══════════════════════════════════════════════════════
+frame.addEventListener('load', () => {
+  setTimeout(() => liveUpdate(), 300);
+});
+
+// Build initial URL on load
+buildURL(readCfg());
+</script>
+</body>
+</html>
