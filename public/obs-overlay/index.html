@@ -2,9 +2,8 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Arhaval OBS Overlay — Premium</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:wght@400;600;700;800;900&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<title>Arhaval OBS Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Barlow+Condensed:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/CustomEase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -12,397 +11,508 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --accent:       #FF4D00;
-  --accent2:      #FF6B2C;
-  --accent-glow:  rgba(255, 77, 0, 0.55);
-  --gold:         #F5C842;
-  --green:        #22C55E;
-  --blue:         #3B82F6;
-  --dark:         rgba(5, 5, 5, 0.93);
-  --dark2:        rgba(20, 20, 20, 0.96);
-  --glass:        rgba(255,255,255,0.06);
-  --border:       rgba(255,255,255,0.10);
-  --border-accent:rgba(255,77,0,0.5);
+  --c-bg:       #08080A;
+  --c-surface:  rgba(10,10,14,0.97);
+  --c-border:   rgba(255,255,255,0.08);
+  --c-acc:      #FF4D00;
+  --c-acc2:     #FF6B2C;
+  --c-acc-glow: rgba(255,77,0,0.5);
+  --c-ct:       #4D8BFF;
+  --c-t:        #FF8C00;
+  --c-gold:     #FFD060;
+  --c-green:    #00E5A0;
+  --c-text:     #FFFFFF;
+  --c-sub:      rgba(255,255,255,0.55);
+  --c-muted:    rgba(255,255,255,0.25);
+  --f-display:  'Barlow Condensed', 'Rajdhani', system-ui;
+  --f-ui:       'Rajdhani', system-ui;
+  --f-mono:     'IBM Plex Mono', monospace;
 }
 
 body {
   width: 1920px; height: 1080px;
-  background: transparent;
-  overflow: hidden;
-  font-family: 'Exo 2', 'Segoe UI', system-ui, sans-serif;
-  color: #fff;
+  background: transparent; overflow: hidden;
+  font-family: var(--f-ui);
+  color: var(--c-text);
   -webkit-font-smoothing: antialiased;
 }
 
 #root { position: absolute; inset: 0; pointer-events: none; }
 
-/* ═══════════════════════════════════════════════════════
-   1. FULL-SCREEN AD — countdown ring + scanlines
-═══════════════════════════════════════════════════════ */
-.overlay-ad {
-  position: absolute; inset: 0; z-index: 100;
-  background: rgba(0,0,0,0.94);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 36px;
-  opacity: 0;
-}
-.overlay-ad::before {
+/* ── SCANLINE TEXTURE ────────────────────────────────────────────────────── */
+.scanlines::after {
   content: '';
   position: absolute; inset: 0;
-  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,.015) 3px, rgba(255,255,255,.015) 4px);
-  pointer-events: none;
-}
-.ad-badge {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px; font-weight: 600; letter-spacing: 4px;
-  text-transform: uppercase; color: var(--accent);
-  border: 1px solid var(--border-accent);
-  padding: 7px 20px; border-radius: 3px;
-  background: rgba(255,77,0,0.08);
-}
-.ad-title {
-  font-size: 80px; font-weight: 900; letter-spacing: -3px;
-  text-align: center; line-height: 1;
-  text-shadow: 0 0 80px var(--accent-glow);
-}
-.ad-title em { color: var(--accent); font-style: normal; }
-.ad-sub {
-  font-size: 22px; font-weight: 400;
-  color: rgba(255,255,255,.5); letter-spacing: .5px;
-}
-/* SVG countdown ring */
-.ad-ring-wrap {
-  position: relative; width: 110px; height: 110px;
-  display: flex; align-items: center; justify-content: center;
-}
-.ad-ring-wrap svg { position: absolute; inset: 0; transform: rotate(-90deg); }
-.ad-ring-bg { fill: none; stroke: rgba(255,255,255,.08); stroke-width: 4; }
-.ad-ring-fg { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round;
-  filter: drop-shadow(0 0 8px var(--accent)); }
-.ad-ring-num {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 36px; font-weight: 600; color: var(--accent);
-  position: relative; z-index: 1;
-}
-.ad-bar {
-  position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
-  background: var(--accent);
-  transform-origin: left; transform: scaleX(1);
-  box-shadow: 0 0 16px var(--accent-glow);
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none; z-index: 100;
 }
 
-/* ═══════════════════════════════════════════════════════
-   2. LOWER THIRD — pro broadcast style
-═══════════════════════════════════════════════════════ */
-.overlay-lower {
-  position: absolute; bottom: 80px; left: 0;
-  display: flex; align-items: stretch; z-index: 50; opacity: 0;
+/* ══════════════════════════════════════════════════════════════════
+   1. BANNER — full-width professional ticker
+══════════════════════════════════════════════════════════════════ */
+.overlay-banner {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 70px; z-index: 50; opacity: 0;
+  display: flex; align-items: stretch;
+  background: linear-gradient(90deg, rgba(8,8,10,0.98) 0%, rgba(255,77,0,0.04) 50%, rgba(8,8,10,0.98) 100%);
+  border-top: 1px solid rgba(255,77,0,0.35);
 }
-.lower-accent-bar { width: 5px; background: var(--accent); flex-shrink: 0; }
-.lower-body {
-  background: var(--dark);
-  border-top: 1px solid rgba(255,77,0,0.3);
-  border-bottom: 1px solid rgba(255,77,0,0.3);
-  padding: 14px 32px 14px 24px;
-  display: flex; flex-direction: column; justify-content: center; gap: 4px;
-  clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 50%, calc(100% - 24px) 100%, 0 100%);
-  padding-right: 56px;
+/* top accent glow line */
+.overlay-banner::before {
+  content: '';
+  position: absolute; top: -1px; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--c-acc), transparent);
+  box-shadow: 0 0 20px 2px var(--c-acc-glow);
 }
-.lower-tag {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px; font-weight: 600; letter-spacing: 3px;
-  text-transform: uppercase; color: var(--accent);
+.bn-tab {
+  background: var(--c-acc);
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 100%, 0 100%);
+  padding: 0 36px 0 24px;
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0; min-width: 180px;
 }
-.lower-name { font-size: 28px; font-weight: 800; letter-spacing: -.5px; line-height: 1; }
-.lower-sub  { font-size: 14px; font-weight: 500; color: rgba(255,255,255,.55); }
-
-/* ═══════════════════════════════════════════════════════
-   3. CORNER POPUP — glassmorphism
-═══════════════════════════════════════════════════════ */
-.overlay-popup {
-  position: absolute; bottom: 110px; right: 48px; width: 400px;
-  background: rgba(12,12,12,0.88);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-left: 3px solid var(--accent);
-  border-radius: 6px; padding: 22px 26px;
-  z-index: 50; opacity: 0;
-  box-shadow: 0 24px 72px rgba(0,0,0,.6), 0 0 48px rgba(255,77,0,0.08);
+.bn-tab-logo {
+  font-family: var(--f-display); font-size: 22px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase; color: #fff;
 }
-.p-icon   { font-size: 28px; margin-bottom: 8px; line-height: 1; }
-.p-title  {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px; font-weight: 600; letter-spacing: 3px;
-  text-transform: uppercase; color: var(--accent); margin-bottom: 8px;
+.bn-live {
+  width: 6px; height: 6px; border-radius: 50%; background: #fff;
+  flex-shrink: 0; box-shadow: 0 0 8px #fff;
 }
-.p-text   { font-size: 19px; font-weight: 600; line-height: 1.45; }
-.p-bar    {
+.bn-sep {
+  width: 1px; background: rgba(255,255,255,0.12); flex-shrink: 0; margin: 14px 0;
+}
+.bn-content {
+  flex: 1; display: flex; align-items: center; padding: 0 32px;
+  gap: 16px; overflow: hidden;
+}
+.bn-label {
+  font-family: var(--f-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--c-acc); flex-shrink: 0;
+}
+.bn-text {
+  font-family: var(--f-display); font-size: 26px; font-weight: 600;
+  letter-spacing: 0.5px; white-space: nowrap;
+}
+.bn-bar {
   position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
-  background: var(--accent); border-radius: 0 0 6px 6px;
-  transform-origin: left; transform: scaleX(1);
-  box-shadow: 0 0 10px var(--accent-glow);
+  background: var(--c-acc); transform-origin: left;
 }
 
-/* ═══════════════════════════════════════════════════════
-   4. CENTER ALERT — shockwave + energy ring
-═══════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════
+   2. LOWER THIRD — broadcast player/host ID
+══════════════════════════════════════════════════════════════════ */
+.overlay-lower {
+  position: absolute; bottom: 88px; left: 0;
+  opacity: 0; z-index: 50;
+  display: flex; flex-direction: column; gap: 0;
+}
+.lt-tag-wrap {
+  display: flex; align-items: center;
+  background: var(--c-acc);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 100%, 0 100%);
+  padding: 5px 24px 5px 20px;
+  width: fit-content;
+}
+.lt-tag {
+  font-family: var(--f-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 4px; text-transform: uppercase; color: #fff;
+}
+.lt-main {
+  display: flex; align-items: center;
+  background: var(--c-surface);
+  border-top: 2px solid var(--c-acc);
+  clip-path: polygon(0 0, calc(100% - 32px) 0, 100% 50%, calc(100% - 32px) 100%, 0 100%);
+  padding: 12px 64px 12px 20px;
+  gap: 24px;
+}
+.lt-name {
+  font-family: var(--f-display); font-size: 42px; font-weight: 800;
+  letter-spacing: -1px; line-height: 1; white-space: nowrap;
+}
+.lt-divider {
+  width: 2px; height: 36px; background: var(--c-acc); flex-shrink: 0;
+}
+.lt-sub {
+  font-family: var(--f-ui); font-size: 18px; font-weight: 500;
+  color: var(--c-sub); white-space: nowrap;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   3. CORNER POPUP — notification card
+══════════════════════════════════════════════════════════════════ */
+.overlay-popup {
+  position: absolute; bottom: 100px; right: 48px;
+  width: 420px; z-index: 60; opacity: 0;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+}
+.pop-accent {
+  height: 3px; background: var(--c-acc);
+  box-shadow: 0 0 16px var(--c-acc-glow);
+}
+.pop-body { padding: 18px 22px 20px; }
+.pop-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.pop-icon { font-size: 22px; line-height: 1; }
+.pop-title {
+  font-family: var(--f-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 3px; text-transform: uppercase; color: var(--c-acc);
+}
+.pop-text {
+  font-family: var(--f-display); font-size: 22px; font-weight: 600;
+  line-height: 1.4; color: var(--c-text);
+}
+.pop-timer {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  background: rgba(255,255,255,0.1); overflow: hidden;
+}
+.pop-timer-bar {
+  height: 100%; background: var(--c-acc); transform-origin: left;
+  box-shadow: 4px 0 12px var(--c-acc-glow);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   4. CENTER ALERT — dramatic event notification
+══════════════════════════════════════════════════════════════════ */
 .overlay-alert {
   position: absolute; inset: 0; z-index: 90;
   display: flex; align-items: center; justify-content: center;
   opacity: 0;
 }
-.a-backdrop {
+.al-backdrop {
   position: absolute; inset: 0;
-  background: radial-gradient(ellipse at center, rgba(255,77,0,.14) 0%, transparent 65%);
+  background: radial-gradient(ellipse 60% 40% at 50% 50%,
+    rgba(255,77,0,0.1) 0%, transparent 70%);
 }
-.a-shockwave {
-  position: absolute; width: 200px; height: 200px;
-  border: 2px solid var(--accent); border-radius: 50%;
+.al-ring {
+  position: absolute; border-radius: 50%; border: 1px solid;
   opacity: 0; pointer-events: none;
 }
-.a-box {
-  position: relative;
-  background: var(--dark2);
-  border: 1px solid rgba(255,77,0,0.45);
-  border-radius: 8px;
-  padding: 52px 96px;
-  box-shadow: 0 0 0 1px rgba(255,77,0,0.15),
-              0 0 120px rgba(255,77,0,0.2),
-              0 48px 96px rgba(0,0,0,.7);
-  text-align: center;
-  clip-path: polygon(16px 0, 100% 0, calc(100% - 16px) 100%, 0 100%);
-  opacity: 0;
+.al-box {
+  position: relative; z-index: 2;
+  background: var(--c-surface);
+  border: 1px solid rgba(255,77,0,0.4);
+  clip-path: polygon(20px 0, 100% 0, calc(100% - 20px) 100%, 0 100%);
+  padding: 48px 100px; text-align: center; opacity: 0;
+  box-shadow: 0 0 80px rgba(255,77,0,0.15), 0 40px 80px rgba(0,0,0,0.8);
 }
-.a-label {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px; font-weight: 600; letter-spacing: 5px;
-  text-transform: uppercase; color: var(--accent); margin-bottom: 18px;
+/* corner accents */
+.al-box::before, .al-box::after {
+  content: '';
+  position: absolute; width: 20px; height: 20px;
 }
-.a-text {
-  font-size: 58px; font-weight: 900; letter-spacing: -2px;
-  text-shadow: 0 0 60px var(--accent-glow); max-width: 900px; line-height: 1.1;
+.al-box::before { top: -1px; left: 19px; border-top: 2px solid var(--c-acc); border-left: 2px solid var(--c-acc); }
+.al-box::after  { bottom: -1px; right: 19px; border-bottom: 2px solid var(--c-acc); border-right: 2px solid var(--c-acc); }
+.al-eyebrow {
+  font-family: var(--f-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 6px; text-transform: uppercase;
+  color: var(--c-acc); margin-bottom: 20px;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
 }
-.a-particles { position: absolute; inset: -60px; pointer-events: none; }
-.particle {
-  position: absolute; border-radius: 50%; opacity: 0;
-  will-change: transform, opacity;
+.al-eyebrow::before, .al-eyebrow::after {
+  content: ''; flex: 1; max-width: 80px;
+  height: 1px; background: rgba(255,77,0,0.4);
 }
+.al-text {
+  font-family: var(--f-display); font-size: 72px; font-weight: 900;
+  letter-spacing: -1px; line-height: 1;
+  text-shadow: 0 0 60px rgba(255,77,0,0.4);
+}
+.al-particles { position: absolute; inset: -60px; pointer-events: none; }
+.al-particle  { position: absolute; opacity: 0; }
 
-/* ═══════════════════════════════════════════════════════
-   5. HYPE — screen shake + outline burst
-═══════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════
+   5. HYPE — full-screen energy burst
+══════════════════════════════════════════════════════════════════ */
 .overlay-hype {
   position: absolute; inset: 0; z-index: 80;
   display: flex; align-items: center; justify-content: center;
-  opacity: 0;
+  opacity: 0; overflow: hidden;
 }
-.h-bg-flash { position: absolute; inset: 0; background: var(--accent); opacity: 0; }
-.h-text {
-  font-size: 200px; font-weight: 900; letter-spacing: -10px;
-  text-transform: uppercase; color: transparent;
-  -webkit-text-stroke: 4px var(--accent);
-  paint-order: stroke fill;
-  line-height: 1; position: relative; z-index: 1;
-  opacity: 0;
+.hy-flash    { position: absolute; inset: 0; background: var(--c-acc); opacity: 0; }
+.hy-lines    { position: absolute; inset: 0; opacity: 0; }
+.hy-lines line { stroke: rgba(255,77,0,0.3); stroke-width: 1; }
+.hy-text {
+  font-family: var(--f-display); font-size: 240px; font-weight: 900;
+  letter-spacing: -12px; text-transform: uppercase;
+  color: transparent; -webkit-text-stroke: 3px var(--c-acc);
+  line-height: 1; position: relative; z-index: 2; opacity: 0;
+  filter: drop-shadow(0 0 40px var(--c-acc));
 }
-.h-text-solid {
+.hy-glow {
   position: absolute;
-  font-size: 200px; font-weight: 900; letter-spacing: -10px;
-  text-transform: uppercase; color: var(--accent);
-  line-height: 1; opacity: 0;
-  filter: blur(40px);
+  font-family: var(--f-display); font-size: 240px; font-weight: 900;
+  letter-spacing: -12px; text-transform: uppercase;
+  color: var(--c-acc); opacity: 0;
+  filter: blur(60px); line-height: 1;
 }
 
-/* ═══════════════════════════════════════════════════════
-   6. GG — confetti + trophy reveal
-═══════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════
+   6. GG — match end celebration
+══════════════════════════════════════════════════════════════════ */
 .overlay-gg {
   position: absolute; inset: 0; z-index: 80;
   display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 8px;
+  align-items: center; justify-content: center; gap: 0;
+  opacity: 0; overflow: hidden;
+}
+.gg-confetti { position: absolute; inset: 0; pointer-events: none; }
+.gg-piece    { position: absolute; opacity: 0; }
+.gg-eyebrow  {
+  font-family: var(--f-mono); font-size: 12px; font-weight: 600;
+  letter-spacing: 10px; text-transform: uppercase;
+  color: var(--c-muted); margin-bottom: 8px; opacity: 0;
+}
+.gg-text {
+  font-family: var(--f-display); font-size: 220px; font-weight: 900;
+  letter-spacing: -12px; line-height: 0.9;
+  color: var(--c-gold);
+  text-shadow: 0 0 120px rgba(255,208,96,0.5);
   opacity: 0;
 }
-.g-crown { font-size: 72px; line-height: 1; opacity: 0; filter: drop-shadow(0 0 30px rgba(245,200,66,.7)); }
-.g-label {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 13px; font-weight: 600; letter-spacing: 8px;
-  text-transform: uppercase; color: rgba(255,255,255,.4); opacity: 0;
-}
-.g-text {
-  font-size: 180px; font-weight: 900; color: var(--gold);
-  text-shadow: 0 0 120px rgba(245,200,66,.6); line-height: .85;
-  opacity: 0;
-}
-.confetti-wrap { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.confetti-piece {
-  position: absolute; width: 10px; height: 14px;
-  border-radius: 2px; opacity: 0;
-  will-change: transform, opacity;
+.gg-sub {
+  font-family: var(--f-mono); font-size: 14px; font-weight: 600;
+  letter-spacing: 6px; text-transform: uppercase;
+  color: var(--c-muted); margin-top: 12px; opacity: 0;
 }
 
-/* ═══════════════════════════════════════════════════════
-   7. BRB — ambient pulse + clock
-═══════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════
+   7. BRB — be right back screen
+══════════════════════════════════════════════════════════════════ */
 .overlay-brb {
-  position: absolute; inset: 0; z-index: 100;
-  background: rgba(0,0,0,0.91); opacity: 0;
+  position: absolute; inset: 0; z-index: 100; opacity: 0;
+  background: var(--c-bg);
   display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 28px;
+  align-items: center; justify-content: center; gap: 40px;
+  overflow: hidden;
 }
-.brb-logo-ring {
-  position: relative; width: 140px; height: 140px;
+/* animated hex grid background */
+.brb-grid {
+  position: absolute; inset: 0; opacity: 0.04;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cpath d='M28 0 L56 16 L56 50 L28 66 L0 50 L0 16 Z' fill='none' stroke='%23FF4D00' stroke-width='1'/%3E%3Cpath d='M28 66 L56 82 L56 116 L28 132 L0 116 L0 82 Z' fill='none' stroke='%23FF4D00' stroke-width='1'/%3E%3C/svg%3E");
+  background-size: 56px 100px;
+}
+.brb-ring-wrap {
+  position: relative; width: 160px; height: 160px;
   display: flex; align-items: center; justify-content: center;
 }
-.brb-logo-ring svg { position: absolute; inset: 0; }
-.brb-ring-pulse { fill: none; stroke: rgba(255,77,0,.15); stroke-width: 2; }
-.brb-ring-spin  { fill: none; stroke: var(--accent); stroke-width: 2.5;
-  stroke-linecap: round; stroke-dasharray: 60 220;
-  filter: drop-shadow(0 0 6px var(--accent)); }
-.brb-icon { font-size: 52px; line-height: 1; position: relative; z-index: 1; }
+.brb-ring-wrap svg { position: absolute; inset: 0; }
+.brb-ring-bg   { fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 2; }
+.brb-ring-spin { fill: none; stroke: var(--c-acc); stroke-width: 2; stroke-linecap: round;
+  stroke-dasharray: 80 420; filter: drop-shadow(0 0 8px var(--c-acc)); }
+.brb-ring-dot  { fill: none; stroke: rgba(255,77,0,0.2); stroke-width: 1; }
+.brb-logo {
+  font-family: var(--f-display); font-size: 22px; font-weight: 800;
+  letter-spacing: 4px; color: var(--c-acc); position: relative; z-index: 1;
+}
 .brb-title {
-  font-size: 80px; font-weight: 900; letter-spacing: -4px; text-align: center;
-}
-.brb-title em { color: var(--accent); font-style: normal; }
-.brb-sub {
-  font-size: 20px; color: rgba(255,255,255,.4);
-  letter-spacing: 2px; text-align: center;
-}
-.brb-dots { display: flex; gap: 12px; }
-.brb-dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  background: var(--accent);
-}
-
-/* ═══════════════════════════════════════════════════════
-   8. CS2 SCORE BOARD
-═══════════════════════════════════════════════════════ */
-.overlay-score {
-  position: absolute; top: 32px; left: 50%; z-index: 60;
-  transform: translateX(-50%); opacity: 0;
-  min-width: 600px;
-}
-.score-wrap {
-  background: var(--dark2);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 6px; overflow: hidden;
-  box-shadow: 0 16px 60px rgba(0,0,0,.7);
-  display: flex; align-items: stretch;
-}
-.score-team {
-  padding: 18px 28px; flex: 1;
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-}
-.score-team.left  { background: rgba(239,68,68,0.08); }
-.score-team.right { background: rgba(59,130,246,0.08); }
-.team-tag {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px; letter-spacing: 3px; font-weight: 600;
-  text-transform: uppercase; color: rgba(255,255,255,.4);
-}
-.team-name { font-size: 22px; font-weight: 800; text-align: center; }
-.team-score {
-  font-size: 56px; font-weight: 900; line-height: 1;
-  font-family: 'IBM Plex Mono', monospace;
-}
-.score-team.left  .team-score { color: #EF4444; text-shadow: 0 0 30px rgba(239,68,68,.4); }
-.score-team.right .team-score { color: var(--blue); text-shadow: 0 0 30px rgba(59,130,246,.4); }
-.score-mid {
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: center; padding: 18px 20px;
-  border-left: 1px solid rgba(255,255,255,0.06);
-  border-right: 1px solid rgba(255,255,255,0.06);
-  gap: 4px;
-}
-.score-map-label {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 9px; letter-spacing: 3px;
-  text-transform: uppercase; color: rgba(255,255,255,.3);
-}
-.score-sep  { color: rgba(255,255,255,.15); font-size: 18px; }
-.score-map  {
-  font-size: 13px; font-weight: 600;
-  color: rgba(255,255,255,.6); letter-spacing: 1px;
-}
-
-/* ═══════════════════════════════════════════════════════
-   9. CLIP IT! — short viral flash
-═══════════════════════════════════════════════════════ */
-.overlay-clip {
-  position: absolute; top: 0; right: 0; z-index: 70;
-  padding: 40px 56px; opacity: 0;
-}
-.clip-box {
-  background: var(--accent);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 20px 100%);
-  padding: 14px 32px 14px 24px;
-  display: flex; align-items: center; gap: 14px;
-  box-shadow: 0 8px 40px rgba(255,77,0,.5);
-}
-.clip-icon { font-size: 32px; line-height: 1; }
-.clip-text {
-  font-size: 28px; font-weight: 900; letter-spacing: 1px; color: #fff;
+  font-family: var(--f-display); font-size: 96px; font-weight: 900;
+  letter-spacing: -4px; text-align: center; line-height: 1;
   text-transform: uppercase;
 }
-.clip-sub {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px; letter-spacing: 3px; font-weight: 600;
-  color: rgba(255,255,255,.75); text-transform: uppercase;
+.brb-title em { color: var(--c-acc); font-style: normal; }
+.brb-sub {
+  font-family: var(--f-mono); font-size: 14px; font-weight: 500;
+  color: var(--c-muted); letter-spacing: 4px; text-transform: uppercase;
+}
+.brb-dots { display: flex; gap: 10px; }
+.brb-dot  { width: 6px; height: 6px; border-radius: 50%; background: var(--c-acc); opacity: 0.3; }
+
+/* ══════════════════════════════════════════════════════════════════
+   8. CS2 SCORE BOARD — top-center HUD
+══════════════════════════════════════════════════════════════════ */
+.overlay-score {
+  position: absolute; top: 28px; left: 50%;
+  transform: translateX(-50%); z-index: 60; opacity: 0;
+}
+.sc-wrap {
+  display: flex; align-items: stretch; gap: 0;
+  background: rgba(8,8,10,0.97);
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04);
+  overflow: hidden;
+}
+/* left team (CT) */
+.sc-team {
+  padding: 14px 28px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-width: 200px; position: relative;
+}
+.sc-team.ct { background: rgba(77,139,255,0.06); border-right: 1px solid rgba(77,139,255,0.15); }
+.sc-team.t  { background: rgba(255,140,0,0.06);  border-left:  1px solid rgba(255,140,0,0.15); }
+.sc-team.ct::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background: var(--c-ct); }
+.sc-team.t::before  { content:''; position:absolute; top:0; left:0; right:0; height:2px; background: var(--c-t); }
+.sc-side {
+  font-family: var(--f-mono); font-size: 9px; font-weight: 600;
+  letter-spacing: 3px; text-transform: uppercase;
+}
+.sc-team.ct .sc-side { color: var(--c-ct); }
+.sc-team.t  .sc-side { color: var(--c-t);  }
+.sc-name {
+  font-family: var(--f-display); font-size: 20px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase; text-align: center;
+}
+.sc-score {
+  font-family: var(--f-mono); font-size: 52px; font-weight: 600;
+  line-height: 1; letter-spacing: -2px;
+}
+.sc-team.ct .sc-score { color: var(--c-ct); text-shadow: 0 0 30px rgba(77,139,255,0.4); }
+.sc-team.t  .sc-score { color: var(--c-t);  text-shadow: 0 0 30px rgba(255,140,0,0.4); }
+/* center */
+.sc-mid {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 14px 22px; gap: 2px; border-left: 1px solid rgba(255,255,255,0.05);
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+.sc-map  { font-family: var(--f-display); font-size: 15px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.7); }
+.sc-live {
+  font-family: var(--f-mono); font-size: 9px; font-weight: 600;
+  letter-spacing: 3px; color: var(--c-acc); text-transform: uppercase;
+  display: flex; align-items: center; gap: 5px;
+}
+.sc-live-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--c-acc); box-shadow: 0 0 6px var(--c-acc); }
+
+/* ══════════════════════════════════════════════════════════════════
+   9. CLIP IT! — viral moment badge
+══════════════════════════════════════════════════════════════════ */
+.overlay-clip {
+  position: absolute; top: 36px; right: 48px; z-index: 70; opacity: 0;
+}
+.cl-wrap {
+  display: flex; align-items: center; gap: 0;
+  filter: drop-shadow(0 8px 32px rgba(255,77,0,0.5));
+}
+.cl-icon-box {
+  background: var(--c-acc); width: 72px; height: 72px;
+  display: flex; align-items: center; justify-content: center;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%);
+  font-size: 30px; padding-right: 12px;
+}
+.cl-text-box {
+  background: rgba(8,8,10,0.97);
+  border: 1px solid rgba(255,77,0,0.4);
+  border-left: none;
+  padding: 14px 24px 14px 20px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  padding-right: 32px;
+}
+.cl-label {
+  font-family: var(--f-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 3px; color: var(--c-acc); text-transform: uppercase;
+}
+.cl-main  {
+  font-family: var(--f-display); font-size: 26px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase; color: #fff; line-height: 1;
 }
 
-/* ═══════════════════════════════════════════════════════
-   10. COUNTDOWN — big number
-═══════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════
+   10. COUNTDOWN — pre-match timer
+══════════════════════════════════════════════════════════════════ */
 .overlay-countdown {
-  position: absolute; inset: 0; z-index: 95;
+  position: absolute; inset: 0; z-index: 95; opacity: 0;
+  background: rgba(8,8,10,0.94);
   display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 16px;
-  background: rgba(0,0,0,0.88); opacity: 0;
+  align-items: center; justify-content: center; gap: 20px;
+  overflow: hidden;
 }
-.countdown-label {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px; letter-spacing: 5px;
-  text-transform: uppercase; color: rgba(255,255,255,.4);
+.cd-bg {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 50% 60% at 50% 50%,
+    rgba(255,77,0,0.06) 0%, transparent 70%);
 }
-.countdown-num {
-  font-size: 280px; font-weight: 900; letter-spacing: -16px;
-  color: var(--accent); line-height: 1;
-  text-shadow: 0 0 120px var(--accent-glow);
+.cd-eyebrow {
+  font-family: var(--f-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 8px; text-transform: uppercase;
+  color: var(--c-muted); position: relative;
 }
-.countdown-sub {
-  font-size: 20px; color: rgba(255,255,255,.3); letter-spacing: 3px;
+.cd-ring-wrap {
+  position: relative; width: 300px; height: 300px;
+  display: flex; align-items: center; justify-content: center;
+}
+.cd-ring-wrap svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.cd-ring-bg  { fill: none; stroke: rgba(255,255,255,0.04); stroke-width: 3; }
+.cd-ring-fg  { fill: none; stroke: var(--c-acc); stroke-width: 3; stroke-linecap: round;
+  filter: drop-shadow(0 0 10px var(--c-acc)); }
+.cd-num {
+  font-family: var(--f-display); font-size: 200px; font-weight: 900;
+  letter-spacing: -10px; line-height: 1; color: var(--c-acc);
+  text-shadow: 0 0 100px rgba(255,77,0,0.4);
+  position: relative; z-index: 1;
+}
+.cd-sub {
+  font-family: var(--f-mono); font-size: 13px; font-weight: 600;
+  letter-spacing: 6px; text-transform: uppercase; color: var(--c-muted);
+  position: relative;
 }
 
-/* ═══════════════════════════════════════════════════════
-   BANNER — wide info bar
-═══════════════════════════════════════════════════════ */
-.overlay-banner {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  height: 88px; z-index: 50;
-  background: linear-gradient(90deg,
-    rgba(0,0,0,.96) 0%,
-    rgba(255,77,0,.08) 40%,
-    rgba(0,0,0,.96) 100%);
-  border-top: 2px solid var(--accent);
-  display: flex; align-items: center; padding: 0 56px; gap: 28px;
-  opacity: 0;
-  box-shadow: 0 -8px 40px rgba(255,77,0,0.12);
+/* ══════════════════════════════════════════════════════════════════
+   11. AD BREAK — full-screen commercial
+══════════════════════════════════════════════════════════════════ */
+.overlay-ad {
+  position: absolute; inset: 0; z-index: 100; opacity: 0;
+  background: rgba(8,8,10,0.97);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 48px;
+  overflow: hidden;
 }
-.b-dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  background: var(--accent); box-shadow: 0 0 14px var(--accent);
-  flex-shrink: 0;
+.ad-scanlines {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(0,0,0,0.1) 3px, rgba(0,0,0,0.1) 4px);
+  pointer-events: none;
 }
-.b-label {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px; font-weight: 600; letter-spacing: 3px;
-  text-transform: uppercase; color: var(--accent); flex-shrink: 0;
+.ad-top-line {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--c-acc), transparent);
+  box-shadow: 0 0 30px var(--c-acc-glow);
 }
-.b-div { width: 1px; height: 36px; background: rgba(255,255,255,.12); flex-shrink: 0; }
-.b-text { font-size: 24px; font-weight: 600; flex: 1; }
-.b-bar {
-  position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
-  background: var(--accent); transform-origin: left; transform: scaleX(1);
+.ad-bottom-line {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--c-acc), transparent);
+  box-shadow: 0 0 30px var(--c-acc-glow);
 }
+.ad-badge {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--f-mono); font-size: 12px; font-weight: 600;
+  letter-spacing: 5px; text-transform: uppercase; color: var(--c-acc);
+  border: 1px solid rgba(255,77,0,0.3);
+  background: rgba(255,77,0,0.06);
+  padding: 8px 24px; clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+}
+.ad-live { width: 7px; height: 7px; border-radius: 50%; background: var(--c-acc); box-shadow: 0 0 10px var(--c-acc); }
+.ad-title {
+  font-family: var(--f-display); font-size: 100px; font-weight: 900;
+  letter-spacing: -4px; text-align: center; line-height: 0.9;
+  text-transform: uppercase;
+}
+.ad-title em { color: var(--c-acc); font-style: normal; }
+.ad-sub {
+  font-family: var(--f-mono); font-size: 16px; font-weight: 500;
+  color: var(--c-muted); letter-spacing: 4px; text-transform: uppercase;
+}
+/* countdown ring */
+.ad-ring-wrap {
+  position: relative; width: 120px; height: 120px;
+  display: flex; align-items: center; justify-content: center;
+}
+.ad-ring-wrap svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.ad-ring-bg { fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 4; }
+.ad-ring-fg { fill: none; stroke: var(--c-acc); stroke-width: 4; stroke-linecap: round;
+  filter: drop-shadow(0 0 8px var(--c-acc)); }
+.ad-ring-num {
+  font-family: var(--f-mono); font-size: 40px; font-weight: 600;
+  color: var(--c-acc); position: relative; z-index: 1;
+}
+.ad-bar { position: absolute; bottom: 3px; left: 0; right: 0; height: 3px;
+  background: var(--c-acc); transform-origin: left; }
 </style>
 </head>
 <body>
@@ -414,538 +524,476 @@ const SUPABASE_KEY = 'sb_publishable_qST7eQaiw0uOqcFQ95DIWw__XtiMbHf';
 const CHANNEL_NAME = 'obs-overlay';
 const root = document.getElementById('root');
 
-// ── GSAP CustomEase ──────────────────────────────────────────────────────────
-CustomEase.create('bounce4', 'M0,0 C0,0 0.058,0.408 0.2,0.6 0.342,0.792 0.458,0.84 0.5,0.85 0.542,0.86 0.7,0.92 0.8,1.012 0.9,1.104 0.92,1.085 1,1');
-CustomEase.create('snap',   'M0,0 C0.4,0 0.7,0.6 1,1');
+CustomEase.create('snap', 'M0,0 C0.4,0 0.7,0.6 1,1');
 
-// ── WEB AUDIO SOUND ENGINE ───────────────────────────────────────────────────
+// ── WEB AUDIO ────────────────────────────────────────────────────────────────
 const SFX = (() => {
   let ctx = null;
-  function getCtx() {
-    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-    return ctx;
-  }
-  function osc(freq, type, gain, attack, decay, start) {
-    const ac = getCtx();
-    const g = ac.createGain();
-    const o = ac.createOscillator();
-    o.type = type; o.frequency.setValueAtTime(freq, start);
-    g.gain.setValueAtTime(0, start);
-    g.gain.linearRampToValueAtTime(gain, start + attack);
-    g.gain.exponentialRampToValueAtTime(0.001, start + attack + decay);
-    o.connect(g); g.connect(ac.destination);
-    o.start(start); o.stop(start + attack + decay + 0.05);
-  }
-  function noise(dur, gain, start) {
-    const ac = getCtx();
-    const buf = ac.createBuffer(1, ac.sampleRate * dur, ac.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1);
-    const src = ac.createBufferSource(); src.buffer = buf;
-    const g = ac.createGain();
-    const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 800;
-    g.gain.setValueAtTime(gain, start);
-    g.gain.exponentialRampToValueAtTime(0.001, start + dur);
-    src.connect(f); f.connect(g); g.connect(ac.destination);
-    src.start(start); src.stop(start + dur);
-  }
+  const ac = () => { if (!ctx) ctx = new (window.AudioContext||window.webkitAudioContext)(); return ctx; };
+  const osc = (f,t,g,a,d,s) => { const c=ac(),G=c.createGain(),O=c.createOscillator(); O.type=t; O.frequency.setValueAtTime(f,s); G.gain.setValueAtTime(0,s); G.gain.linearRampToValueAtTime(g,s+a); G.gain.exponentialRampToValueAtTime(0.001,s+a+d); O.connect(G); G.connect(c.destination); O.start(s); O.stop(s+a+d+.05); };
+  const ns = (d,g,s) => { const c=ac(),b=c.createBuffer(1,c.sampleRate*d,c.sampleRate),D=b.getChannelData(0); for(let i=0;i<D.length;i++)D[i]=(Math.random()*2-1); const sr=c.createBufferSource(); sr.buffer=b; const G=c.createGain(),f=c.createBiquadFilter(); f.type='bandpass'; f.frequency.value=800; G.gain.setValueAtTime(g,s); G.gain.exponentialRampToValueAtTime(0.001,s+d); sr.connect(f); f.connect(G); G.connect(c.destination); sr.start(s); sr.stop(s+d); };
   return {
-    alert() {
-      const ac = getCtx(), t = ac.currentTime;
-      osc(220, 'sawtooth', 0.3, 0.01, 0.08, t);
-      osc(440, 'square',   0.2, 0.01, 0.12, t + 0.05);
-      osc(880, 'sine',     0.25, 0.02, 0.3,  t + 0.12);
-      noise(0.08, 0.15, t);
-    },
-    popup() {
-      const ac = getCtx(), t = ac.currentTime;
-      osc(523, 'sine', 0.2, 0.01, 0.18, t);
-      osc(784, 'sine', 0.15, 0.01, 0.15, t + 0.07);
-    },
-    hype() {
-      const ac = getCtx(), t = ac.currentTime;
-      [180, 220, 280, 360, 480].forEach((f, i) => {
-        osc(f, 'sawtooth', 0.18, 0.02, 0.25, t + i * 0.06);
-      });
-      noise(0.15, 0.2, t);
-      noise(0.1,  0.15, t + 0.3);
-    },
-    gg() {
-      const ac = getCtx(), t = ac.currentTime;
-      [523, 659, 784, 1047].forEach((f, i) => {
-        osc(f, 'sine', 0.18, 0.02, 0.4, t + i * 0.1);
-      });
-    },
-    clip() {
-      const ac = getCtx(), t = ac.currentTime;
-      osc(1047, 'sine', 0.25, 0.005, 0.12, t);
-      osc(1319, 'sine', 0.2,  0.005, 0.1,  t + 0.08);
-      noise(0.06, 0.1, t);
-    },
-    countdown() {
-      const ac = getCtx(), t = ac.currentTime;
-      osc(330, 'sine', 0.3, 0.01, 0.15, t);
-    },
-    countdownGo() {
-      const ac = getCtx(), t = ac.currentTime;
-      osc(523, 'sine', 0.3, 0.01, 0.3, t);
-      osc(784, 'sine', 0.2, 0.01, 0.4, t + 0.05);
-      osc(1047,'sine', 0.25, 0.01, 0.5, t + 0.12);
-    },
+    alert()     { const t=ac().currentTime; osc(220,'sawtooth',.25,.01,.1,t); osc(440,'square',.15,.01,.12,t+.05); osc(880,'sine',.2,.02,.3,t+.12); ns(.08,.12,t); },
+    popup()     { const t=ac().currentTime; osc(660,'sine',.18,.01,.2,t); osc(880,'sine',.12,.01,.15,t+.08); },
+    hype()      { const t=ac().currentTime; [180,240,320,440,600].forEach((f,i)=>{osc(f,'sawtooth',.16,.02,.3,t+i*.06);}); ns(.15,.18,t); },
+    gg()        { const t=ac().currentTime; [523,659,784,1047].forEach((f,i)=>{osc(f,'sine',.16,.02,.4,t+i*.1);}); },
+    clip()      { const t=ac().currentTime; osc(1047,'sine',.22,.005,.12,t); osc(1319,'sine',.16,.005,.1,t+.08); ns(.05,.08,t); },
+    tick()      { const t=ac().currentTime; osc(440,'sine',.2,.01,.12,t); },
+    go()        { const t=ac().currentTime; osc(523,'sine',.25,.01,.3,t); osc(784,'sine',.18,.01,.4,t+.06); osc(1047,'sine',.22,.01,.5,t+.14); },
   };
 })();
 
 // ── SUPABASE ─────────────────────────────────────────────────────────────────
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
-const channel = sb.channel(CHANNEL_NAME, { config: { broadcast: { self: false } } });
-channel
-  .on('broadcast', { event: 'trigger' }, ({ payload }) => {
-    console.log('[Overlay]', payload);
-    handleTrigger(payload);
-  })
-  .subscribe(s => console.log('[Overlay] Status:', s));
+sb.channel(CHANNEL_NAME, { config: { broadcast: { self: false } } })
+  .on('broadcast', { event: 'trigger' }, ({ payload }) => handleTrigger(payload))
+  .subscribe(s => console.log('[Overlay]', s));
 
-// ── TRIGGER ROUTER ───────────────────────────────────────────────────────────
+// ── ROUTER ───────────────────────────────────────────────────────────────────
 function handleTrigger({ overlay, data = {} }) {
-  switch (overlay) {
-    case 'ad':        showAd(data);        break;
-    case 'banner':    showBanner(data);    break;
-    case 'lower':     showLower(data);     break;
-    case 'popup':     showPopup(data);     break;
-    case 'alert':     showAlert(data);     break;
-    case 'hype':      showHype(data);      break;
-    case 'gg':        showGG(data);        break;
-    case 'brb':       showBRB(data);       break;
-    case 'score':      showScore(data);     break;
-    case 'score_hide': killClass('overlay-score'); break;
-    case 'clip':       showClip(data);      break;
-    case 'countdown': showCountdown(data); break;
-  }
+  const map = { banner: showBanner, lower: showLower, popup: showPopup,
+    alert: showAlert, hype: showHype, gg: showGG, brb: showBRB,
+    score: showScore, score_hide: () => killClass('overlay-score'),
+    clip: showClip, countdown: showCountdown, ad: showAd };
+  map[overlay]?.(data);
 }
 
-// ── HELPERS ──────────────────────────────────────────────────────────────────
-function make(cls, html) {
-  const el = document.createElement('div');
-  el.className = cls; el.innerHTML = html;
-  return el;
-}
-function kill(el, dur = 0.4) {
-  if (!el?.parentNode) return;
-  gsap.to(el, { opacity: 0, duration: dur, ease: 'power2.in', onComplete: () => el.remove() });
-}
-function killClass(cls) {
-  root.querySelectorAll('.' + cls).forEach(e => kill(e));
-}
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+const make = (cls, html) => { const e=document.createElement('div'); e.className=cls; e.innerHTML=html; return e; };
+const kill = (el, dur=0.4) => { if (!el?.parentNode) return; gsap.to(el,{opacity:0,duration:dur,ease:'power2.in',onComplete:()=>el.remove()}); };
+const killClass = cls => root.querySelectorAll('.'+cls).forEach(e => kill(e));
+const rgb = hex => { const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return `${r},${g},${b}`; };
 
-// ── 1. AD ─────────────────────────────────────────────────────────────────────
-function showAd({ duration = 15, title = 'Arhaval', subtitle = 'İzlediğin için teşekkürler!' } = {}) {
-  const circ = 282; // 2π × 45
-  const el = make('overlay-ad', `
-    <div class="ad-badge">🔴 &nbsp;REKLAM ARASI</div>
-    <div class="ad-title">${title.replace(/(\S+)$/, '<em>$1</em>')}</div>
-    <div class="ad-sub">${subtitle}</div>
-    <div class="ad-ring-wrap">
-      <svg viewBox="0 0 100 100" width="110" height="110">
-        <circle class="ad-ring-bg" cx="50" cy="50" r="45"/>
-        <circle class="ad-ring-fg" id="adRing" cx="50" cy="50" r="45"
-          stroke-dasharray="${circ}" stroke-dashoffset="0"/>
-      </svg>
-      <div class="ad-ring-num" id="adNum">${duration}</div>
-    </div>
-    <div class="ad-bar" id="adBar"></div>
-  `);
-  root.appendChild(el);
-
-  const tl = gsap.timeline();
-  tl.to(el, { opacity: 1, duration: 0.5, ease: 'power2.out' })
-    .from('.ad-badge',  { y: 20, opacity: 0, duration: 0.5, ease: 'power3.out' }, 0.1)
-    .from('.ad-title',  { y: 40, opacity: 0, duration: 0.6, ease: 'bounce4' }, 0.2)
-    .from('.ad-sub',    { y: 20, opacity: 0, duration: 0.5, ease: 'power3.out' }, 0.35)
-    .from('.ad-ring-wrap', { scale: 0.5, opacity: 0, duration: 0.6, ease: 'back.out(2)' }, 0.4);
-
-  // Progress bar
-  gsap.to('#adBar', { scaleX: 0, duration, ease: 'none', transformOrigin: 'left' });
-
-  // Ring countdown
-  let rem = duration;
-  const ring = el.querySelector('#adRing');
-  const num  = el.querySelector('#adNum');
-  const iv = setInterval(() => {
-    rem--;
-    if (num) num.textContent = rem;
-    if (ring) {
-      const offset = circ * (1 - rem / duration);
-      ring.style.strokeDashoffset = offset;
-    }
-    if (rem <= 0) {
-      clearInterval(iv);
-      kill(el, 0.6);
-    }
-  }, 1000);
-}
-
-// ── 2. BANNER ─────────────────────────────────────────────────────────────────
-function showBanner({ text = 'Arhaval ile izliyorsunuz!', duration = 8 } = {}) {
+// ── 1. BANNER ────────────────────────────────────────────────────────────────
+function showBanner({ text='Arhaval ile CS2 izliyorsunuz!', label='ARHAVAL', duration=8, color='#FF4D00' }={}) {
   killClass('overlay-banner');
   const el = make('overlay-banner', `
-    <div class="b-dot"></div>
-    <div class="b-label">Arhaval</div>
-    <div class="b-div"></div>
-    <div class="b-text">${text}</div>
-    <div class="b-bar" id="bBar"></div>
+    <div class="bn-tab">
+      <div class="bn-live"></div>
+      <div class="bn-tab-logo">${label}</div>
+    </div>
+    <div class="bn-sep"></div>
+    <div class="bn-content">
+      <div class="bn-label">CANLI</div>
+      <div class="bn-text">${text}</div>
+    </div>
+    <div class="bn-bar"></div>
   `);
+  // apply custom color
+  el.querySelector('.bn-tab').style.background = color;
+  el.querySelector('.bn-bar').style.background = color;
+  el.querySelector('.bn-label').style.color = color;
+  el.style.borderTopColor = color;
   root.appendChild(el);
-
-  gsap.timeline()
-    .to(el, { opacity: 1, y: 0, duration: 0 })
-    .from(el, { y: '100%', opacity: 0, duration: 0.5, ease: 'power3.out' });
-
-  gsap.to(el.querySelector('.b-dot'), {
-    opacity: 0.2, duration: 0.8, repeat: -1, yoyo: true, ease: 'sine.inOut'
+  gsap.set(el, { opacity:1, y:'100%' });
+  gsap.to(el, { y:0, duration:.5, ease:'power3.out' });
+  const bar = el.querySelector('.bn-bar');
+  gsap.to(bar, { scaleX:0, duration, ease:'none', transformOrigin:'left',
+    onComplete: () => gsap.to(el, { y:'100%', duration:.5, ease:'power2.in', onComplete: ()=>el.remove() })
   });
-
-  gsap.to('#bBar', { scaleX: 0, duration, ease: 'none', transformOrigin: 'left',
-    onComplete: () => {
-      gsap.to(el, { y: '100%', opacity: 0, duration: 0.5, ease: 'power2.in',
-        onComplete: () => el.remove() });
-    }
-  });
+  gsap.to(el.querySelector('.bn-live'), { opacity:.2, duration:.7, repeat:-1, yoyo:true, ease:'sine.inOut' });
 }
 
-// ── 3. LOWER THIRD ───────────────────────────────────────────────────────────
-function showLower({ name = 'Player', tag = 'ARHAVAL', sub = '', duration = 6 } = {}) {
+// ── 2. LOWER THIRD ───────────────────────────────────────────────────────────
+function showLower({ name='Arhaval', sub='CS2 · Turnuva', tag='YAYINCI', color='#FF4D00', duration=6 }={}) {
   killClass('overlay-lower');
   const el = make('overlay-lower', `
-    <div class="lower-accent-bar"></div>
-    <div class="lower-body">
-      <div class="lower-tag">${tag}</div>
-      <div class="lower-name">${name}</div>
-      ${sub ? `<div class="lower-sub">${sub}</div>` : ''}
+    <div class="lt-tag-wrap"><div class="lt-tag">${tag}</div></div>
+    <div class="lt-main">
+      <div class="lt-name">${name}</div>
+      ${sub ? `<div class="lt-divider"></div><div class="lt-sub">${sub}</div>` : ''}
     </div>
   `);
+  el.querySelector('.lt-tag-wrap').style.background = color;
+  el.querySelector('.lt-main').style.borderTopColor = color;
+  el.querySelector('.lt-divider')?.style && (el.querySelector('.lt-divider').style.background = color);
   root.appendChild(el);
-
-  gsap.set(el, { opacity: 1 });
-  gsap.from(el, { x: '-100%', duration: 0.6, ease: 'power3.out' });
-  gsap.from('.lower-body > *', { x: -30, opacity: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out', delay: 0.2 });
-
-  setTimeout(() => {
-    gsap.to(el, { x: '-105%', opacity: 0, duration: 0.5, ease: 'power2.in', onComplete: () => el.remove() });
-  }, duration * 1000);
+  gsap.set(el, { opacity:1, x:'-100%' });
+  gsap.to(el, { x:0, duration:.55, ease:'power3.out' });
+  gsap.from(el.querySelectorAll('.lt-name,.lt-sub'), { x:-20, opacity:0, duration:.4, stagger:.08, ease:'power2.out', delay:.2 });
+  setTimeout(() => gsap.to(el, { x:'-110%', duration:.5, ease:'power2.in', onComplete:()=>el.remove() }), duration*1000);
 }
 
-// ── 4. POPUP ─────────────────────────────────────────────────────────────────
-function showPopup({ text = '🎉 Yeni bildirim!', title = 'BİLDİRİM', icon = '', duration = 6 } = {}) {
-  // Stack existing ones upward
-  root.querySelectorAll('.overlay-popup').forEach(p => {
-    gsap.to(p, { bottom: '+=' + 170, duration: 0.3, ease: 'power2.out' });
-  });
-
+// ── 3. POPUP ─────────────────────────────────────────────────────────────────
+function showPopup({ text='Bildirim', title='BİLDİRİM', icon='🔔', duration=6, color='#FF4D00' }={}) {
+  root.querySelectorAll('.overlay-popup').forEach(p => gsap.to(p, { bottom:'+=180', duration:.3, ease:'power2.out' }));
   const el = make('overlay-popup', `
-    ${icon ? `<div class="p-icon">${icon}</div>` : ''}
-    <div class="p-title">${title}</div>
-    <div class="p-text">${text}</div>
-    <div class="p-bar" id="pBar"></div>
+    <div class="pop-accent"></div>
+    <div class="pop-body">
+      <div class="pop-header">
+        <div class="pop-icon">${icon}</div>
+        <div class="pop-title">${title}</div>
+      </div>
+      <div class="pop-text">${text}</div>
+    </div>
+    <div class="pop-timer"><div class="pop-timer-bar"></div></div>
   `);
+  el.querySelector('.pop-accent').style.background = color;
+  el.querySelector('.pop-timer-bar').style.background = color;
+  el.querySelector('.pop-title').style.color = color;
   root.appendChild(el);
-
   SFX.popup();
-
-  gsap.set(el, { opacity: 0, x: 60 });
-  gsap.to(el, { opacity: 1, x: 0, duration: 0.45, ease: 'back.out(1.5)' });
-  gsap.to('#pBar', { scaleX: 0, duration, ease: 'none', transformOrigin: 'left',
-    onComplete: () => {
-      gsap.to(el, { opacity: 0, x: 60, duration: 0.4, ease: 'power2.in', onComplete: () => el.remove() });
-    }
+  gsap.set(el, { opacity:0, x:80 });
+  gsap.to(el, { opacity:1, x:0, duration:.45, ease:'back.out(1.8)' });
+  gsap.to(el.querySelector('.pop-timer-bar'), { scaleX:0, duration, ease:'none', transformOrigin:'left',
+    onComplete: () => gsap.to(el, { opacity:0, x:80, duration:.4, ease:'power2.in', onComplete:()=>el.remove() })
   });
 }
 
-// ── 5. ALERT ─────────────────────────────────────────────────────────────────
-function showAlert({ text = '⚡ ALERT!', duration = 4 } = {}) {
+// ── 4. ALERT ─────────────────────────────────────────────────────────────────
+function showAlert({ text='CLUTCH!', label='ARHAVAL · ALERT', duration=4, color='#FF4D00' }={}) {
   const el = make('overlay-alert', `
-    <div class="a-backdrop"></div>
-    <div class="a-shockwave" id="sw1"></div>
-    <div class="a-shockwave" id="sw2"></div>
-    <div class="a-box" id="aBox">
-      <div class="a-label">⚡ &nbsp;ARHAVAL &nbsp;·&nbsp; ALERT</div>
-      <div class="a-text">${text}</div>
-      <div class="a-particles" id="aPart"></div>
+    <div class="al-backdrop"></div>
+    <div class="al-ring r1"></div>
+    <div class="al-ring r2"></div>
+    <div class="al-ring r3"></div>
+    <div class="al-box">
+      <div class="al-eyebrow">${label}</div>
+      <div class="al-text">${text}</div>
+      <div class="al-particles"></div>
     </div>
   `);
+  // apply color
+  const c = color;
+  el.querySelector('.al-backdrop').style.background = `radial-gradient(ellipse 60% 40% at 50% 50%, rgba(${rgb(c)},.1) 0%, transparent 70%)`;
+  el.querySelectorAll('.al-ring').forEach(r => r.style.borderColor = c);
+  el.querySelector('.al-box').style.borderColor = `rgba(${rgb(c)},0.4)`;
+  el.querySelector('.al-box').style.boxShadow = `0 0 80px rgba(${rgb(c)},0.15), 0 40px 80px rgba(0,0,0,.8)`;
+  el.querySelector('.al-eyebrow').style.color = c;
+  el.querySelectorAll('.al-eyebrow::before,.al-eyebrow::after');
+  el.querySelector('.al-text').style.textShadow = `0 0 60px rgba(${rgb(c)},0.4)`;
+  el.querySelectorAll('.al-box::before,.al-box::after');
   root.appendChild(el);
   SFX.alert();
 
+  const box = el.querySelector('.al-box');
+  const rings = el.querySelectorAll('.al-ring');
   const tl = gsap.timeline();
-  tl.to(el, { opacity: 1, duration: 0 })
-    .fromTo('#aBox', { opacity: 0, scale: 0.6, skewX: -4 },
-            { opacity: 1, scale: 1, skewX: 0, duration: 0.5, ease: 'back.out(2)' })
-    .to('#sw1', { scale: 8, opacity: 0, duration: 0.8, ease: 'power2.out' }, 0)
-    .to('#sw2', { scale: 12, opacity: 0, duration: 1.1, ease: 'power2.out' }, 0.1);
+  tl.to(el, { opacity:1, duration:0 })
+    .fromTo(box, { opacity:0, scale:.65, skewX:-3 }, { opacity:1, scale:1, skewX:0, duration:.5, ease:'back.out(2)' })
+    .to(rings[0], { scale:7, opacity:0, duration:.9, ease:'power2.out' }, 0)
+    .to(rings[1], { scale:12, opacity:0, duration:1.2, ease:'power2.out' }, .08)
+    .to(rings[2], { scale:18, opacity:0, duration:1.5, ease:'power2.out' }, .16);
 
-  // Screen flash
-  gsap.from(document.body, { backgroundColor: 'rgba(255,77,0,0.12)', duration: 0.3 });
-
-  // Particles
-  spawnParticles(el.querySelector('#aPart'));
-
-  setTimeout(() => kill(el, 0.5), duration * 1000);
+  spawnParticles(el.querySelector('.al-particles'), c);
+  setTimeout(() => kill(el, .5), duration*1000);
 }
 
-function spawnParticles(c) {
-  const colors = ['#FF4D00', '#FF6B2C', '#fff', '#FFB300'];
-  for (let i = 0; i < 36; i++) {
+function spawnParticles(c, color) {
+  const shapes = ['circle','square'];
+  for (let i=0; i<40; i++) {
     const p = document.createElement('div');
-    p.className = 'particle';
-    const size = 4 + Math.random() * 8;
-    const angle = (Math.random() * 360) * Math.PI / 180;
-    const dist  = 120 + Math.random() * 260;
-    p.style.cssText = `
-      left:${45+Math.random()*10}%; top:${40+Math.random()*20}%;
-      width:${size}px; height:${size}px;
-      background:${colors[Math.floor(Math.random()*colors.length)]};
-      border-radius:${Math.random()>.5?'50%':'2px'};
-    `;
+    p.className = 'al-particle';
+    const sz = 3 + Math.random()*10;
+    const ang = (Math.random()*360)*Math.PI/180;
+    const dist = 100 + Math.random()*300;
+    const isCircle = Math.random()>.4;
+    p.style.cssText = `left:${45+Math.random()*10}%;top:${40+Math.random()*20}%;width:${sz}px;height:${sz}px;
+      background:${Math.random()>.3?color:'#fff'};
+      border-radius:${isCircle?'50%':'2px'};`;
     c.appendChild(p);
-    gsap.fromTo(p,
-      { opacity: 1, x: 0, y: 0, scale: 1 },
-      { opacity: 0, x: Math.cos(angle)*dist, y: Math.sin(angle)*dist,
-        scale: 0, duration: 0.6 + Math.random() * 0.8,
-        delay: Math.random() * 0.25, ease: 'power2.out' }
-    );
+    gsap.fromTo(p, { opacity:1, x:0, y:0, scale:1 },
+      { opacity:0, x:Math.cos(ang)*dist, y:Math.sin(ang)*dist, scale:0, rotation:Math.random()*360,
+        duration:.7+Math.random()*.9, delay:Math.random()*.2, ease:'power2.out' });
   }
 }
 
-// ── 6. HYPE ──────────────────────────────────────────────────────────────────
-function showHype({ duration = 3 } = {}) {
+// ── 5. HYPE ──────────────────────────────────────────────────────────────────
+function showHype({ text='HYPE!', duration=3, color='#FF4D00' }={}) {
   const el = make('overlay-hype', `
-    <div class="h-bg-flash" id="hFlash"></div>
-    <div class="h-text-solid" id="hGlow">HYPE!</div>
-    <div class="h-text" id="hMain">HYPE!</div>
+    <div class="hy-flash"></div>
+    <svg class="hy-lines" style="position:absolute;inset:0;width:100%;height:100%">
+      ${Array.from({length:12},(_,i)=>`<line x1="${960}" y1="${540}" x2="${Math.cos(i/12*Math.PI*2)*1200+960}" y2="${Math.sin(i/12*Math.PI*2)*1200+540}"/>`).join('')}
+    </svg>
+    <div class="hy-glow">${text}</div>
+    <div class="hy-text">${text}</div>
   `);
+  el.querySelector('.hy-flash').style.background = color;
+  el.querySelector('.hy-text').style.webkitTextStroke = `3px ${color}`;
+  el.querySelector('.hy-text').style.filter = `drop-shadow(0 0 40px ${color})`;
+  el.querySelector('.hy-glow').style.color = color;
   root.appendChild(el);
   SFX.hype();
 
+  const flash = el.querySelector('.hy-flash');
+  const lines = el.querySelector('.hy-lines');
+  const glow  = el.querySelector('.hy-glow');
+  const txt   = el.querySelector('.hy-text');
+
   const tl = gsap.timeline();
-  tl.to(el, { opacity: 1, duration: 0 })
-    .fromTo('#hFlash', { opacity: 0.3 }, { opacity: 0, duration: 0.4, ease: 'power2.out' })
-    .fromTo('#hMain',  { opacity: 0, scale: 1.8, rotation: -6 },
-            { opacity: 1, scale: 1, rotation: 0, duration: 0.5, ease: 'back.out(2)' }, 0)
-    .fromTo('#hGlow',  { opacity: 0.7, scale: 1.2 },
-            { opacity: 0, scale: 2, duration: 0.8, ease: 'power2.out' }, 0);
+  tl.to(el, { opacity:1, duration:0 })
+    .fromTo(flash, { opacity:.4 }, { opacity:0, duration:.35, ease:'power2.out' })
+    .fromTo(txt,   { opacity:0, scale:1.9, rotation:-4 }, { opacity:1, scale:1, rotation:0, duration:.5, ease:'back.out(2)' }, 0)
+    .fromTo(glow,  { opacity:.8, scale:1.3 }, { opacity:0, scale:2.2, duration:.9, ease:'power2.out' }, 0)
+    .fromTo(lines, { opacity:.5, scale:.8 }, { opacity:0, scale:2, duration:.8, ease:'power2.out' }, 0);
 
-  // Screen shake
-  gsap.to(root, { x: 8, duration: 0.05, repeat: 8, yoyo: true, ease: 'none',
-    onComplete: () => gsap.set(root, { x: 0 }) });
-
-  setTimeout(() => kill(el, 0.5), duration * 1000);
+  gsap.to(root, { x:10, duration:.04, repeat:10, yoyo:true, ease:'none', onComplete:()=>gsap.set(root,{x:0}) });
+  setTimeout(() => kill(el, .5), duration*1000);
 }
 
-// ── 7. GG ─────────────────────────────────────────────────────────────────────
-function showGG({ duration = 5 } = {}) {
+// ── 6. GG ────────────────────────────────────────────────────────────────────
+function showGG({ label='MATCH OVER', sub='Good game · Well played', duration=6 }={}) {
   const el = make('overlay-gg', `
-    <div class="confetti-wrap" id="confWrap"></div>
-    <div class="g-crown" id="gCrown">🏆</div>
-    <div class="g-label" id="gLabel">MATCH OVER</div>
-    <div class="g-text" id="gText">GG</div>
+    <div class="gg-confetti"></div>
+    <div class="gg-eyebrow">${label}</div>
+    <div class="gg-text">GG</div>
+    <div class="gg-sub">${sub}</div>
   `);
   root.appendChild(el);
   SFX.gg();
 
-  gsap.to(el, { opacity: 1, duration: 0 });
-  gsap.fromTo('#gCrown', { opacity: 0, y: -60, scale: 0.3 },
-    { opacity: 1, y: 0, scale: 1, duration: 0.7, ease: 'back.out(2)' });
-  gsap.fromTo('#gText',  { opacity: 0, scale: 0.4, rotation: -10 },
-    { opacity: 1, scale: 1, rotation: 0, duration: 0.8, ease: 'elastic.out(1, 0.5)', delay: 0.2 });
-  gsap.fromTo('#gLabel', { opacity: 0, y: 10 },
-    { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out', delay: 0.4 });
+  const eyebrow = el.querySelector('.gg-eyebrow');
+  const text    = el.querySelector('.gg-text');
+  const sub_el  = el.querySelector('.gg-sub');
 
-  // Confetti
-  launchConfetti(el.querySelector('#confWrap'));
-  setTimeout(() => kill(el, 0.8), duration * 1000);
+  gsap.to(el, { opacity:1, duration:0 });
+  gsap.fromTo(text,    { opacity:0, scale:.4, rotation:-8 }, { opacity:1, scale:1, rotation:0, duration:.9, ease:'elastic.out(1,.5)' });
+  gsap.fromTo(eyebrow, { opacity:0, y:-20 },                 { opacity:1, y:0, duration:.5, ease:'power2.out', delay:.3 });
+  gsap.fromTo(sub_el,  { opacity:0, y:20 },                  { opacity:1, y:0, duration:.5, ease:'power2.out', delay:.5 });
+
+  launchConfetti(el.querySelector('.gg-confetti'));
+  setTimeout(() => kill(el, .8), duration*1000);
 }
 
-function launchConfetti(c) {
-  const colors = ['#FF4D00','#F5C842','#22C55E','#3B82F6','#fff','#FF6B2C','#A855F7'];
-  for (let i = 0; i < 80; i++) {
+function launchConfetti(wrap) {
+  const colors = ['#FF4D00','#FFD060','#22C55E','#4D8BFF','#fff','#FF6B2C','#A855F7','#EC4899'];
+  for (let i=0; i<100; i++) {
     const p = document.createElement('div');
-    p.className = 'confetti-piece';
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    const startX = 20 + Math.random() * 60; // % from left
-    p.style.cssText = `left:${startX}%; top:-20px; background:${color};
-      transform: rotate(${Math.random()*360}deg);
-      width:${8+Math.random()*10}px; height:${12+Math.random()*14}px;`;
-    c.appendChild(p);
-    gsap.to(p, {
-      y: 1180 + Math.random() * 200,
-      x: (Math.random() - 0.5) * 400,
-      rotation: (Math.random() - 0.5) * 720,
-      opacity: [{ value: 1 }, { value: 0, delay: 0.8 }],
-      duration: 2 + Math.random() * 2.5,
-      delay: Math.random() * 1.5,
-      ease: 'power1.in',
-    });
+    p.className = 'gg-piece';
+    const col = colors[Math.floor(Math.random()*colors.length)];
+    const w = 6+Math.random()*12, h = 10+Math.random()*16;
+    p.style.cssText = `left:${10+Math.random()*80}%;top:-20px;background:${col};width:${w}px;height:${h}px;border-radius:${Math.random()>.5?'50%':'2px'};`;
+    wrap.appendChild(p);
+    gsap.to(p, { y:1200+Math.random()*200, x:(Math.random()-.5)*500, rotation:(Math.random()-.5)*720,
+      opacity:[{value:1},{value:0,delay:.7}], duration:2+Math.random()*3, delay:Math.random()*1.8, ease:'power1.in' });
   }
 }
 
-// ── 8. BRB ───────────────────────────────────────────────────────────────────
-function showBRB({ text = 'Hemen Geri Dönüyorum' } = {}) {
+// ── 7. BRB ───────────────────────────────────────────────────────────────────
+function showBRB({ sub='Hemen Geri Dönüyorum', titleWord='Right', color='#FF4D00' }={}) {
   const existing = root.querySelector('.overlay-brb');
-  if (existing) { kill(existing, 0.4); return; }
-
+  if (existing) { kill(existing, .4); return; }
   const el = make('overlay-brb', `
-    <div class="brb-logo-ring">
-      <svg viewBox="0 0 140 140" width="140" height="140">
-        <circle class="brb-ring-pulse" cx="70" cy="70" r="60"/>
-        <circle class="brb-ring-spin"  cx="70" cy="70" r="60"
-          stroke-dasharray="60 316" stroke-dashoffset="0"/>
+    <div class="brb-grid"></div>
+    <div class="brb-ring-wrap">
+      <svg viewBox="0 0 160 160" width="160" height="160">
+        <circle class="brb-ring-dot" cx="80" cy="80" r="70"/>
+        <circle class="brb-ring-bg"  cx="80" cy="80" r="70"/>
+        <circle class="brb-ring-spin" cx="80" cy="80" r="70" stroke-dasharray="80 420" stroke-dashoffset="0"/>
       </svg>
-      <div class="brb-icon">⏸</div>
+      <div class="brb-logo">ARH</div>
     </div>
-    <div class="brb-title">Be <em>Right</em> Back</div>
-    <div class="brb-sub">${text}</div>
+    <div class="brb-title">Be <em>${titleWord}</em> Back</div>
+    <div class="brb-sub">${sub}</div>
     <div class="brb-dots">
-      <div class="brb-dot" id="bd0"></div>
-      <div class="brb-dot" id="bd1"></div>
-      <div class="brb-dot" id="bd2"></div>
+      <div class="brb-dot d0"></div>
+      <div class="brb-dot d1"></div>
+      <div class="brb-dot d2"></div>
     </div>
   `);
+  el.querySelector('.brb-title em').style.color = color;
+  el.querySelector('.brb-ring-spin').style.stroke = color;
+  el.querySelector('.brb-ring-spin').style.filter = `drop-shadow(0 0 8px ${color})`;
+  el.querySelectorAll('.brb-dot').forEach(d => d.style.background = color);
   root.appendChild(el);
 
-  gsap.to(el, { opacity: 1, duration: 0.6, ease: 'power2.out' });
-  gsap.from('.brb-title', { y: 30, opacity: 0, duration: 0.7, ease: 'back.out(2)', delay: 0.2 });
-  gsap.from('.brb-sub',   { y: 20, opacity: 0, duration: 0.5, ease: 'power2.out', delay: 0.4 });
+  gsap.to(el, { opacity:1, duration:.7, ease:'power2.out' });
+  gsap.from(el.querySelector('.brb-title'), { y:30, opacity:0, duration:.7, ease:'back.out(2)', delay:.3 });
+  gsap.from(el.querySelector('.brb-sub'),   { y:20, opacity:0, duration:.5, ease:'power2.out', delay:.5 });
 
-  // Spinning ring
   const ring = el.querySelector('.brb-ring-spin');
-  gsap.to(ring, { strokeDashoffset: -376, duration: 2, ease: 'none', repeat: -1 });
+  gsap.to(ring, { strokeDashoffset:-500, duration:2.5, ease:'none', repeat:-1 });
+  gsap.to(el.querySelector('.brb-ring-dot'), { attr:{r:78}, opacity:0, duration:2, ease:'power2.out', repeat:-1 });
 
-  // Pulsing outer ring
-  gsap.to('.brb-ring-pulse', { attr: { r: 65 }, opacity: 0, duration: 1.5, ease: 'power2.out', repeat: -1 });
-
-  // Stagger dots
-  [0,1,2].forEach(i => {
-    gsap.to(`#bd${i}`, { opacity: 0.2, duration: 0.6, repeat: -1, yoyo: true,
-      ease: 'sine.inOut', delay: i * 0.25 });
+  el.querySelectorAll('.brb-dot').forEach((d,i) => {
+    gsap.to(d, { opacity:1, duration:.5, repeat:-1, yoyo:true, ease:'sine.inOut', delay:i*.3 });
   });
 }
 
-// ── 9. SCORE ─────────────────────────────────────────────────────────────────
-function showScore({ team1 = 'TEAM A', team2 = 'TEAM B', score1 = 0, score2 = 0, map = 'MIRAGE', duration = 0 } = {}) {
+// ── 8. SCORE ─────────────────────────────────────────────────────────────────
+function showScore({ team1='ARHAVAL', team2='RIVAL', score1=0, score2=0, map='MIRAGE', duration=0 }={}) {
   killClass('overlay-score');
   const el = make('overlay-score', `
-    <div class="score-wrap">
-      <div class="score-team left">
-        <div class="team-tag">CT</div>
-        <div class="team-name">${team1}</div>
-        <div class="team-score" id="s1">${score1}</div>
+    <div class="sc-wrap">
+      <div class="sc-team ct">
+        <div class="sc-side">CT</div>
+        <div class="sc-name">${team1}</div>
+        <div class="sc-score">${String(score1).padStart(2,'0')}</div>
       </div>
-      <div class="score-mid">
-        <div class="score-map-label">MAP</div>
-        <div class="score-map">${map}</div>
-        <div class="score-sep">—</div>
-        <div class="score-map-label">LIVE</div>
+      <div class="sc-mid">
+        <div class="sc-map">${map}</div>
+        <div class="sc-live"><div class="sc-live-dot"></div>LIVE</div>
       </div>
-      <div class="score-team right">
-        <div class="team-tag">T</div>
-        <div class="team-name">${team2}</div>
-        <div class="team-score" id="s2">${score2}</div>
+      <div class="sc-team t">
+        <div class="sc-side">T</div>
+        <div class="sc-name">${team2}</div>
+        <div class="sc-score">${String(score2).padStart(2,'0')}</div>
       </div>
     </div>
   `);
   root.appendChild(el);
-
-  gsap.set(el, { opacity: 0, y: -30 });
-  gsap.to(el, { opacity: 1, y: 0, duration: 0.5, ease: 'back.out(1.5)' });
-
-  if (duration > 0) {
-    setTimeout(() => kill(el, 0.4), duration * 1000);
-  }
+  gsap.set(el, { opacity:0, y:-20, scale:.96 });
+  gsap.to(el, { opacity:1, y:0, scale:1, duration:.45, ease:'back.out(1.8)' });
+  gsap.to(el.querySelector('.sc-live-dot'), { opacity:.2, duration:.7, repeat:-1, yoyo:true, ease:'sine.inOut' });
+  if (duration > 0) setTimeout(() => kill(el, .4), duration*1000);
 }
 
-// ── 10. CLIP ─────────────────────────────────────────────────────────────────
-function showClip({ text = 'Clip It!', duration = 3 } = {}) {
+// ── 9. CLIP ──────────────────────────────────────────────────────────────────
+function showClip({ text='Clip It!', sub='Anı kaydet', duration=3, color='#FF4D00' }={}) {
   const el = make('overlay-clip', `
-    <div class="clip-box">
-      <div class="clip-icon">🎬</div>
-      <div>
-        <div class="clip-text">${text}</div>
-        <div class="clip-sub">Anı kaydet!</div>
+    <div class="cl-wrap">
+      <div class="cl-icon-box">🎬</div>
+      <div class="cl-text-box">
+        <div class="cl-label">ARHAVAL</div>
+        <div class="cl-main">${text}</div>
       </div>
     </div>
   `);
+  el.querySelector('.cl-icon-box').style.background = color;
+  el.querySelector('.cl-text-box').style.borderColor = `rgba(${rgb(color)},.4)`;
+  el.querySelector('.cl-label').style.color = color;
   root.appendChild(el);
   SFX.clip();
 
-  gsap.set(el, { opacity: 0, x: 80, y: -20 });
-  gsap.to(el, { opacity: 1, x: 0, y: 0, duration: 0.4, ease: 'back.out(2)' });
-  gsap.to(el.querySelector('.clip-box'), { boxShadow: '0 0 0 rgba(255,77,0,0)', duration: 0.5, repeat: 3, yoyo: true });
+  const wrap = el.querySelector('.cl-wrap');
+  gsap.set(el, { opacity:0, x:60, y:-10 });
+  gsap.to(el, { opacity:1, x:0, y:0, duration:.4, ease:'back.out(2)' });
+  gsap.to(wrap, { filter:'drop-shadow(0 0 0 rgba(0,0,0,0))', duration:.3, repeat:4, yoyo:true });
 
-  setTimeout(() => {
-    gsap.to(el, { opacity: 0, x: 80, y: -20, duration: 0.4, ease: 'power2.in', onComplete: () => el.remove() });
-  }, duration * 1000);
+  setTimeout(() => gsap.to(el, { opacity:0, x:60, duration:.4, ease:'power2.in', onComplete:()=>el.remove() }), duration*1000);
 }
 
-// ── 11. COUNTDOWN ────────────────────────────────────────────────────────────
-function showCountdown({ from = 5, text = 'Yayın Başlıyor' } = {}) {
-  const existing = root.querySelector('.overlay-countdown');
-  if (existing) { kill(existing, 0.3); return; }
+// ── 10. COUNTDOWN ────────────────────────────────────────────────────────────
+function showCountdown({ from=5, label='Maç Başlıyor', sub='ARHAVAL', color='#FF4D00' }={}) {
+  const ex = root.querySelector('.overlay-countdown');
+  if (ex) { kill(ex, .3); return; }
 
+  const circ = 2 * Math.PI * 130; // r=130
   const el = make('overlay-countdown', `
-    <div class="countdown-label">${text}</div>
-    <div class="countdown-num" id="cdNum">${from}</div>
-    <div class="countdown-sub">ARHAVAL</div>
+    <div class="cd-bg"></div>
+    <div class="cd-eyebrow">${label}</div>
+    <div class="cd-ring-wrap">
+      <svg viewBox="0 0 300 300" width="300" height="300">
+        <circle class="cd-ring-bg" cx="150" cy="150" r="130"/>
+        <circle class="cd-ring-fg" cx="150" cy="150" r="130"
+          stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="0"/>
+      </svg>
+      <div class="cd-num">${from}</div>
+    </div>
+    <div class="cd-sub">${sub}</div>
   `);
+  el.querySelector('.cd-ring-fg').style.stroke = color;
+  el.querySelector('.cd-ring-fg').style.filter = `drop-shadow(0 0 10px ${color})`;
+  el.querySelector('.cd-num').style.color = color;
+  el.querySelector('.cd-num').style.textShadow = `0 0 100px rgba(${rgb(color)},.4)`;
   root.appendChild(el);
 
-  gsap.to(el, { opacity: 1, duration: 0.4, ease: 'power2.out' });
+  gsap.to(el, { opacity:1, duration:.4, ease:'power2.out' });
 
   let rem = from;
-  const numEl = el.querySelector('#cdNum');
-  SFX.countdown();
+  const numEl = el.querySelector('.cd-num');
+  const ringEl = el.querySelector('.cd-ring-fg');
+  SFX.tick();
 
-  const tick = () => {
-    if (!el.parentNode) return;
-    gsap.fromTo(numEl, { scale: 1.4, opacity: 0.4 }, { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(2)' });
+  gsap.fromTo(numEl, { scale:1.5, opacity:.3 }, { scale:1, opacity:1, duration:.35, ease:'back.out(2)' });
 
-    const iv = setInterval(() => {
-      rem--;
-      if (!el.parentNode) { clearInterval(iv); return; }
-      if (rem <= 0) {
-        clearInterval(iv);
-        numEl.textContent = 'GİT!';
-        numEl.style.color = '#22C55E';
-        numEl.style.textShadow = '0 0 120px rgba(34,197,94,.7)';
-        SFX.countdownGo();
-        gsap.fromTo(numEl, { scale: 1.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(2)' });
-        setTimeout(() => kill(el, 0.6), 1800);
-      } else {
-        numEl.textContent = rem;
-        SFX.countdown();
-        gsap.fromTo(numEl, { scale: 1.4, opacity: 0.4 }, { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(2)' });
-      }
-    }, 1000);
-  };
-  setTimeout(tick, 400);
+  const iv = setInterval(() => {
+    rem--;
+    if (!el.parentNode) { clearInterval(iv); return; }
+    if (rem <= 0) {
+      clearInterval(iv);
+      numEl.textContent = 'GO!';
+      numEl.style.color = '#00E5A0';
+      numEl.style.textShadow = '0 0 120px rgba(0,229,160,.6)';
+      SFX.go();
+      gsap.fromTo(numEl, { scale:1.8, opacity:0 }, { scale:1, opacity:1, duration:.5, ease:'back.out(2)' });
+      setTimeout(() => kill(el, .6), 2000);
+    } else {
+      numEl.textContent = rem;
+      ringEl.style.strokeDashoffset = circ * (1 - rem/from);
+      SFX.tick();
+      gsap.fromTo(numEl, { scale:1.4, opacity:.3 }, { scale:1, opacity:1, duration:.3, ease:'back.out(2)' });
+    }
+  }, 1000);
+}
+
+// ── 11. AD ───────────────────────────────────────────────────────────────────
+function showAd({ duration=15, title='Arhaval', subtitle='İzlediğin için teşekkürler!', badge='REKLAM ARASI', color='#FF4D00' }={}) {
+  const circ = 282;
+  const el = make('overlay-ad', `
+    <div class="ad-scanlines"></div>
+    <div class="ad-top-line"></div>
+    <div class="ad-bottom-line"></div>
+    <div class="ad-badge"><div class="ad-live"></div>${badge}</div>
+    <div class="ad-title">${title.replace(/(\S+)$/, '<em>$1</em>')}</div>
+    <div class="ad-sub">${subtitle}</div>
+    <div class="ad-ring-wrap">
+      <svg viewBox="0 0 120 120" width="120" height="120">
+        <circle class="ad-ring-bg" cx="60" cy="60" r="50"/>
+        <circle class="ad-ring-fg" cx="60" cy="60" r="50"
+          stroke-dasharray="${circ}" stroke-dashoffset="0"/>
+      </svg>
+      <div class="ad-ring-num">${duration}</div>
+    </div>
+    <div class="ad-bar"></div>
+  `);
+  // apply color
+  ['.ad-top-line','.ad-bottom-line','.ad-bar'].forEach(s => el.querySelector(s).style.background = color);
+  ['.ad-live','.ad-ring-fg','.ad-ring-num','.ad-badge'].forEach((s,i) => {
+    const x = el.querySelector(s);
+    if (i===0) { x.style.background = color; x.style.boxShadow = `0 0 10px ${color}`; }
+    if (i===1) { x.style.stroke = color; x.style.filter = `drop-shadow(0 0 8px ${color})`; }
+    if (i===2) x.style.color = color;
+    if (i===3) { x.style.color = color; x.style.borderColor = `rgba(${rgb(color)},.3)`; x.style.background = `rgba(${rgb(color)},.06)`; }
+  });
+  el.querySelector('.ad-title em').style.color = color;
+  el.querySelector('.ad-ring-wrap').style.filter = `drop-shadow(0 0 20px rgba(${rgb(color)},.3))`;
+  root.appendChild(el);
+
+  const badge_el  = el.querySelector('.ad-badge');
+  const title_el  = el.querySelector('.ad-title');
+  const sub_el    = el.querySelector('.ad-sub');
+  const ring_wrap = el.querySelector('.ad-ring-wrap');
+  const ring_fg   = el.querySelector('.ad-ring-fg');
+  const ring_num  = el.querySelector('.ad-ring-num');
+  const bar       = el.querySelector('.ad-bar');
+
+  const tl = gsap.timeline();
+  tl.to(el, { opacity:1, duration:.6, ease:'power2.out' })
+    .from(badge_el,  { y:-20, opacity:0, duration:.5, ease:'power3.out' }, .1)
+    .from(title_el,  { y:40, opacity:0, duration:.6, ease:'back.out(2)' }, .2)
+    .from(sub_el,    { y:20, opacity:0, duration:.5, ease:'power3.out' }, .35)
+    .from(ring_wrap, { scale:.5, opacity:0, duration:.6, ease:'back.out(2)' }, .4);
+
+  gsap.to(bar, { scaleX:0, duration, ease:'none', transformOrigin:'left' });
+
+  let rem = duration;
+  const iv = setInterval(() => {
+    rem--;
+    if (ring_num) ring_num.textContent = rem;
+    if (ring_fg)  ring_fg.style.strokeDashoffset = circ * (1 - rem/duration);
+    if (rem <= 0) { clearInterval(iv); kill(el, .7); }
+  }, 1000);
 }
 
 // ── TEST MODE (?test=1) ───────────────────────────────────────────────────────
 if (new URLSearchParams(location.search).get('test') === '1') {
   const demos = [
-    () => showBanner({ text: 'Arhaval ile CS2 Turnuva Yayınını İzliyorsunuz!', duration: 6 }),
-    () => showLower({ name: 'Arhaval', tag: 'YAYINCI', sub: 'CS2 · Turnuva · Hafta 9', duration: 5 }),
-    () => showPopup({ text: 'Yeni izleyici katıldı! 🎉', title: 'HOŞGELDİN', icon: '👋', duration: 5 }),
-    () => showAlert({ text: 'CLUTCH KAZANDI!', duration: 4 }),
-    () => showHype({ duration: 3 }),
-    () => showScore({ team1: 'ARHAVAL', team2: 'RIVAL', score1: 14, score2: 11, map: 'MIRAGE', duration: 6 }),
-    () => showClip({ text: 'Clip It!', duration: 3 }),
-    () => showGG({ duration: 5 }),
-    () => showAd({ duration: 8, title: 'Arhaval Espor', subtitle: 'CS2 Turnuva Yayını' }),
-    () => showCountdown({ from: 5, text: 'Maç Başlıyor' }),
+    () => showBanner({ text:'Arhaval ile CS2 Turnuva Yayınını İzliyorsunuz!', duration:6 }),
+    () => showLower({ name:'Arhaval', tag:'YAYINCI', sub:'CS2 · Turnuva · Hafta 9', duration:5 }),
+    () => showPopup({ text:'Yeni izleyici katıldı!', title:'HOŞGELDİN', icon:'👋', duration:5 }),
+    () => showScore({ team1:'ARHAVAL', team2:'RIVAL', score1:14, score2:11, map:'MIRAGE', duration:7 }),
+    () => showAlert({ text:'CLUTCH KAZANDI!', duration:4 }),
+    () => showHype({ duration:3 }),
+    () => showClip({ text:'CLIP IT!', duration:3 }),
+    () => showGG({ duration:6 }),
+    () => showAd({ duration:8, title:'Arhaval Espor', subtitle:'CS2 Turnuva Yayını' }),
+    () => showCountdown({ from:5, label:'Maç Başlıyor' }),
   ];
   let i = 0;
-  const next = () => { if (i < demos.length) { demos[i++](); setTimeout(next, 7000); } };
-  setTimeout(next, 1200);
+  const next = () => { if (i < demos.length) { demos[i++](); setTimeout(next, 8000); } };
+  setTimeout(next, 1000);
 }
 </script>
 </body>
