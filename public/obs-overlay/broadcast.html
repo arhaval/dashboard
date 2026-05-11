@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Yayın Kontrol — Arhaval</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:    #0A0A0A;
+  --bg2:   #141414;
+  --bg3:   #1A1A1A;
+  --brd:   #2A2A2A;
+  --acc:   #FF4D00;
+  --acc2:  #E2FC03;
+  --ok:    #22C55E;
+  --warn:  #EAB308;
+  --txt:   #FAFAFA;
+  --txt2:  #A1A1A1;
+  --txt3:  #6B6B6B;
+  --f:     'IBM Plex Sans', sans-serif;
+  --fm:    'IBM Plex Mono', monospace;
+}
+
+html { height: 100%; }
+body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--txt);
+  font-family: var(--f);
+  font-size: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ═══════════════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════════════ */
+.hd {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--brd);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 52px;
+  gap: 12px;
+}
+
+.hd-logo {
+  font-family: var(--fm);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--txt);
+  white-space: nowrap;
+}
+.hd-logo em { color: var(--acc); font-style: normal; }
+
+.conn-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg3);
+  border: 1px solid var(--brd);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-family: var(--fm);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--txt3);
+  text-transform: uppercase;
+}
+
+.conn-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--txt3);
+  transition: background .3s;
+}
+.conn-dot.ok   { background: var(--ok);   box-shadow: 0 0 6px var(--ok); }
+.conn-dot.err  { background: #EF4444; }
+.conn-dot.wait { background: var(--warn); animation: dotPulse .8s ease-in-out infinite; }
+
+@keyframes dotPulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ═══════════════════════════════════════════════════
+   TABS
+═══════════════════════════════════════════════════ */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--brd);
+  background: var(--bg2);
+  position: sticky;
+  top: 52px;
+  z-index: 40;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 14px 8px;
+  font-family: var(--fm);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt3);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color .2s, border-color .2s;
+}
+.tab-btn:hover { color: var(--txt2); }
+.tab-btn.on { color: var(--txt); border-bottom-color: var(--acc); }
+
+/* ═══════════════════════════════════════════════════
+   TAB PANELS
+═══════════════════════════════════════════════════ */
+.panel { display: none; padding: 16px; max-width: 600px; margin: 0 auto; }
+.panel.on { display: block; }
+
+/* ═══════════════════════════════════════════════════
+   SETUP PANEL — form fields
+═══════════════════════════════════════════════════ */
+.section {
+  background: var(--bg2);
+  border: 1px solid var(--brd);
+  border-radius: 6px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.section-hd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--brd);
+  background: var(--bg3);
+}
+
+.section-icon {
+  width: 28px; height: 28px;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.section-title {
+  font-family: var(--fm);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt2);
+  font-weight: 600;
+}
+
+.section-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+
+.field-lbl {
+  font-family: var(--fm);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt3);
+}
+
+.field input[type="text"],
+.field input[type="number"] {
+  background: var(--bg3);
+  border: 1px solid var(--brd);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: var(--fm);
+  font-size: 13px;
+  color: var(--txt);
+  outline: none;
+  width: 100%;
+  transition: border-color .2s;
+}
+.field input:focus { border-color: #444; }
+
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.color-row { display: flex; gap: 8px; align-items: center; }
+.color-row input[type="color"] {
+  width: 40px; height: 40px;
+  padding: 3px;
+  background: var(--bg3);
+  border: 1px solid var(--brd);
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.color-row input[type="text"] {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--brd);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: var(--fm);
+  font-size: 13px;
+  color: var(--txt);
+  outline: none;
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--txt3);
+  font-family: var(--fm);
+  line-height: 1.5;
+}
+
+.save-bar {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg2);
+  border-top: 1px solid var(--brd);
+  padding: 12px 16px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.save-status {
+  font-family: var(--fm);
+  font-size: 11px;
+  color: var(--txt3);
+  flex: 1;
+}
+.save-status.saved { color: var(--ok); }
+
+/* ═══════════════════════════════════════════════════
+   LIVE PANEL — control cards
+═══════════════════════════════════════════════════ */
+.ctrl-card {
+  background: var(--bg2);
+  border: 1px solid var(--brd);
+  border-radius: 6px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  transition: border-color .2s;
+}
+.ctrl-card.active { border-color: rgba(255,77,0,0.4); }
+
+.ctrl-hd {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  gap: 10px;
+  border-bottom: 1px solid var(--brd);
+}
+
+.ctrl-status {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--brd);
+  flex-shrink: 0;
+  transition: background .3s, box-shadow .3s;
+}
+.ctrl-status.on {
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
+  animation: statusPulse 2s ease-in-out infinite;
+}
+@keyframes statusPulse { 0%,100%{box-shadow:0 0 8px var(--ok)} 50%{box-shadow:0 0 2px var(--ok)} }
+
+.ctrl-name {
+  font-family: var(--fm);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt2);
+  font-weight: 600;
+  flex: 1;
+}
+
+.ctrl-preview {
+  font-family: var(--fm);
+  font-size: 10px;
+  color: var(--txt3);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.ctrl-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+
+/* Main action row */
+.action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* Slide select row */
+.slide-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+
+/* Quick actions */
+.quick-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ═══════════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════════ */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--f);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 13px 16px;
+  min-height: 48px;
+  transition: background .15s, opacity .15s, transform .08s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  white-space: nowrap;
+}
+.btn:active { transform: scale(0.97); }
+
+.btn-show { background: var(--acc); color: #fff; }
+.btn-show:hover { background: #FF6B2C; }
+.btn-show:disabled { background: #2A1A10; color: var(--txt3); cursor: not-allowed; }
+
+.btn-hide { background: var(--bg3); color: var(--txt2); border: 1px solid var(--brd); }
+.btn-hide:hover { border-color: #444; color: var(--txt); }
+.btn-hide:disabled { opacity: .35; cursor: not-allowed; }
+
+.btn-slide {
+  background: var(--bg3);
+  color: var(--txt3);
+  border: 1px solid var(--brd);
+  font-size: 12px;
+  padding: 10px 8px;
+  min-height: 42px;
+  border-radius: 4px;
+  transition: background .15s, border-color .15s, color .15s, transform .08s;
+}
+.btn-slide:hover { border-color: rgba(226,252,3,0.3); color: var(--txt2); }
+.btn-slide.on {
+  background: rgba(226,252,3,0.08);
+  border-color: rgba(226,252,3,0.4);
+  color: #E2FC03;
+}
+
+.btn-quick {
+  background: var(--bg3);
+  color: var(--txt2);
+  border: 1px solid var(--brd);
+  font-size: 12px;
+  padding: 9px 14px;
+  min-height: 40px;
+  border-radius: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.btn-quick:hover { border-color: #444; color: var(--txt); }
+
+.btn-save {
+  background: var(--acc);
+  color: #fff;
+  border-radius: 4px;
+  padding: 11px 24px;
+  font-size: 14px;
+}
+.btn-save:hover { background: #FF6B2C; }
+
+.btn-kill {
+  width: 100%;
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25);
+  color: #EF4444;
+  border-radius: 4px;
+  font-size: 14px;
+  min-height: 52px;
+  margin-top: 4px;
+  letter-spacing: 1px;
+}
+.btn-kill:hover { background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.4); }
+
+/* ═══════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════ */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--bg3);
+  border: 1px solid var(--brd);
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-family: var(--fm);
+  font-size: 12px;
+  color: var(--txt2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s, transform .2s;
+  z-index: 100;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.ok   { border-color: rgba(34,197,94,0.3); color: var(--ok); }
+.toast.err  { border-color: rgba(239,68,68,0.3); color: #EF4444; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hd">
+  <div class="hd-logo">ARHAVAL<em>.</em> YAYIN</div>
+  <div class="conn-pill">
+    <div class="conn-dot wait" id="conn-dot"></div>
+    <span id="conn-txt">Bağlanıyor</span>
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn" onclick="switchTab('setup',this)" id="tab-setup-btn">⚙ Hazırlık</button>
+  <button class="tab-btn on"  onclick="switchTab('live',this)"  id="tab-live-btn">▶ Yayın</button>
+</div>
+
+<!-- ═══════════════════ SETUP PANEL ═══════════════════ -->
+<div class="panel" id="panel-setup">
+
+  <!-- BANNER -->
+  <div class="section">
+    <div class="section-hd">
+      <div class="section-icon" style="background:rgba(255,77,0,0.12);color:var(--acc)">▬</div>
+      <div class="section-title">Banner</div>
+    </div>
+    <div class="section-body">
+      <div class="field">
+        <label class="field-lbl">Mesaj</label>
+        <input type="text" id="cfg-banner-text" placeholder="Arhaval CS2 Turnuva Yayını">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-lbl">Etiket</label>
+          <input type="text" id="cfg-banner-label" placeholder="CANLI">
+        </div>
+        <div class="field">
+          <label class="field-lbl">Süre (sn)</label>
+          <input type="number" id="cfg-banner-dur" placeholder="12" min="3" max="60">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">Renk</label>
+        <div class="color-row">
+          <input type="color" id="cfg-banner-color-pick" value="#FF4D00" oninput="document.getElementById('cfg-banner-color').value=this.value">
+          <input type="text"  id="cfg-banner-color" value="#FF4D00" maxlength="7" oninput="document.getElementById('cfg-banner-color-pick').value=this.value">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOWER THIRD -->
+  <div class="section">
+    <div class="section-hd">
+      <div class="section-icon" style="background:rgba(59,130,246,0.12);color:#3B82F6">▁</div>
+      <div class="section-title">Lower Third</div>
+    </div>
+    <div class="section-body">
+      <div class="field">
+        <label class="field-lbl">İsim</label>
+        <input type="text" id="cfg-lower-name" placeholder="Hamit">
+      </div>
+      <div class="field">
+        <label class="field-lbl">Unvan / Rol</label>
+        <input type="text" id="cfg-lower-role" placeholder="Organizatör">
+      </div>
+    </div>
+  </div>
+
+  <!-- INFO BOX -->
+  <div class="section">
+    <div class="section-hd">
+      <div class="section-icon" style="background:rgba(226,252,3,0.1);color:#E2FC03">□</div>
+      <div class="section-title">Info Box</div>
+    </div>
+    <div class="section-body">
+      <div class="hint" style="color:var(--txt3);margin-bottom:4px">— Slide 1: Sosyal Medya</div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-lbl">Etiket</label>
+          <input type="text" id="cfg-ib-s1tag" placeholder="Follow Us">
+        </div>
+        <div class="field">
+          <label class="field-lbl">Kullanıcı Adı</label>
+          <input type="text" id="cfg-ib-s1main" placeholder="@ARHAVAL">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">Alt Metin (platformlar)</label>
+        <input type="text" id="cfg-ib-s1sub" placeholder="twitch · youtube · instagram · x">
+      </div>
+
+      <div class="hint" style="color:var(--txt3);margin-top:8px;margin-bottom:4px">— Slide 2: Maç</div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-lbl">Etiket</label>
+          <input type="text" id="cfg-ib-s2tag" placeholder="Next Match">
+        </div>
+        <div class="field">
+          <label class="field-lbl">Alt Metin (saat/tur)</label>
+          <input type="text" id="cfg-ib-s2sub" placeholder="today · 21:00 · final">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-lbl">Takım 1</label>
+          <input type="text" id="cfg-ib-s2t1" placeholder="NaVi">
+        </div>
+        <div class="field">
+          <label class="field-lbl">Takım 2</label>
+          <input type="text" id="cfg-ib-s2t2" placeholder="FaZe">
+        </div>
+      </div>
+
+      <div class="hint" style="color:var(--txt3);margin-top:8px;margin-bottom:4px">— Slide 3: Sponsor</div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-lbl">Rozet</label>
+          <input type="text" id="cfg-ib-s3badge" placeholder="Official Partner">
+        </div>
+        <div class="field">
+          <label class="field-lbl">Logo Metni</label>
+          <input type="text" id="cfg-ib-s3logo" placeholder="SPONSOR">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-lbl">URL</label>
+          <input type="text" id="cfg-ib-s3url" placeholder="arhaval.gg/partner">
+        </div>
+        <div class="field">
+          <label class="field-lbl">Slide Süresi (sn)</label>
+          <input type="number" id="cfg-ib-dur" placeholder="10" min="3" max="60">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height:80px"></div><!-- spacer for save bar -->
+</div><!-- /panel-setup -->
+
+<!-- save bar (outside panel so it's sticky) -->
+<div class="save-bar" id="save-bar" style="display:none">
+  <span class="save-status" id="save-status">Değişiklikler kaydedilmedi</span>
+  <button class="btn btn-save" onclick="saveConfig()">Kaydet</button>
+</div>
+
+<!-- ═══════════════════ LIVE PANEL ═══════════════════ -->
+<div class="panel on" id="panel-live">
+
+  <!-- BANNER -->
+  <div class="ctrl-card" id="card-banner">
+    <div class="ctrl-hd">
+      <div class="ctrl-status" id="st-banner"></div>
+      <div class="ctrl-name">Banner</div>
+      <div class="ctrl-preview" id="prev-banner">—</div>
+    </div>
+    <div class="ctrl-body">
+      <div class="action-row">
+        <button class="btn btn-show" onclick="sendBanner()">▶ Göster</button>
+        <button class="btn btn-hide" onclick="sendHide('banner','card-banner','st-banner')">■ Kapat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOWER THIRD -->
+  <div class="ctrl-card" id="card-lower">
+    <div class="ctrl-hd">
+      <div class="ctrl-status" id="st-lower"></div>
+      <div class="ctrl-name">Lower Third</div>
+      <div class="ctrl-preview" id="prev-lower">—</div>
+    </div>
+    <div class="ctrl-body">
+      <div class="action-row">
+        <button class="btn btn-show" onclick="sendLower()">▶ Göster</button>
+        <button class="btn btn-hide" onclick="sendHide('lower','card-lower','st-lower')">■ Kapat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFO BOX -->
+  <div class="ctrl-card" id="card-infobox">
+    <div class="ctrl-hd">
+      <div class="ctrl-status" id="st-infobox"></div>
+      <div class="ctrl-name">Info Box</div>
+      <div class="ctrl-preview" id="prev-infobox">—</div>
+    </div>
+    <div class="ctrl-body">
+      <div class="action-row">
+        <button class="btn btn-show" onclick="sendInfobox('show')">▶ Göster</button>
+        <button class="btn btn-hide" onclick="sendInfobox('hide')">■ Kapat</button>
+      </div>
+      <div class="slide-row">
+        <button class="btn btn-slide on" id="sl-0" onclick="sendInfoboxSlide(0)">Follow</button>
+        <button class="btn btn-slide"    id="sl-1" onclick="sendInfoboxSlide(1)">Maç</button>
+        <button class="btn btn-slide"    id="sl-2" onclick="sendInfoboxSlide(2)">Sponsor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HIZLI AKSIYONLAR -->
+  <div class="ctrl-card">
+    <div class="ctrl-hd">
+      <div class="ctrl-name">Hızlı Aksiyonlar</div>
+    </div>
+    <div class="ctrl-body">
+      <div class="quick-row">
+        <button class="btn btn-quick" onclick="send('hype',{})">🔥 Hype</button>
+        <button class="btn btn-quick" onclick="send('gg',{})">🏆 GG</button>
+        <button class="btn btn-quick" onclick="send('brb',{})">☕ BRB</button>
+        <button class="btn btn-quick" onclick="send('brb_hide',{})">← Dön</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEPSİNİ KAPAT -->
+  <button class="btn btn-kill" onclick="killAll()">⬛ HEPSİNİ KAPAT</button>
+
+</div><!-- /panel-live -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  SUPABASE
+// ══════════════════════════════════════════════════════
+const SUPABASE_URL  = 'https://ysceuihdsatttnpnypjx.supabase.co';
+const SUPABASE_KEY  = 'sb_publishable_qST7eQaiw0uOqcFQ95DIWw__XtiMbHf';
+const CHANNEL_NAME  = 'obs-overlay';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const connDot = document.getElementById('conn-dot');
+const connTxt = document.getElementById('conn-txt');
+
+const channel = sb.channel(CHANNEL_NAME, { config: { broadcast: { self: true } } })
+  .subscribe(status => {
+    if (status === 'SUBSCRIBED') {
+      connDot.className = 'conn-dot ok';
+      connTxt.textContent = 'Bağlı';
+    } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+      connDot.className = 'conn-dot err';
+      connTxt.textContent = 'Bağlantı Kesildi';
+    } else {
+      connDot.className = 'conn-dot wait';
+      connTxt.textContent = 'Bağlanıyor';
+    }
+  });
+
+function send(overlay, data) {
+  channel.send({ type: 'broadcast', event: 'trigger', payload: { overlay, data } });
+}
+
+// ══════════════════════════════════════════════════════
+//  LOCAL CONFIG — localStorage
+// ══════════════════════════════════════════════════════
+const STORAGE_KEY = 'arhaval_broadcast_cfg';
+
+const DEFAULTS = {
+  bannerText:  'Arhaval CS2 Turnuva Yayını',
+  bannerLabel: 'CANLI',
+  bannerDur:   12,
+  bannerColor: '#FF4D00',
+  lowerName:   'Hamit',
+  lowerRole:   'Organizatör',
+  ibS1tag:     'Follow Us',
+  ibS1main:    '@ARHAVAL',
+  ibS1sub:     'twitch · youtube · instagram · x',
+  ibS2tag:     'Next Match',
+  ibS2t1:      'NaVi',
+  ibS2t2:      'FaZe',
+  ibS2sub:     'today · 21:00 · grand final',
+  ibS3badge:   'Official Partner',
+  ibS3logo:    'SPONSOR',
+  ibS3url:     'arhaval.gg/partner',
+  ibDur:       10,
+};
+
+let cfg = Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'));
+
+// ── Bind form fields to cfg ──
+const FIELD_MAP = {
+  'cfg-banner-text':  'bannerText',
+  'cfg-banner-label': 'bannerLabel',
+  'cfg-banner-dur':   'bannerDur',
+  'cfg-banner-color': 'bannerColor',
+  'cfg-lower-name':   'lowerName',
+  'cfg-lower-role':   'lowerRole',
+  'cfg-ib-s1tag':     'ibS1tag',
+  'cfg-ib-s1main':    'ibS1main',
+  'cfg-ib-s1sub':     'ibS1sub',
+  'cfg-ib-s2tag':     'ibS2tag',
+  'cfg-ib-s2t1':      'ibS2t1',
+  'cfg-ib-s2t2':      'ibS2t2',
+  'cfg-ib-s2sub':     'ibS2sub',
+  'cfg-ib-s3badge':   'ibS3badge',
+  'cfg-ib-s3logo':    'ibS3logo',
+  'cfg-ib-s3url':     'ibS3url',
+  'cfg-ib-dur':       'ibDur',
+};
+
+function loadFormFromCfg() {
+  Object.entries(FIELD_MAP).forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = cfg[key] || '';
+  });
+  // Color picker sync
+  const cp = document.getElementById('cfg-banner-color-pick');
+  if (cp) cp.value = cfg.bannerColor || '#FF4D00';
+  updatePreviews();
+}
+
+function readFormToCfg() {
+  Object.entries(FIELD_MAP).forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    cfg[key] = el.type === 'number' ? (parseFloat(el.value) || DEFAULTS[key]) : (el.value.trim() || DEFAULTS[key]);
+  });
+}
+
+function saveConfig() {
+  readFormToCfg();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+  updatePreviews();
+  const s = document.getElementById('save-status');
+  s.textContent = 'Kaydedildi ✓';
+  s.className = 'save-status saved';
+  setTimeout(() => { s.textContent = 'Değişiklikler kaydedilmedi'; s.className = 'save-status'; }, 2500);
+  showToast('Ayarlar kaydedildi ✓', 'ok');
+}
+
+function updatePreviews() {
+  const pb = document.getElementById('prev-banner');
+  const pl = document.getElementById('prev-lower');
+  const pi = document.getElementById('prev-infobox');
+  if (pb) pb.textContent = cfg.bannerText || '—';
+  if (pl) pl.textContent = (cfg.lowerName || '') + (cfg.lowerRole ? ' / ' + cfg.lowerRole : '') || '—';
+  if (pi) pi.textContent = cfg.ibS2t1 && cfg.ibS2t2 ? cfg.ibS2t1 + ' vs ' + cfg.ibS2t2 : '—';
+}
+
+// ══════════════════════════════════════════════════════
+//  OVERLAY STATE
+// ══════════════════════════════════════════════════════
+let state = { banner: false, lower: false, infobox: false, ibSlide: 0 };
+
+function setStatus(statusId, cardId, on) {
+  const dot  = document.getElementById(statusId);
+  const card = document.getElementById(cardId);
+  if (dot)  dot.classList.toggle('on', on);
+  if (card) card.classList.toggle('active', on);
+}
+
+// ══════════════════════════════════════════════════════
+//  SEND FUNCTIONS
+// ══════════════════════════════════════════════════════
+function sendBanner() {
+  readFormToCfg();
+  send('banner', {
+    text:     cfg.bannerText,
+    label:    cfg.bannerLabel || 'CANLI',
+    duration: cfg.bannerDur   || 12,
+    color:    cfg.bannerColor || '#FF4D00',
+  });
+  state.banner = true;
+  setStatus('st-banner', 'card-banner', true);
+  showToast('Banner gösteriliyor');
+}
+
+function sendLower() {
+  readFormToCfg();
+  send('lower', {
+    name:  cfg.lowerName || 'Hamit',
+    title: cfg.lowerRole || 'Organizatör',
+  });
+  state.lower = true;
+  setStatus('st-lower', 'card-lower', true);
+  showToast('Lower third gösteriliyor');
+}
+
+function sendInfobox(action) {
+  // First push config to infobox via infobox overlay type
+  if (action === 'show') {
+    send('infobox', {
+      action: 'config',
+      cfg: {
+        s1_tag:   cfg.ibS1tag,
+        s1_main:  cfg.ibS1main,
+        s1_sub:   cfg.ibS1sub,
+        s2_tag:   cfg.ibS2tag,
+        s2_t1:    cfg.ibS2t1,
+        s2_t2:    cfg.ibS2t2,
+        s2_sub:   cfg.ibS2sub,
+        s3_badge: cfg.ibS3badge,
+        s3_logo:  cfg.ibS3logo,
+        s3_url:   cfg.ibS3url,
+        duration: cfg.ibDur,
+      }
+    });
+    setTimeout(() => send('infobox', { action: 'show' }), 150);
+    state.infobox = true;
+    setStatus('st-infobox', 'card-infobox', true);
+    showToast('Info box gösteriliyor');
+  } else {
+    send('infobox', { action: 'hide' });
+    state.infobox = false;
+    setStatus('st-infobox', 'card-infobox', false);
+    showToast('Info box kapatıldı');
+  }
+}
+
+function sendInfoboxSlide(idx) {
+  send('infobox', { action: 'slide', slide: idx });
+  state.ibSlide = idx;
+  // Update slide buttons
+  [0,1,2].forEach(i => {
+    const btn = document.getElementById('sl-' + i);
+    if (btn) btn.classList.toggle('on', i === idx);
+  });
+  const labels = ['Follow', 'Maç', 'Sponsor'];
+  showToast('Slide → ' + labels[idx]);
+}
+
+function sendHide(overlay, cardId, statusId) {
+  const hideOverlay = overlay === 'banner' ? 'banner_hide'
+                    : overlay === 'lower'  ? 'lower_hide'
+                    : overlay;
+  // For banner/lower use killClass signal
+  if (overlay === 'banner') send('banner_hide', {});
+  if (overlay === 'lower')  send('lower_hide',  {});
+  state[overlay] = false;
+  setStatus(statusId, cardId, false);
+  showToast(overlay + ' kapatıldı');
+}
+
+function killAll() {
+  send('kill_all', {});
+  send('infobox', { action: 'hide' });
+  state.banner = false; state.lower = false; state.infobox = false;
+  setStatus('st-banner',  'card-banner',  false);
+  setStatus('st-lower',   'card-lower',   false);
+  setStatus('st-infobox', 'card-infobox', false);
+  showToast('Tüm overlaylar kapatıldı', 'err');
+}
+
+// ══════════════════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════════════════
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('on'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('panel-' + id).classList.add('on');
+  const saveBar = document.getElementById('save-bar');
+  if (saveBar) saveBar.style.display = id === 'setup' ? 'flex' : 'none';
+}
+
+// ══════════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════════
+let toastTimer = null;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (type ? ' ' + type : '');
+  void t.offsetWidth;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ══════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════
+loadFormFromCfg();
+
+// Mark setup fields as dirty on change
+Object.keys(FIELD_MAP).forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', () => {
+    const s = document.getElementById('save-status');
+    if (s) { s.textContent = 'Kaydedilmemiş değişiklik var'; s.className = 'save-status'; }
+  });
+});
+</script>
+</body>
+</html>

@@ -593,18 +593,22 @@ sb.channel(CHANNEL_NAME, { config: { broadcast: { self: false } } })
 
 function handleTrigger({ overlay, data = {} }) {
   const map = {
-    banner:     showBanner,
-    lower:      showLower,
-    popup:      showPopup,
-    alert:      showAlert,
-    hype:       showHype,
-    gg:         showGG,
-    brb:        showBRB,
-    score:      showScore,
-    score_hide: () => killClass('overlay-score'),
-    clip:       showClip,
-    countdown:  showCountdown,
-    ad:         showAd,
+    banner:      showBanner,
+    banner_hide: () => killClass('overlay-banner'),
+    lower:       showLower,
+    lower_hide:  () => killClass('overlay-lower'),
+    popup:       showPopup,
+    alert:       showAlert,
+    hype:        showHype,
+    gg:          showGG,
+    brb:         showBRB,
+    brb_hide:    () => killClass('overlay-brb'),
+    score:       showScore,
+    score_hide:  () => killClass('overlay-score'),
+    clip:        showClip,
+    countdown:   showCountdown,
+    ad:          showAd,
+    kill_all:    () => root.querySelectorAll('[class^="overlay-"]').forEach(e => kill(e)),
   };
   map[overlay]?.(data);
 }

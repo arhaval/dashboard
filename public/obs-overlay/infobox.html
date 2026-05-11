@@ -6,6 +6,7 @@
 <title>OBS Info Box</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,700;1,900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -304,6 +305,87 @@ window.addEventListener('message', e => {
   render(cfg);
   startProgress();
 });
+
+// ══════════════════════════════════════════════════════
+//  SHOW / HIDE / JUMP — called by Supabase commands
+// ══════════════════════════════════════════════════════
+let boxVisible = false;
+const boxEl = document.getElementById('box');
+
+// Start hidden — broadcast panel controls visibility
+gsap.set(boxEl, { opacity: 0, y: 18, pointerEvents: 'none' });
+
+function showBox() {
+  if (boxVisible) return;
+  boxVisible = true;
+  gsap.to(boxEl, { opacity: 1, y: 0, duration: 0.35, ease: 'power3.out', pointerEvents: 'auto' });
+}
+
+function hideBox() {
+  if (!boxVisible) return;
+  boxVisible = false;
+  gsap.to(boxEl, { opacity: 0, y: 12, duration: 0.22, ease: 'power2.in', pointerEvents: 'none' });
+}
+
+function jumpToSlide(idx) {
+  if (idx === current || transitioning) return;
+  if (progressTween) progressTween.kill();
+  transitioning = true;
+  const slides = wrap.querySelectorAll('.slide');
+  const from   = slides[current];
+  const to     = slides[idx];
+  current = idx;
+
+  gsap.set(to, { opacity: 1, clipPath: 'inset(100% 0 0 0)', x: 0 });
+  to.classList.add('active');
+
+  const tl = gsap.timeline({ onComplete() {
+    from.classList.remove('active');
+    gsap.set(from, { opacity: 0, clipPath: 'inset(0 0 0 0)', x: 0 });
+    transitioning = false;
+    updateDots(current);
+    startProgress();
+  }});
+
+  tl.to(from, { keyframes:[
+    { clipPath:'inset(20% 0 30% 0)', x:-7, filter:'hue-rotate(90deg) saturate(3)', duration:.05 },
+    { clipPath:'inset(5%  0 70% 0)', x:-9, filter:'none',                          duration:.05 },
+    { clipPath:'inset(0   0 100% 0)',x: 0, opacity:0,                              duration:.04 },
+  ]});
+  tl.fromTo(to,
+    { clipPath:'inset(100% 0 0 0)', x:8, filter:'hue-rotate(180deg) saturate(3)', opacity:1 },
+    { keyframes:[
+      { clipPath:'inset(60% 0 0 0)',  x:-6, filter:'hue-rotate(90deg)', duration:.05 },
+      { clipPath:'inset(8%  0 5%  0)',x:-2, filter:'none',              duration:.05 },
+      { clipPath:'inset(0   0 0   0)',x: 0,                             duration:.04 },
+    ]}, '-=0.1'
+  );
+}
+
+// ══════════════════════════════════════════════════════
+//  SUPABASE — receive commands from broadcast panel
+// ══════════════════════════════════════════════════════
+const SUPABASE_URL  = 'https://ysceuihdsatttnpnypjx.supabase.co';
+const SUPABASE_KEY  = 'sb_publishable_qST7eQaiw0uOqcFQ95DIWw__XtiMbHf';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+sb.channel('obs-overlay', { config: { broadcast: { self: false } } })
+  .on('broadcast', { event: 'trigger' }, ({ payload }) => {
+    if (payload.overlay !== 'infobox') return;
+    const { action, slide, cfg: newCfg } = payload.data || {};
+    if (action === 'config' && newCfg) {
+      // Apply new config from broadcast panel, re-render slides
+      Object.assign(cfg, newCfg);
+      cfg.duration = parseFloat(cfg.duration) || 10;
+      if (progressTween) progressTween.kill();
+      render(cfg);
+      startProgress();
+    } else if (action === 'show')  showBox();
+    else if   (action === 'hide')  hideBox();
+    else if   (action === 'slide' && slide != null) jumpToSlide(parseInt(slide));
+  })
+  .subscribe();
 </script>
 </body>
 </html>
