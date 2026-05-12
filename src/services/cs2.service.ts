@@ -485,11 +485,16 @@ export const cs2Service = {
       matches_won: number;
       maps_played: number;
       maps_won: number;
+      maps_lost: number;
       rounds_won: number;
     }>();
 
+    // head-to-head: h2h[teamA][teamB] = teamA'nın teamB'ye karşı kazandığı maç sayısı
+    const h2h = new Map<string, Map<string, number>>();
+
     for (const t of activeTeams) {
-      standings.set(t.id, { matches_played: 0, matches_won: 0, maps_played: 0, maps_won: 0, rounds_won: 0 });
+      standings.set(t.id, { matches_played: 0, matches_won: 0, maps_played: 0, maps_won: 0, maps_lost: 0, rounds_won: 0 });
+      h2h.set(t.id, new Map());
     }
 
     for (const m of matches) {
@@ -504,15 +509,24 @@ export const cs2Service = {
         t1.matches_played++;
         t1.maps_played += totalMaps;
         t1.maps_won += t1Won;
+        t1.maps_lost += t2Won;
       }
       if (t2) {
         t2.matches_played++;
         t2.maps_played += totalMaps;
         t2.maps_won += t2Won;
+        t2.maps_lost += t1Won;
       }
       if (m.winner_team_id) {
         const winner = standings.get(m.winner_team_id);
         if (winner) winner.matches_won++;
+
+        // Head-to-head kayıt
+        const loserId = m.winner_team_id === m.team1_id ? m.team2_id : m.team1_id;
+        const winnerH2H = h2h.get(m.winner_team_id);
+        if (winnerH2H) {
+          winnerH2H.set(loserId, (winnerH2H.get(loserId) || 0) + 1);
+        }
       }
     }
 
@@ -531,9 +545,9 @@ export const cs2Service = {
       }
     }
 
-    return activeTeams
+    const result = activeTeams
       .map((t) => {
-        const s = standings.get(t.id) || { matches_played: 0, matches_won: 0, maps_played: 0, maps_won: 0, rounds_won: 0 };
+        const s = standings.get(t.id) || { matches_played: 0, matches_won: 0, maps_played: 0, maps_won: 0, maps_lost: 0, rounds_won: 0 };
         return {
           team_id: t.id,
           team_name: t.name,
@@ -542,12 +556,30 @@ export const cs2Service = {
           matches_won: s.matches_won,
           maps_played: s.maps_played,
           maps_won: s.maps_won,
+          maps_lost: s.maps_lost,
           rounds_won: s.rounds_won,
           points: s.maps_won,
         };
       })
-      .filter((t) => t.maps_played > 0)
-      .sort((a, b) => b.points - a.points || b.matches_won - a.matches_won);
+      .filter((t) => t.maps_played > 0);
+
+    return result.sort((a, b) => {
+      // 1. Puan (maps_won)
+      if (b.points !== a.points) return b.points - a.points;
+
+      // 2. İkili averaj (head-to-head) — sadece 2 takım eşit puanda karşılaştığında
+      const aBeatsB = h2h.get(a.team_id)?.get(b.team_id) || 0;
+      const bBeatsA = h2h.get(b.team_id)?.get(a.team_id) || 0;
+      if (aBeatsB !== bBeatsA) return bBeatsA - aBeatsB; // A daha fazla kazandıysa A üstte
+
+      // 3. Map differential
+      const aDiff = a.maps_won - a.maps_lost;
+      const bDiff = b.maps_won - b.maps_lost;
+      if (bDiff !== aDiff) return bDiff - aDiff;
+
+      // 4. Galibiyet sayısı
+      return b.matches_won - a.matches_won;
+    });
   },
 
   // ===========================================================================
