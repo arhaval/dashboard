@@ -263,6 +263,14 @@ export default function OBSPage() {
             </p>
           </div>
           <div className="flex items-center gap-4">
+            {/* Kill All — emergency clear */}
+            <button
+              onClick={() => { quickFire('kill_all', {}, 'Tüm overlay\'ler temizlendi'); setTsVisible(false); setScore(s => ({ ...s, visible: false })); }}
+              disabled={!ready}
+              className="flex items-center gap-2 px-3 py-1.5 rounded border border-[#EF444440] bg-[#EF444410] text-xs text-[#EF4444] hover:bg-[#EF444420] hover:border-[#EF4444] transition-all font-mono disabled:opacity-30"
+            >
+              ✕ Tümünü Kapat
+            </button>
             {/* OBS URL copy */}
             <button
               onClick={copyUrl}
