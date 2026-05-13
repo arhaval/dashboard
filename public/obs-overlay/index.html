@@ -479,6 +479,114 @@ body {
 .cd-sub { font-family: var(--f-mono); font-size: 13px; font-weight: 600; letter-spacing: 6px; text-transform: uppercase; color: var(--muted); position: relative; }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   12. TEAM STATS — Lig durumu iki takım karşılaştırması
+══════════════════════════════════════════════════════════════════════════ */
+.overlay-teamstats {
+  position: absolute; bottom: 100px; left: 0;
+  z-index: 65; opacity: 0;
+  width: 500px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 20px) 100%, 0 100%);
+}
+
+/* header bar */
+.ts-header {
+  display: flex; align-items: center; gap: 0;
+  background: var(--acc);
+  clip-path: polygon(0 0, calc(100% - 30px) 0, 100% 100%, 0 100%);
+  padding: 7px 56px 7px 20px;
+}
+.ts-header-icon {
+  font-family: var(--f-mono); font-size: 9px; font-weight: 600;
+  letter-spacing: 4px; text-transform: uppercase; color: rgba(255,255,255,0.85);
+}
+.ts-header-sep { flex: 1; }
+.ts-header-label {
+  font-family: var(--f-mono); font-size: 9px; font-weight: 600;
+  letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.7);
+}
+
+/* body */
+.ts-body {
+  background: rgba(7,7,14,0.97);
+  border-left: 3px solid var(--acc);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+/* team row */
+.ts-row {
+  display: flex; align-items: center; gap: 0;
+  padding: 14px 20px 14px 0;
+  position: relative;
+}
+.ts-row + .ts-row {
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+/* rank badge */
+.ts-rank {
+  width: 52px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--f-mono); font-size: 22px; font-weight: 700;
+  color: rgba(255,255,255,0.18); line-height: 1;
+}
+.ts-rank.top { color: var(--acc); text-shadow: 0 0 20px rgba(255,77,0,0.5); }
+
+/* logo circle */
+.ts-logo {
+  width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--f-display); font-size: 18px; font-weight: 900;
+  letter-spacing: -1px; text-transform: uppercase; color: #fff;
+  border: 2px solid rgba(255,255,255,0.12);
+  position: relative; overflow: hidden;
+}
+.ts-logo::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+}
+
+/* info */
+.ts-info {
+  flex: 1; display: flex; flex-direction: column; gap: 4px;
+  padding: 0 14px;
+}
+.ts-name {
+  font-family: var(--f-display); font-size: 22px; font-weight: 800;
+  letter-spacing: 0.5px; text-transform: uppercase; color: #fff;
+  line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 240px;
+}
+.ts-record {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--f-mono); font-size: 11px; font-weight: 600;
+}
+.ts-w { color: #22C55E; }
+.ts-l { color: rgba(255,255,255,0.3); }
+.ts-record-sep { color: rgba(255,255,255,0.15); }
+
+/* points */
+.ts-pts {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  flex-shrink: 0; padding-right: 4px;
+}
+.ts-pts-num {
+  font-family: var(--f-display); font-size: 38px; font-weight: 900;
+  color: var(--acc); line-height: 1; letter-spacing: -1px;
+  text-shadow: 0 0 24px rgba(255,77,0,0.35);
+}
+.ts-pts-label {
+  font-family: var(--f-mono); font-size: 9px; font-weight: 600;
+  letter-spacing: 3px; text-transform: uppercase; color: rgba(255,77,0,0.55);
+}
+
+/* bottom accent line */
+.ts-foot {
+  height: 2px;
+  background: linear-gradient(90deg, var(--acc) 0%, transparent 80%);
+  opacity: 0.5;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    11. AD BREAK — ESL-style branded commercial screen
 ══════════════════════════════════════════════════════════════════════════ */
 .overlay-ad {
@@ -593,22 +701,24 @@ sb.channel(CHANNEL_NAME, { config: { broadcast: { self: false } } })
 
 function handleTrigger({ overlay, data = {} }) {
   const map = {
-    banner:      showBanner,
-    banner_hide: () => killClass('overlay-banner'),
-    lower:       showLower,
-    lower_hide:  () => killClass('overlay-lower'),
-    popup:       showPopup,
-    alert:       showAlert,
-    hype:        showHype,
-    gg:          showGG,
-    brb:         showBRB,
-    brb_hide:    () => killClass('overlay-brb'),
-    score:       showScore,
-    score_hide:  () => killClass('overlay-score'),
-    clip:        showClip,
-    countdown:   showCountdown,
-    ad:          showAd,
-    kill_all:    () => root.querySelectorAll('[class^="overlay-"]').forEach(e => kill(e)),
+    banner:          showBanner,
+    banner_hide:     () => killClass('overlay-banner'),
+    lower:           showLower,
+    lower_hide:      () => killClass('overlay-lower'),
+    popup:           showPopup,
+    alert:           showAlert,
+    hype:            showHype,
+    gg:              showGG,
+    brb:             showBRB,
+    brb_hide:        () => killClass('overlay-brb'),
+    score:           showScore,
+    score_hide:      () => killClass('overlay-score'),
+    clip:            showClip,
+    countdown:       showCountdown,
+    ad:              showAd,
+    team_stats:      showTeamStats,
+    team_stats_hide: () => killClass('overlay-teamstats'),
+    kill_all:        () => root.querySelectorAll('[class^="overlay-"]').forEach(e => kill(e)),
   };
   map[overlay]?.(data);
 }
@@ -1047,6 +1157,83 @@ function showAd({ duration=15, title='Arhaval', subtitle='İzlediğin için teş
     if (ring_fg)  ring_fg.style.strokeDashoffset = circ*(1-rem/duration);
     if (rem <= 0) { clearInterval(iv); kill(el, .8); }
   }, 1000);
+}
+
+// ── 12. TEAM STATS ────────────────────────────────────────────────────────────
+function showTeamStats({ team1, team2, label = 'LİG DURUMU', duration = 0 } = {}) {
+  killClass('overlay-teamstats');
+  if (!team1 || !team2) return;
+
+  // Generate a colored circle background from team name
+  const palette = ['#EF4444','#3B82F6','#22C55E','#A855F7','#EAB308','#EC4899','#14B8A6','#F97316','#6366F1','#06B6D4'];
+  const teamColor = (name) => palette[name.charCodeAt(0) % palette.length];
+  const initials  = (name) => name.replace(/[^A-Za-zÇĞİÖŞÜçğışöşü\s]/g,'').trim().split(/\s+/).slice(0,2).map(w=>w[0]?.toUpperCase()||'').join('').slice(0,2) || name.slice(0,2).toUpperCase();
+
+  const teamRow = (t) => {
+    const color = teamColor(t.name);
+    const init  = initials(t.name);
+    const isTop = t.rank <= 2;
+    return `
+      <div class="ts-row">
+        <div class="ts-rank ${isTop ? 'top' : ''}">#${t.rank}</div>
+        <div class="ts-logo" style="background:linear-gradient(135deg,${color}CC,${color}66)">${init}</div>
+        <div class="ts-info">
+          <div class="ts-name">${t.name}</div>
+          <div class="ts-record">
+            <span class="ts-w">${t.wins}G</span>
+            <span class="ts-record-sep">·</span>
+            <span class="ts-l">${t.losses}M</span>
+          </div>
+        </div>
+        <div class="ts-pts">
+          <div class="ts-pts-num">${t.points}</div>
+          <div class="ts-pts-label">PUAN</div>
+        </div>
+      </div>`;
+  };
+
+  const el = document.createElement('div');
+  el.className = 'overlay-teamstats';
+  el.innerHTML = `
+    <div class="ts-header">
+      <div class="ts-header-icon">⚔ LİG</div>
+      <div class="ts-header-sep"></div>
+      <div class="ts-header-label">${label}</div>
+    </div>
+    <div class="ts-body">
+      ${teamRow(team1)}
+      ${teamRow(team2)}
+    </div>
+    <div class="ts-foot"></div>
+  `;
+  root.appendChild(el);
+
+  // Entry animation: slide in from left
+  gsap.set(el, { opacity: 0, x: -60 });
+  gsap.to(el,  { opacity: 1, x: 0, duration: 0.55, ease: 'power3.out' });
+
+  // Stagger team rows
+  const rows = el.querySelectorAll('.ts-row');
+  gsap.fromTo(rows,
+    { opacity: 0, x: -30 },
+    { opacity: 1, x: 0, duration: 0.45, stagger: 0.12, ease: 'power2.out', delay: 0.2 }
+  );
+
+  // Point numbers count-up
+  el.querySelectorAll('.ts-pts-num').forEach((numEl, i) => {
+    const target = i === 0 ? team1.points : team2.points;
+    gsap.fromTo({ val: 0 }, { val: target },
+      { val: target, duration: 0.8, ease: 'power2.out', delay: 0.35 + i * 0.1,
+        onUpdate: function() { numEl.textContent = Math.round(this.targets()[0].val); }
+      }
+    );
+  });
+
+  if (duration > 0) {
+    setTimeout(() => gsap.to(el, {
+      opacity: 0, x: -60, duration: 0.45, ease: 'power2.in', onComplete: () => el.remove()
+    }), duration * 1000);
+  }
 }
 
 // ── TEST (?test=1) ─────────────────────────────────────────────────────────────

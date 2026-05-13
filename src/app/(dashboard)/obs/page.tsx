@@ -19,6 +19,7 @@ interface LogEntry   { id: string; text: string; ts: number; type: 'info' | 'suc
 interface ScoreState { team1: string; score1: number; team2: string; score2: number; map: string; visible: boolean; }
 interface PresetStep { overlay: string; data: Record<string, unknown>; delay: number; }
 interface Preset     { id: string; label: string; desc: string; icon: string; color: string; sequence: PresetStep[]; }
+interface TeamStanding { team_id: string; team_name: string; rank: number; wins: number; losses: number; points: number; maps_won: number; maps_lost: number; }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CS2 Maps
@@ -104,7 +105,12 @@ export default function OBSPage() {
     team2: 'RIVAL',   score2: 0,
     map: 'MIRAGE',    visible: false,
   });
-  const [urlCopied, setUrlCopied] = useState(false);
+  const [urlCopied,    setUrlCopied]    = useState(false);
+  const [standings,    setStandings]    = useState<TeamStanding[]>([]);
+  const [tsTeam1Id,    setTsTeam1Id]    = useState('');
+  const [tsTeam2Id,    setTsTeam2Id]    = useState('');
+  const [tsVisible,    setTsVisible]    = useState(false);
+  const [tsLabel,      setTsLabel]      = useState('LİG DURUMU');
   const logRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -125,6 +131,37 @@ export default function OBSPage() {
     channelRef.current = ch;
     return () => { ch.unsubscribe(); };
   }, [addLog]);
+
+  // ── Standings fetch ───────────────────────────────────────────────────────
+  useEffect(() => {
+    async function fetchStandings() {
+      const { data: matches } = await sb
+        .from('cs2_matches')
+        .select('team1_id,team2_id,winner_team_id,team1_maps_won,team2_maps_won')
+        .eq('status', 'FINISHED');
+      const { data: teams } = await sb.from('cs2_teams').select('id,name');
+      if (!matches || !teams) return;
+
+      const map: Record<string, { team_id: string; team_name: string; wins: number; losses: number; points: number; maps_won: number; maps_lost: number }> = {};
+      for (const t of teams) {
+        map[t.id] = { team_id: t.id, team_name: t.name, wins: 0, losses: 0, points: 0, maps_won: 0, maps_lost: 0 };
+      }
+      for (const m of matches) {
+        const t1 = map[m.team1_id]; const t2 = map[m.team2_id];
+        if (!t1 || !t2) continue;
+        t1.maps_won += m.team1_maps_won; t1.maps_lost += m.team2_maps_won;
+        t2.maps_won += m.team2_maps_won; t2.maps_lost += m.team1_maps_won;
+        t1.points   += m.team1_maps_won; t2.points    += m.team2_maps_won;
+        if (m.winner_team_id === m.team1_id) { t1.wins++; t2.losses++; }
+        else if (m.winner_team_id === m.team2_id) { t2.wins++; t1.losses++; }
+      }
+      const sorted = Object.values(map)
+        .sort((a, b) => b.points - a.points || (b.maps_won - b.maps_lost) - (a.maps_won - a.maps_lost))
+        .map((s, i) => ({ ...s, rank: i + 1 }));
+      setStandings(sorted);
+    }
+    fetchStandings();
+  }, []);
 
   // ── Core send ─────────────────────────────────────────────────────────────
   const sendTrigger = useCallback(async (overlay: string, data: Record<string, unknown>) => {
@@ -177,6 +214,26 @@ export default function OBSPage() {
     sendTrigger('score_hide', {});
     addLog('🎮 Skor tabelası kapatıldı', 'info');
     setScore((s) => ({ ...s, visible: false }));
+  }, [sendTrigger, addLog]);
+
+  // ── Team Stats ────────────────────────────────────────────────────────────
+  const sendTeamStats = useCallback(() => {
+    const t1 = standings.find(s => s.team_id === tsTeam1Id);
+    const t2 = standings.find(s => s.team_id === tsTeam2Id);
+    if (!t1 || !t2) return;
+    sendTrigger('team_stats', {
+      label: tsLabel,
+      team1: { name: t1.team_name, rank: t1.rank, wins: t1.wins, losses: t1.losses, points: t1.points },
+      team2: { name: t2.team_name, rank: t2.rank, wins: t2.wins, losses: t2.losses, points: t2.points },
+    });
+    addLog(`📊 Lig durumu: ${t1.team_name} vs ${t2.team_name}`);
+    setTsVisible(true);
+  }, [standings, tsTeam1Id, tsTeam2Id, tsLabel, sendTrigger, addLog]);
+
+  const hideTeamStats = useCallback(() => {
+    sendTrigger('team_stats_hide', {});
+    addLog('📊 Lig durumu overlay kapatıldı', 'info');
+    setTsVisible(false);
   }, [sendTrigger, addLog]);
 
   // ── Copy OBS URL ──────────────────────────────────────────────────────────
@@ -577,6 +634,111 @@ export default function OBSPage() {
           </div>
 
         </div>
+
+        {/* ── Lig Durumu Overlay ───────────────────────────────────────────────── */}
+        <div className="bg-[#141414] border border-[#2A2A2A] rounded-lg p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📊</span>
+              <p className="text-xs font-semibold text-[#FAFAFA]">Lig Durumu Overlay</p>
+              <span className={`text-[9px] font-mono px-2 py-0.5 rounded ${tsVisible ? 'bg-[#22C55E20] text-[#22C55E]' : 'bg-[#2A2A2A] text-[#4A4A4A]'}`}>
+                {tsVisible ? '● EKRANDA' : '○ GİZLİ'}
+              </span>
+            </div>
+            <span className="text-[9px] font-mono text-[#4A4A4A]">team_stats</span>
+          </div>
+
+          <div className="grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-3 items-end">
+            {/* Team 1 */}
+            <div className="space-y-1">
+              <p className="text-[10px] text-[#4A4A4A] uppercase tracking-widest">Takım 1</p>
+              <select
+                value={tsTeam1Id}
+                onChange={(e) => setTsTeam1Id(e.target.value)}
+                className="w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded px-3 py-2 text-sm text-[#FAFAFA] focus:outline-none focus:border-[#FF4D00] transition-colors"
+              >
+                <option value="">Seç...</option>
+                {standings.map(s => (
+                  <option key={s.team_id} value={s.team_id}>
+                    #{s.rank} {s.team_name} ({s.points}p)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Team 2 */}
+            <div className="space-y-1">
+              <p className="text-[10px] text-[#4A4A4A] uppercase tracking-widest">Takım 2</p>
+              <select
+                value={tsTeam2Id}
+                onChange={(e) => setTsTeam2Id(e.target.value)}
+                className="w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded px-3 py-2 text-sm text-[#FAFAFA] focus:outline-none focus:border-[#FF4D00] transition-colors"
+              >
+                <option value="">Seç...</option>
+                {standings.map(s => (
+                  <option key={s.team_id} value={s.team_id}>
+                    #{s.rank} {s.team_name} ({s.points}p)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Başlık */}
+            <div className="space-y-1">
+              <p className="text-[10px] text-[#4A4A4A] uppercase tracking-widest">Başlık</p>
+              <input
+                value={tsLabel}
+                onChange={(e) => setTsLabel(e.target.value)}
+                placeholder="LİG DURUMU"
+                className="w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded px-3 py-2 text-sm text-[#FAFAFA] placeholder:text-[#4A4A4A] focus:outline-none focus:border-[#FF4D00] transition-colors"
+              />
+            </div>
+
+            <button
+              onClick={sendTeamStats}
+              disabled={!ready || !tsTeam1Id || !tsTeam2Id}
+              className="py-2 px-5 rounded text-sm font-bold bg-[#FF4D00] text-white hover:bg-[#FF6B2C] transition-all disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {tsVisible ? 'Güncelle' : 'Göster'}
+            </button>
+
+            <button
+              onClick={hideTeamStats}
+              disabled={!ready || !tsVisible}
+              className="py-2 px-5 rounded text-sm font-bold border border-[#2A2A2A] text-[#6B6B6B] hover:bg-[#1F1F1F] hover:text-[#FAFAFA] transition-all disabled:opacity-30 whitespace-nowrap"
+            >
+              Gizle
+            </button>
+          </div>
+
+          {/* Mini önizleme */}
+          {(tsTeam1Id || tsTeam2Id) && (
+            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[#1F1F1F]">
+              {[tsTeam1Id, tsTeam2Id].map((id, i) => {
+                const t = standings.find(s => s.team_id === id);
+                if (!t) return (
+                  <div key={i} className="bg-[#0F0F0F] rounded border border-[#1F1F1F] p-3 flex items-center justify-center">
+                    <span className="text-[11px] text-[#3A3A3A]">— seçilmedi —</span>
+                  </div>
+                );
+                return (
+                  <div key={i} className="bg-[#0F0F0F] rounded border border-[#1F1F1F] p-3 flex items-center gap-3">
+                    <span className="text-2xl font-black text-[#FF4D00] font-mono w-9 text-center leading-none">#{t.rank}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-[#FAFAFA] truncate">{t.team_name}</p>
+                      <p className="text-[10px] text-[#4A4A4A] font-mono mt-0.5">{t.wins}G · {t.losses}M</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-black text-[#FF4D00] font-mono leading-none">{t.points}</p>
+                      <p className="text-[9px] text-[#4A4A4A] uppercase tracking-wider">puan</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );
