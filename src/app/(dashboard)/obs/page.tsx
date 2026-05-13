@@ -19,7 +19,7 @@ interface LogEntry   { id: string; text: string; ts: number; type: 'info' | 'suc
 interface ScoreState { team1: string; score1: number; team2: string; score2: number; map: string; visible: boolean; }
 interface PresetStep { overlay: string; data: Record<string, unknown>; delay: number; }
 interface Preset     { id: string; label: string; desc: string; icon: string; color: string; sequence: PresetStep[]; }
-interface TeamStanding { team_id: string; team_name: string; rank: number; wins: number; losses: number; points: number; maps_won: number; maps_lost: number; }
+interface TeamStanding { team_id: string; team_name: string; logo_url: string | null; rank: number; wins: number; losses: number; points: number; maps_won: number; maps_lost: number; }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CS2 Maps
@@ -139,12 +139,12 @@ export default function OBSPage() {
         .from('cs2_matches')
         .select('team1_id,team2_id,winner_team_id,team1_maps_won,team2_maps_won')
         .eq('status', 'FINISHED');
-      const { data: teams } = await sb.from('cs2_teams').select('id,name');
+      const { data: teams } = await sb.from('cs2_teams').select('id,name,logo_url');
       if (!matches || !teams) return;
 
-      const map: Record<string, { team_id: string; team_name: string; wins: number; losses: number; points: number; maps_won: number; maps_lost: number }> = {};
+      const map: Record<string, { team_id: string; team_name: string; logo_url: string | null; wins: number; losses: number; points: number; maps_won: number; maps_lost: number }> = {};
       for (const t of teams) {
-        map[t.id] = { team_id: t.id, team_name: t.name, wins: 0, losses: 0, points: 0, maps_won: 0, maps_lost: 0 };
+        map[t.id] = { team_id: t.id, team_name: t.name, logo_url: t.logo_url ?? null, wins: 0, losses: 0, points: 0, maps_won: 0, maps_lost: 0 };
       }
       for (const m of matches) {
         const t1 = map[m.team1_id]; const t2 = map[m.team2_id];
@@ -223,8 +223,8 @@ export default function OBSPage() {
     if (!t1 || !t2) return;
     sendTrigger('team_stats', {
       label: tsLabel,
-      team1: { name: t1.team_name, rank: t1.rank, wins: t1.wins, losses: t1.losses, points: t1.points },
-      team2: { name: t2.team_name, rank: t2.rank, wins: t2.wins, losses: t2.losses, points: t2.points },
+      team1: { name: t1.team_name, rank: t1.rank, wins: t1.wins, losses: t1.losses, points: t1.points, logoUrl: t1.logo_url || null },
+      team2: { name: t2.team_name, rank: t2.rank, wins: t2.wins, losses: t2.losses, points: t2.points, logoUrl: t2.logo_url || null },
     });
     addLog(`📊 Lig durumu: ${t1.team_name} vs ${t2.team_name}`);
     setTsVisible(true);
