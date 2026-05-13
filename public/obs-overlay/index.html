@@ -1222,11 +1222,14 @@ function showTeamStats({ team1, team2, label = 'LİG DURUMU', duration = 0 } = {
   // Point numbers count-up
   el.querySelectorAll('.ts-pts-num').forEach((numEl, i) => {
     const target = i === 0 ? team1.points : team2.points;
-    gsap.fromTo({ val: 0 }, { val: target },
-      { val: target, duration: 0.8, ease: 'power2.out', delay: 0.35 + i * 0.1,
-        onUpdate: function() { numEl.textContent = Math.round(this.targets()[0].val); }
-      }
-    );
+    const counter = { val: 0 };
+    gsap.to(counter, {
+      val: target,
+      duration: 0.8,
+      ease: 'power2.out',
+      delay: 0.35 + i * 0.1,
+      onUpdate: () => { numEl.textContent = Math.round(counter.val); },
+    });
   });
 
   if (duration > 0) {
@@ -1234,6 +1237,15 @@ function showTeamStats({ team1, team2, label = 'LİG DURUMU', duration = 0 } = {
       opacity: 0, x: -60, duration: 0.45, ease: 'power2.in', onComplete: () => el.remove()
     }), duration * 1000);
   }
+}
+
+// ── TEST (?test=1 veya ?ts=1) ─────────────────────────────────────────────────
+if (new URLSearchParams(location.search).get('ts')==='1') {
+  setTimeout(() => showTeamStats({
+    label: 'LİG DURUMU',
+    team1: { name: 'CRIMSON REAPERS', rank: 1, wins: 8, losses: 2, points: 20 },
+    team2: { name: 'GEGENPRES',       rank: 2, wins: 7, losses: 3, points: 16 },
+  }), 800);
 }
 
 // ── TEST (?test=1) ─────────────────────────────────────────────────────────────
