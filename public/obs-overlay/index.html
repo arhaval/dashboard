@@ -1329,52 +1329,138 @@ function showTeamStats({ team1, team2, label = 'LİG DURUMU', duration = 0 } = {
   `;
   root.appendChild(el);
 
-  const backdrop   = el.querySelector('.ts-backdrop');
-  const card       = el.querySelector('.ts-card');
-  const eyebrow    = el.querySelector('.ts-eyebrow');
-  const leftTeam   = el.querySelector('.ts-team.left');
-  const rightTeam  = el.querySelector('.ts-team.right');
-  const vsEl       = el.querySelector('.ts-vs');
-  const bottom     = el.querySelector('.ts-bottom');
+  const backdrop    = el.querySelector('.ts-backdrop');
+  const card        = el.querySelector('.ts-card');
+  const eyebrow     = el.querySelector('.ts-eyebrow');
+  const eyeLineL    = el.querySelector('.ts-eyebrow-line:not(.right)');
+  const eyeLineR    = el.querySelector('.ts-eyebrow-line.right');
+  const eyeText     = el.querySelector('.ts-eyebrow-text');
+  const leftTeam    = el.querySelector('.ts-team.left');
+  const rightTeam   = el.querySelector('.ts-team.right');
+  const vsEl        = el.querySelector('.ts-vs');
+  const vsLines     = el.querySelectorAll('.ts-vs-line');
+  const vsDots      = el.querySelectorAll('.ts-vs-dot');
+  const vsText      = el.querySelector('.ts-vs-text');
+  const bottom      = el.querySelector('.ts-bottom');
+  const btmLines    = el.querySelectorAll('.ts-bottom-line');
+  const btmTag      = el.querySelector('.ts-bottom-tag');
+  const rankBadges  = el.querySelectorAll('.ts-rank-badge');
+  const emblems     = el.querySelectorAll('.ts-emblem');
+  const teamNames   = el.querySelectorAll('.ts-team-name');
+  const stats       = el.querySelectorAll('.ts-stat');
+  const statVals    = el.querySelectorAll('.ts-stat-val');
+  const pointNums   = el.querySelectorAll('.ts-points-num');
+  const pointLabels = el.querySelectorAll('.ts-points-label');
 
-  // set initial state
-  gsap.set(el,        { opacity: 1 });
-  gsap.set(backdrop,  { opacity: 0 });
-  gsap.set(card,      { opacity: 0, scale: 0.96, y: 16 });
-  gsap.set(eyebrow,   { opacity: 0, y: -12 });
-  gsap.set(leftTeam,  { opacity: 0, x: -50 });
-  gsap.set(rightTeam, { opacity: 0, x:  50 });
-  gsap.set(vsEl,      { opacity: 0, scale: 0.6 });
-  gsap.set(bottom,    { opacity: 0, y: 10 });
+  // ── İlk durumlar ──────────────────────────────────────────────────────────
+  gsap.set(el,          { opacity: 1 });
+  gsap.set(backdrop,    { opacity: 0 });
+  gsap.set(card,        { opacity: 0 });
+  gsap.set(eyebrow,     { opacity: 0 });
+  gsap.set(eyeLineL,    { scaleX: 0, transformOrigin: 'left center' });
+  gsap.set(eyeLineR,    { scaleX: 0, transformOrigin: 'right center' });
+  gsap.set(eyeText,     { clipPath: 'inset(0 0 100% 0)' });
+  gsap.set(leftTeam,    { x: -100, opacity: 0 });
+  gsap.set(rightTeam,   { x:  100, opacity: 0 });
+  gsap.set(vsEl,        { opacity: 1 });
+  gsap.set(vsLines,     { scaleY: 0 });
+  if (vsLines[0]) gsap.set(vsLines[0], { transformOrigin: 'center top'    });
+  if (vsLines[1]) gsap.set(vsLines[1], { transformOrigin: 'center bottom' });
+  gsap.set(vsDots,      { opacity: 0, scale: 0 });
+  gsap.set(vsText,      { opacity: 0, scale: 0.3, letterSpacing: '28px' });
+  gsap.set(bottom,      { opacity: 1 });
+  gsap.set(btmLines,    { scaleX: 0, transformOrigin: 'center' });
+  gsap.set(btmTag,      { opacity: 0 });
+  gsap.set(rankBadges,  { opacity: 0, y: -12 });
+  gsap.set(emblems,     { opacity: 0, scale: 0.35 });
+  gsap.set(teamNames,   { clipPath: 'inset(0 0 100% 0)' });
+  gsap.set(stats,       { opacity: 0, y: 14 });
+  gsap.set(pointNums,   { opacity: 0 });
+  gsap.set(pointLabels, { opacity: 0 });
 
+  // ── Broadcast entry timeline ──────────────────────────────────────────────
   const tl = gsap.timeline();
-  tl.to(backdrop,  { opacity: 1,     duration: 0.4, ease: 'power2.out' })
-    .to(card,      { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: 'back.out(1.4)' }, 0.15)
-    .to(eyebrow,   { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' }, 0.25)
-    .to(leftTeam,  { opacity: 1, x: 0, duration: 0.5, ease: 'power3.out' }, 0.3)
-    .to(rightTeam, { opacity: 1, x: 0, duration: 0.5, ease: 'power3.out' }, 0.35)
-    .to(vsEl,      { opacity: 1, scale: 1, duration: 0.45, ease: 'back.out(2)' }, 0.5)
-    .to(bottom,    { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' }, 0.6);
 
-  // count-up for both team points
+  // 0 — Backdrop hızlı kararıyor
+  tl.to(backdrop, { opacity: 1, duration: 0.20, ease: 'power3.out' })
+
+  // 1 — Kart brightness burst (flash frame)
+  .set(card,  { opacity: 1 },  0.05)
+  .fromTo(card,
+    { filter: 'brightness(4) blur(8px)' },
+    { filter: 'brightness(1) blur(0px)', duration: 0.38, ease: 'power2.out' }, 0.05)
+
+  // 2 — Eyebrow çizgileri dışa çiziliyor, metin yukarı açılıyor
+  .to(eyebrow,  { opacity: 1, duration: 0.01 }, 0.07)
+  .to(eyeLineL, { scaleX: 1, duration: 0.42, ease: 'expo.out' }, 0.09)
+  .to(eyeLineR, { scaleX: 1, duration: 0.42, ease: 'expo.out' }, 0.12)
+  .to(eyeText,  { clipPath: 'inset(0 0 0% 0)', duration: 0.26, ease: 'power3.out' }, 0.23)
+
+  // 3 — İki takım ekrana çarpar (expo.out = hızlı başla, yumuşak dur)
+  .to(leftTeam,  { x: 0, opacity: 1, duration: 0.40, ease: 'expo.out' }, 0.15)
+  .to(rightTeam, { x: 0, opacity: 1, duration: 0.40, ease: 'expo.out' }, 0.19)
+
+  // 4 — Panel içi: rank → emblem → isim → istatistikler (sıralı)
+  .to(rankBadges, { opacity: 1, y: 0, duration: 0.24, ease: 'back.out(2)', stagger: 0.05 }, 0.35)
+  .to(emblems,    { opacity: 1, scale: 1, duration: 0.38, ease: 'back.out(1.8)', stagger: 0.05 }, 0.40)
+  .to(teamNames,  { clipPath: 'inset(0 0 0% 0)', duration: 0.30, ease: 'power3.out', stagger: 0.05 }, 0.50)
+  .to(stats,      { opacity: 1, y: 0, duration: 0.22, ease: 'power2.out', stagger: 0.07 }, 0.58)
+
+  // 5 — VS: dikey çizgiler çizilir → noktalar patlar → yazı letter-spacing collapse
+  .to(vsLines, { scaleY: 1, duration: 0.30, ease: 'power4.out', stagger: 0.06 }, 0.26)
+  .to(vsDots,  { opacity: 1, scale: 1, duration: 0.22, ease: 'back.out(3)', stagger: 0.07 }, 0.44)
+  .fromTo(vsText,
+    { opacity: 0, scale: 0.3, letterSpacing: '28px' },
+    { opacity: 1, scale: 1,   letterSpacing: '4px',  duration: 0.40, ease: 'back.out(1.7)' }, 0.50)
+
+  // 6 — Puan numaraları görünür (count-up başlar)
+  .to(pointNums,   { opacity: 1, duration: 0.16 }, 0.58)
+  .to(pointLabels, { opacity: 1, duration: 0.16 }, 0.63)
+
+  // 7 — Alt çizgiler merkezden dışa çizilir, tag belirir
+  .to(btmLines, { scaleX: 1, duration: 0.44, ease: 'expo.out' }, 0.66)
+  .to(btmTag,   { opacity: 1, duration: 0.22 }, 0.82);
+
+  // ── Count-up: puanlar ─────────────────────────────────────────────────────
   [leftTeam, rightTeam].forEach((panel, i) => {
     const target = i === 0 ? team1.points : team2.points;
     const numEl  = panel.querySelector('.ts-points-num');
     if (!numEl) return;
+    numEl.textContent = '0';
     const counter = { val: 0 };
     gsap.to(counter, {
-      val: target, duration: 1.0, ease: 'power2.out', delay: 0.7,
+      val: target, duration: 1.5, ease: 'expo.out', delay: 0.60,
       onUpdate: () => { numEl.textContent = Math.round(counter.val); },
     });
   });
 
+  // ── Count-up: galibiyet & mağlubiyet ─────────────────────────────────────
+  statVals.forEach(statEl => {
+    const target = parseInt(statEl.textContent, 10);
+    if (isNaN(target) || target === 0) return;
+    statEl.textContent = '0';
+    const counter = { val: 0 };
+    gsap.to(counter, {
+      val: target, duration: 0.90, ease: 'expo.out', delay: 0.60,
+      onUpdate: () => { statEl.textContent = Math.round(counter.val); },
+    });
+  });
+
+  // ── Exit (broadcast reverse) ──────────────────────────────────────────────
   if (duration > 0) {
     setTimeout(() => {
-      gsap.to(backdrop, { opacity: 0, duration: 0.4, ease: 'power2.in' });
-      gsap.to(card, {
-        opacity: 0, scale: 0.94, y: -16, duration: 0.45, ease: 'power2.in',
-        onComplete: () => el.remove(),
-      });
+      const etl = gsap.timeline({ onComplete: () => el.remove() });
+      etl
+        .to(btmLines,   { scaleX: 0, duration: 0.20, ease: 'power3.in' })
+        .to(btmTag,     { opacity: 0, duration: 0.12 }, 0)
+        .to(vsEl,       { opacity: 0, duration: 0.18, ease: 'power2.in' }, 0)
+        .to(leftTeam,   { x: -120, opacity: 0, duration: 0.30, ease: 'power3.in' }, 0.04)
+        .to(rightTeam,  { x:  120, opacity: 0, duration: 0.30, ease: 'power3.in' }, 0.07)
+        .to(eyebrow,    { opacity: 0, duration: 0.18 }, 0.06)
+        .fromTo(card,
+          { filter: 'brightness(1)' },
+          { filter: 'brightness(4)', opacity: 0, duration: 0.22, ease: 'power3.in' }, 0.14)
+        .to(backdrop,   { opacity: 0, duration: 0.24, ease: 'power2.in' }, 0.16);
     }, duration * 1000);
   }
 }
