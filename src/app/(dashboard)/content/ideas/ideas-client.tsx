@@ -3,12 +3,12 @@
 import { useState, useTransition } from 'react';
 import {
   Plus, Loader2, CheckCircle2, XCircle, Clock, Send,
-  Instagram, Youtube, Twitter, Tv2, Pencil, Trash2,
+  Instagram, Youtube, Twitter, Tv2, Trash2,
 } from 'lucide-react';
 import {
   createPostAction, updatePostStatusAction, deletePostAction,
-  assignEditorAction, assignDesignerAction,
 } from './actions';
+import { CaptionCell } from '@/app/(dashboard)/sosyal-medya/caption-modal';
 import type { SpecialPost, User, PostStatus } from '@/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -189,29 +189,16 @@ function StatusBadge({ status }: { status: PostStatus }) {
 // ── Post Card ─────────────────────────────────────────────────────────────────
 
 function PostCard({
-  post, isAdmin, allUsers, onRefresh,
+  post, isAdmin, onRefresh,
 }: {
   post: SpecialPost;
   isAdmin: boolean;
-  allUsers: User[];
   onRefresh: () => void;
 }) {
   const [pending, start] = useTransition();
-  const [expanded, setExpanded] = useState(false);
-
-  const editors   = allUsers.filter(u => u.role === 'EDITOR');
-  const designers = allUsers.filter(u => u.role === 'GRAFIKER');
 
   function changeStatus(status: PostStatus) {
     start(async () => { await updatePostStatusAction(post.id, status); onRefresh(); });
-  }
-
-  function changeEditor(editorId: string) {
-    start(async () => { await assignEditorAction(post.id, editorId || null); onRefresh(); });
-  }
-
-  function changeDesigner(designerId: string) {
-    start(async () => { await assignDesignerAction(post.id, designerId || null); onRefresh(); });
   }
 
   function handleDelete() {
@@ -250,33 +237,12 @@ function PostCard({
         ))}
       </div>
 
-      {/* Caption preview */}
-      {post.caption && (
-        <div>
-          <p className="text-xs leading-relaxed line-clamp-2"
-            style={{ color: 'var(--color-text-secondary)' }}>
-            {post.caption}
-          </p>
-          {post.caption.length > 100 && (
-            <button onClick={() => setExpanded(x => !x)}
-              className="text-[11px] mt-0.5 underline"
-              style={{ color: 'var(--color-text-muted)' }}>
-              {expanded ? 'Gizle' : 'Devamını gör'}
-            </button>
-          )}
-          {expanded && (
-            <p className="text-xs leading-relaxed mt-1"
-              style={{ color: 'var(--color-text-secondary)' }}>
-              {post.caption}
-            </p>
-          )}
-        </div>
-      )}
+      {/* Caption — truncated + modal */}
+      <CaptionCell title={post.title} caption={post.caption} className="text-xs leading-relaxed block" />
 
-      {/* Admin controls */}
+      {/* Admin: durum butonları + sil */}
       {isAdmin && (
         <div className="pt-2 space-y-2 border-t" style={{ borderColor: 'var(--color-border)' }}>
-          {/* Durum */}
           <div className="flex flex-wrap gap-1.5">
             {(Object.keys(STATUS_META) as PostStatus[]).map(s => (
               <button key={s} disabled={post.status === s || pending}
@@ -292,35 +258,6 @@ function PostCard({
             ))}
           </div>
 
-          {/* Editör & Grafiker ataması */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide mb-1"
-                style={{ color: 'var(--color-text-muted)' }}>Editör</p>
-              <select
-                value={post.editor_id ?? ''}
-                onChange={e => changeEditor(e.target.value)}
-                className="w-full text-xs rounded-[var(--radius-sm)] border px-2 py-1.5"
-                style={{ background: 'var(--color-bg-primary)', borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}>
-                <option value="">— Atanmadı —</option>
-                {editors.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-              </select>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide mb-1"
-                style={{ color: 'var(--color-text-muted)' }}>Grafiker</p>
-              <select
-                value={post.designer_id ?? ''}
-                onChange={e => changeDesigner(e.target.value)}
-                className="w-full text-xs rounded-[var(--radius-sm)] border px-2 py-1.5"
-                style={{ background: 'var(--color-bg-primary)', borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}>
-                <option value="">— Atanmadı —</option>
-                {designers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Sil */}
           <div className="flex justify-end">
             <button onClick={handleDelete} disabled={pending}
               className="flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-[var(--radius-sm)] transition-colors"
@@ -331,10 +268,11 @@ function PostCard({
         </div>
       )}
 
-      {/* Atama bilgisi (non-admin) */}
+      {/* Atanmış ekip bilgisi (non-admin için) */}
       {!isAdmin && (post.editor?.full_name || post.designer?.full_name) && (
-        <div className="flex gap-3 pt-2 border-t text-xs" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
-          {post.editor?.full_name   && <span><Pencil size={10} className="inline mr-1" />{post.editor.full_name}</span>}
+        <div className="flex gap-3 pt-2 border-t text-xs"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
+          {post.editor?.full_name   && <span>✏️ {post.editor.full_name}</span>}
           {post.designer?.full_name && <span>🎨 {post.designer.full_name}</span>}
         </div>
       )}
@@ -435,7 +373,6 @@ export function IdeasClient({
               key={post.id}
               post={post}
               isAdmin={isAdmin}
-              allUsers={allUsers}
               onRefresh={refresh}
             />
           ))}
