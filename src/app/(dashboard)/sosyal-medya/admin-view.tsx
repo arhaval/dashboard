@@ -2,11 +2,10 @@
 
 import { useState, useTransition } from 'react';
 import {
-  CheckCircle2, XCircle, ChevronDown, Eye, Heart,
-  MessageCircle, Share2, Bookmark, BarChart3,
-  Trophy, Users, Layers, Loader2,
+  CheckCircle2, XCircle, ChevronDown,
+  Trophy, Users, Layers, Loader2, Pencil, X,
 } from 'lucide-react';
-import { reviewContentIdea } from '@/app/actions/social-actions';
+import { reviewContentIdea, updatePostMetrics } from '@/app/actions/social-actions';
 import type { SpecialPost, User, PostStatus } from '@/types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -236,83 +235,243 @@ function ApprovalRow({
   );
 }
 
+// ── Metrics Update Modal ──────────────────────────────────────────────────────
+
+function MetricsModal({ post, onClose }: { post: SpecialPost; onClose: () => void }) {
+  const [pending, start] = useTransition();
+  const [done,  setDone]  = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const inputCls = [
+    'w-full rounded-[var(--radius-md)] border px-3 py-2 text-sm',
+    'bg-[var(--color-bg-primary)] border-[var(--color-border)]',
+    'text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]',
+    'focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:border-transparent',
+  ].join(' ');
+
+  const FIELDS: { name: string; label: string; icon: string; defaultVal: number }[] = [
+    { name: 'views',    label: 'Görüntülenme', icon: '👁️',  defaultVal: post.views    },
+    { name: 'likes',    label: 'Beğeni',        icon: '❤️',  defaultVal: post.likes    },
+    { name: 'comments', label: 'Yorum',          icon: '💬', defaultVal: post.comments },
+    { name: 'shares',   label: 'Paylaşım',       icon: '↗️', defaultVal: post.shares   },
+    { name: 'saves',    label: 'Yer İşareti',    icon: '🔖', defaultVal: post.saves    },
+  ];
+
+  function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+
+    start(async () => {
+      try {
+        const result = await updatePostMetrics(post.id, {
+          views:    Number(fd.get('views')),
+          likes:    Number(fd.get('likes')),
+          comments: Number(fd.get('comments')),
+          shares:   Number(fd.get('shares')),
+          saves:    Number(fd.get('saves')),
+        });
+        if (!result.success) { setError(result.error ?? 'Hata oluştu.'); return; }
+        setDone(true);
+        setTimeout(onClose, 900);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Sunucu hatası.');
+      }
+    });
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+        <div className="w-full max-w-md pointer-events-auto rounded-[var(--radius-lg)] overflow-hidden shadow-2xl"
+          style={{ background: 'var(--color-bg-secondary)' }}>
+
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4"
+            style={{ borderBottom: '1px solid var(--color-border)' }}>
+            <div>
+              <h2 className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
+                Verileri Güncelle
+              </h2>
+              <p className="text-xs mt-0.5 truncate max-w-[280px]"
+                style={{ color: 'var(--color-text-muted)' }}>
+                {post.title}
+              </p>
+            </div>
+            <button onClick={onClose}
+              className="p-1.5 rounded-[var(--radius-md)] transition-colors hover:bg-white/5"
+              style={{ color: 'var(--color-text-muted)' }}>
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={submit} className="px-6 py-5">
+            <div className="grid grid-cols-2 gap-3">
+              {FIELDS.map(f => (
+                <div key={f.name} className={`flex flex-col gap-1.5 ${f.name === 'views' ? 'col-span-2' : ''}`}>
+                  <label className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5"
+                    style={{ color: 'var(--color-text-secondary)' }}>
+                    <span>{f.icon}</span> {f.label}
+                  </label>
+                  <input
+                    name={f.name}
+                    type="number"
+                    min="0"
+                    defaultValue={f.defaultVal}
+                    required
+                    className={inputCls}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Etkileşim oranı bilgisi */}
+            <p className="mt-3 text-[11px] px-3 py-2 rounded-[var(--radius-sm)]"
+              style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-muted)' }}>
+              Etkileşim Oranı otomatik hesaplanır: ((beğeni + yorum + yer işareti) ÷ görüntülenme) × 100
+            </p>
+
+            {error && (
+              <p className="mt-3 text-xs px-3 py-2 rounded-[var(--radius-md)]"
+                style={{ color: 'var(--color-error)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                {error}
+              </p>
+            )}
+
+            {done && (
+              <p className="mt-3 text-xs px-3 py-2 rounded-[var(--radius-md)] text-center font-semibold"
+                style={{ color: 'var(--color-success)', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)' }}>
+                ✓ Veriler güncellendi
+              </p>
+            )}
+
+            <div className="flex gap-3 mt-5">
+              <button type="button" onClick={onClose}
+                className="flex-1 py-2.5 rounded-[var(--radius-md)] text-sm font-semibold border transition-colors"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}>
+                İptal
+              </button>
+              <button type="submit" disabled={pending || done}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[var(--radius-md)] text-sm font-bold text-white transition-opacity disabled:opacity-60"
+                style={{ background: 'var(--color-accent)' }}>
+                {pending
+                  ? <><Loader2 size={14} className="animate-spin" /> Kaydediliyor…</>
+                  : done ? '✓ Kaydedildi' : 'Verileri Kaydet'
+                }
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Full Management Table ─────────────────────────────────────────────────────
 
 function ManagementTable({ posts }: { posts: SpecialPost[] }) {
-  return (
-    <div className="rounded-[var(--radius-md)] border overflow-x-auto"
-      style={{ borderColor: 'var(--color-border)' }}>
-      <table className="w-full text-sm min-w-[900px]">
-        <thead>
-          <tr style={{ background: 'var(--color-bg-tertiary)', borderBottom: '1px solid var(--color-border)' }}>
-            {['İçerik', 'Yazar', 'Ekip', 'Platformlar', 'Durum', 'İzl.', 'Beğ.', 'Yorum', 'Paylaşım', 'Kaydedilen', 'ETKİLEŞİM'].map(h => (
-              <th key={h} className="text-left px-3 py-3 text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap"
-                style={{ color: 'var(--color-text-muted)' }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {posts.map((post, i) => (
-            <tr key={post.id}
-              style={{
-                background: i % 2 === 0 ? 'var(--color-bg-secondary)' : 'var(--color-bg-primary)',
-                borderBottom: '1px solid var(--color-border)',
-              }}>
-              <td className="px-3 py-3">
-                <p className="font-medium text-xs truncate max-w-[160px]"
-                  style={{ color: 'var(--color-text-primary)' }}>{post.title}</p>
-                <p className="text-[11px] truncate max-w-[160px]"
-                  style={{ color: 'var(--color-text-muted)' }}>{post.content_type}</p>
-              </td>
-              <td className="px-3 py-3">
-                <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                  {post.author?.full_name ?? '—'}
-                </p>
-              </td>
-              <td className="px-3 py-3">
-                <div className="text-[11px] space-y-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                  {post.editor?.full_name   && <p>✏️ {post.editor.full_name}</p>}
-                  {post.designer?.full_name && <p>🎨 {post.designer.full_name}</p>}
-                  {!post.editor && !post.designer && <p>—</p>}
-                </div>
-              </td>
-              <td className="px-3 py-3">
-                <p className="text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
-                  {post.platforms.join(', ')}
-                </p>
-              </td>
-              <td className="px-3 py-3">
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap"
-                  style={{
-                    color: STATUS_COLORS[post.status],
-                    background: `color-mix(in srgb, ${STATUS_COLORS[post.status]} 12%, transparent)`,
-                  }}>
-                  {STATUS_LABELS[post.status]}
-                </span>
-              </td>
-              {[post.views, post.likes, post.comments, post.shares, post.saves].map((v, idx) => (
-                <td key={idx} className="px-3 py-3 text-xs font-medium"
-                  style={{ color: 'var(--color-text-primary)' }}>
-                  {fmt(v)}
-                </td>
-              ))}
-              <td className="px-3 py-3">
-                <span className="text-xs font-bold"
-                  style={{ color: post.engagement_rate >= 5 ? 'var(--color-success)' : 'var(--color-text-primary)' }}>
-                  %{post.engagement_rate.toFixed(1)}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+  const [editingPost, setEditingPost] = useState<SpecialPost | null>(null);
 
-      {posts.length === 0 && (
-        <div className="py-10 text-center" style={{ color: 'var(--color-text-muted)' }}>
-          <p className="text-sm">Henüz içerik yok.</p>
-        </div>
+  return (
+    <>
+      <div className="rounded-[var(--radius-md)] border overflow-x-auto"
+        style={{ borderColor: 'var(--color-border)' }}>
+        <table className="w-full text-sm min-w-[1000px]">
+          <thead>
+            <tr style={{ background: 'var(--color-bg-tertiary)', borderBottom: '1px solid var(--color-border)' }}>
+              {['İçerik', 'Yazar', 'Ekip', 'Platformlar', 'Durum', 'İzl.', 'Beğ.', 'Yorum', 'Paylaşım', 'Kaydedilen', 'ETKİLEŞİM', ''].map(h => (
+                <th key={h} className="text-left px-3 py-3 text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap"
+                  style={{ color: 'var(--color-text-muted)' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {posts.map((post, i) => (
+              <tr key={post.id}
+                style={{
+                  background: i % 2 === 0 ? 'var(--color-bg-secondary)' : 'var(--color-bg-primary)',
+                  borderBottom: '1px solid var(--color-border)',
+                }}>
+                <td className="px-3 py-3">
+                  <p className="font-medium text-xs truncate max-w-[160px]"
+                    style={{ color: 'var(--color-text-primary)' }}>{post.title}</p>
+                  <p className="text-[11px] truncate max-w-[160px]"
+                    style={{ color: 'var(--color-text-muted)' }}>{post.content_type}</p>
+                </td>
+                <td className="px-3 py-3">
+                  <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                    {post.author?.full_name ?? '—'}
+                  </p>
+                </td>
+                <td className="px-3 py-3">
+                  <div className="text-[11px] space-y-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                    {post.editor?.full_name   && <p>✏️ {post.editor.full_name}</p>}
+                    {post.designer?.full_name && <p>🎨 {post.designer.full_name}</p>}
+                    {!post.editor && !post.designer && <p>—</p>}
+                  </div>
+                </td>
+                <td className="px-3 py-3">
+                  <p className="text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
+                    {post.platforms.join(', ')}
+                  </p>
+                </td>
+                <td className="px-3 py-3">
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap"
+                    style={{
+                      color: STATUS_COLORS[post.status],
+                      background: `color-mix(in srgb, ${STATUS_COLORS[post.status]} 12%, transparent)`,
+                    }}>
+                    {STATUS_LABELS[post.status]}
+                  </span>
+                </td>
+                {[post.views, post.likes, post.comments, post.shares, post.saves].map((v, idx) => (
+                  <td key={idx} className="px-3 py-3 text-xs font-medium tabular-nums"
+                    style={{ color: 'var(--color-text-primary)' }}>
+                    {fmt(v)}
+                  </td>
+                ))}
+                <td className="px-3 py-3">
+                  <span className="text-xs font-bold"
+                    style={{ color: post.engagement_rate >= 5 ? 'var(--color-success)' : 'var(--color-text-primary)' }}>
+                    %{post.engagement_rate.toFixed(1)}
+                  </span>
+                </td>
+                {/* Düzenle butonu */}
+                <td className="px-3 py-3">
+                  <button
+                    onClick={() => setEditingPost(post)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-[var(--radius-sm)] text-[11px] font-semibold border transition-colors hover:opacity-80"
+                    style={{
+                      borderColor: 'var(--color-border)',
+                      color: 'var(--color-text-secondary)',
+                      background: 'var(--color-bg-tertiary)',
+                    }}
+                    title="Verileri Güncelle">
+                    <Pencil size={11} /> Güncelle
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {posts.length === 0 && (
+          <div className="py-10 text-center" style={{ color: 'var(--color-text-muted)' }}>
+            <p className="text-sm">Henüz içerik yok.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Metrics Modal */}
+      {editingPost && (
+        <MetricsModal
+          post={editingPost}
+          onClose={() => setEditingPost(null)}
+        />
       )}
-    </div>
+    </>
   );
 }
 

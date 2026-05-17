@@ -121,6 +121,7 @@ export async function reviewContentIdea(
   }
 
   revalidatePath('/content/ideas');
+  revalidatePath('/sosyal-medya');
   return { success: true };
 }
 
@@ -161,6 +162,7 @@ export async function updatePostMetrics(
   if (result.error) return { success: false, error: result.error };
 
   revalidatePath('/content/ideas');
+  revalidatePath('/sosyal-medya');
   return { success: true, engagementRate };
 }
 
