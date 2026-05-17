@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { reviewContentIdea, updatePostMetrics } from '@/app/actions/social-actions';
 import { CaptionCell } from './caption-modal';
+import { getContentTypeLabel } from './platform-content-types';
 import type { SpecialPost, User, PostStatus } from '@/types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -138,7 +139,7 @@ function ApprovalRow({ post }: { post: SpecialPost }) {
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{post.author?.full_name}</span>
             <span style={{ color: 'var(--color-border)' }}>·</span>
-            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{post.content_type}</span>
+            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{getContentTypeLabel(post.content_type)}</span>
             <span style={{ color: 'var(--color-border)' }}>·</span>
             <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{post.platforms.join(', ')}</span>
           </div>
@@ -326,7 +327,7 @@ function ManagementTable({ posts }: { posts: SpecialPost[] }) {
                   <p className="font-medium text-xs truncate max-w-[160px]"
                     style={{ color: 'var(--color-text-primary)' }}>{post.title}</p>
                   <p className="text-[11px]"
-                    style={{ color: 'var(--color-text-muted)' }}>{post.content_type}</p>
+                    style={{ color: 'var(--color-text-muted)' }}>{getContentTypeLabel(post.content_type)}</p>
                   <CaptionCell title={post.title} caption={post.caption} className="text-[11px] mt-0.5 block" />
                 </td>
                 <td className="px-3 py-3">

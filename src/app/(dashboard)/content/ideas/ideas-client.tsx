@@ -9,22 +9,13 @@ import {
   createPostAction, updatePostStatusAction, deletePostAction,
 } from './actions';
 import { CaptionCell } from '@/app/(dashboard)/sosyal-medya/caption-modal';
+import { getContentTypes, getContentTypeLabel } from '@/app/(dashboard)/sosyal-medya/platform-content-types';
 import type { SpecialPost, User, PostStatus } from '@/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PLATFORMS = ['Instagram', 'YouTube', 'X', 'Twitch', 'TikTok'];
 
-const CONTENT_TYPES = [
-  'Kısa Video / Reels',
-  'Uzun Video',
-  'Fotoğraf / Post',
-  'Story',
-  'Canlı Yayın Klibi',
-  'İnfografik',
-  'Thread / Yazı',
-  'Diğer',
-];
 
 const STATUS_META: Record<PostStatus, { label: string; color: string; icon: React.ReactNode }> = {
   ONAY_BEKLIYOR: { label: 'Onay Bekliyor', color: 'var(--color-warning)',  icon: <Clock size={12} /> },
@@ -70,6 +61,7 @@ function AddPostModal({ open, onClose }: { open: boolean; onClose: () => void })
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
+  const contentTypes = getContentTypes(selectedPlatforms);
 
   if (!open) return null;
 
@@ -137,9 +129,20 @@ function AddPostModal({ open, onClose }: { open: boolean; onClose: () => void })
             </Field>
 
             <Field label="İçerik Türü" required>
-              <select name="content_type" required className={inputCls}>
-                {CONTENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              <select name="content_type" required className={inputCls}
+                disabled={contentTypes.length === 0}>
+                {contentTypes.length === 0
+                  ? <option value="">— Önce platform seç —</option>
+                  : contentTypes.map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))
+                }
               </select>
+              {selectedPlatforms.length > 1 && (
+                <p className="text-[11px] mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                  {selectedPlatforms.join(' + ')} için uygun formatlar gösteriliyor
+                </p>
+              )}
             </Field>
 
             <Field label="Açıklama / Caption">
@@ -227,7 +230,7 @@ function PostCard({
       <div className="flex flex-wrap gap-1.5">
         <span className="px-2 py-0.5 rounded-full text-[11px] font-medium"
           style={{ background: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>
-          {post.content_type}
+          {getContentTypeLabel(post.content_type)}
         </span>
         {post.platforms.map(p => (
           <span key={p} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px]"

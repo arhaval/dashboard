@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { submitContentIdea, claimPost } from '@/app/actions/social-actions';
 import { CaptionCell } from './caption-modal';
+import { getContentTypes, getContentTypeLabel } from './platform-content-types';
 import type { SpecialPost, User, PostStatus } from '@/types';
 import type { CreatorDashboardData } from '@/app/actions/social-actions';
 
@@ -19,11 +20,6 @@ const PLATFORMS = [
   { id: 'X',         label: 'X',         icon: <Twitter size={14} />   },
   { id: 'Twitch',    label: 'Twitch',    icon: <Tv2 size={14} />       },
   { id: 'TikTok',    label: 'TikTok',    icon: <Send size={14} />      },
-];
-
-const CONTENT_TYPES = [
-  'Kısa Video / Reels', 'Uzun Video', 'Fotoğraf / Post',
-  'Story', 'Canlı Yayın Klibi', 'İnfografik', 'Thread / Yazı', 'Diğer',
 ];
 
 const STATUS_LABELS: Record<PostStatus, string> = {
@@ -80,6 +76,8 @@ function NewIdeaModal({ open, onClose }: { open: boolean; onClose: () => void })
   const [platforms, setPlatforms] = useState<string[]>([]);
   const [error, setError]   = useState<string | null>(null);
   const [done,  setDone]    = useState(false);
+
+  const contentTypes = getContentTypes(platforms);
 
   if (!open) return null;
 
@@ -181,9 +179,20 @@ function NewIdeaModal({ open, onClose }: { open: boolean; onClose: () => void })
                 style={{ color: 'var(--color-text-secondary)' }}>
                 İçerik Türü <span style={{ color: 'var(--color-error)' }}>*</span>
               </label>
-              <select name="content_type" required className={inputCls}>
-                {CONTENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              <select name="content_type" required className={inputCls}
+                disabled={contentTypes.length === 0}>
+                {contentTypes.length === 0
+                  ? <option value="">— Önce platform seç —</option>
+                  : contentTypes.map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))
+                }
               </select>
+              {platforms.length > 1 && (
+                <p className="text-[11px] mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                  {platforms.join(' + ')} için uygun formatlar listeleniyor
+                </p>
+              )}
             </div>
 
             {/* Caption / Açıklama */}
@@ -280,7 +289,7 @@ function PostsTable({ posts }: { posts: SpecialPost[] }) {
               </td>
               <td className="px-4 py-3">
                 <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                  {post.content_type}
+                  {getContentTypeLabel(post.content_type)}
                 </span>
               </td>
               <td className="px-4 py-3">
