@@ -6,6 +6,7 @@ import {
   Trophy, Users, Layers, Loader2, Pencil, X,
 } from 'lucide-react';
 import { reviewContentIdea, updatePostMetrics } from '@/app/actions/social-actions';
+import { CaptionCell } from './caption-modal';
 import type { SpecialPost, User, PostStatus } from '@/types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -141,11 +142,7 @@ function ApprovalRow({ post }: { post: SpecialPost }) {
             <span style={{ color: 'var(--color-border)' }}>·</span>
             <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{post.platforms.join(', ')}</span>
           </div>
-          {post.caption && (
-            <p className="text-xs mt-1 line-clamp-1" style={{ color: 'var(--color-text-muted)' }}>
-              {post.caption}
-            </p>
-          )}
+          <CaptionCell title={post.title} caption={post.caption} className="text-xs mt-1 block" />
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -328,8 +325,9 @@ function ManagementTable({ posts }: { posts: SpecialPost[] }) {
                 <td className="px-3 py-3">
                   <p className="font-medium text-xs truncate max-w-[160px]"
                     style={{ color: 'var(--color-text-primary)' }}>{post.title}</p>
-                  <p className="text-[11px] truncate max-w-[160px]"
+                  <p className="text-[11px]"
                     style={{ color: 'var(--color-text-muted)' }}>{post.content_type}</p>
+                  <CaptionCell title={post.title} caption={post.caption} className="text-[11px] mt-0.5 block" />
                 </td>
                 <td className="px-3 py-3">
                   <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>

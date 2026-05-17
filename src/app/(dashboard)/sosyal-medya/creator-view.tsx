@@ -7,6 +7,7 @@ import {
   Instagram, Youtube, Twitter, Tv2, Send,
 } from 'lucide-react';
 import { submitContentIdea, claimPost } from '@/app/actions/social-actions';
+import { CaptionCell } from './caption-modal';
 import type { SpecialPost, User, PostStatus } from '@/types';
 import type { CreatorDashboardData } from '@/app/actions/social-actions';
 
@@ -265,10 +266,7 @@ function PostsTable({ posts }: { posts: SpecialPost[] }) {
               <td className="px-4 py-3">
                 <p className="font-medium truncate max-w-[200px]"
                   style={{ color: 'var(--color-text-primary)' }}>{post.title}</p>
-                {post.caption && (
-                  <p className="text-xs truncate max-w-[200px] mt-0.5"
-                    style={{ color: 'var(--color-text-muted)' }}>{post.caption}</p>
-                )}
+                <CaptionCell title={post.title} caption={post.caption} className="text-xs mt-0.5 block" />
               </td>
               <td className="px-4 py-3">
                 <div className="flex gap-1 flex-wrap">
@@ -368,9 +366,7 @@ function JobCard({ post }: { post: SpecialPost }) {
               </>
             )}
           </div>
-          {post.caption && (
-            <p className="text-xs mt-1 line-clamp-1" style={{ color: 'var(--color-text-muted)' }}>{post.caption}</p>
-          )}
+          <CaptionCell title={post.title} caption={post.caption} className="text-xs mt-1 block" />
           {error && <p className="text-xs mt-1" style={{ color: 'var(--color-error)' }}>{error}</p>}
         </div>
         <button onClick={claim} disabled={pending}
