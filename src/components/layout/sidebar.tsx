@@ -63,6 +63,7 @@ const navSections: NavSection[] = [
       { label: 'İçerik Hedefleri', href: '/content/goals', icon: Target },
       { label: 'Haftalık Program', href: '/content/schedule', icon: CalendarDays },
       { label: tr.nav.social, href: '/social', icon: BarChart3 },
+      { label: 'İçerik Yönetimi', href: '/sosyal-medya', icon: Users },
       { label: tr.cs2.nav, href: '/matches', icon: Crosshair },
       { label: tr.cs2.dathost.operations, href: '/matches/operations', icon: Radio, adminOnly: true },
     ],
