@@ -6,7 +6,7 @@ import {
   TrendingUp, FileText, BarChart3,
   Instagram, Youtube, Twitter, Tv2, Send,
 } from 'lucide-react';
-import { submitContentIdea } from '@/app/actions/social-actions';
+import { submitContentIdea, claimPost } from '@/app/actions/social-actions';
 import type { SpecialPost, User, PostStatus } from '@/types';
 import type { CreatorDashboardData } from '@/app/actions/social-actions';
 
@@ -322,30 +322,121 @@ function PostsTable({ posts }: { posts: SpecialPost[] }) {
   );
 }
 
+// ── İş Havuzu (Editör & Grafiker) ────────────────────────────────────────────
+
+function JobCard({ post }: { post: SpecialPost }) {
+  const [pending, start] = useTransition();
+  const [claimed, setClaimed] = useState(false);
+  const [error,   setError  ] = useState<string | null>(null);
+
+  function claim() {
+    start(async () => {
+      const result = await claimPost(post.id);
+      if (!result.success) { setError(result.error ?? 'Hata oluştu.'); return; }
+      setClaimed(true);
+    });
+  }
+
+  if (claimed) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-3 rounded-[var(--radius-md)]"
+        style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)' }}>
+        <span style={{ color: 'var(--color-success)' }}>✓</span>
+        <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+          <span className="font-bold">{post.title}</span> — Üzerinize alındı
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-[var(--radius-md)] border"
+      style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg-secondary)', opacity: pending ? 0.6 : 1 }}>
+      <div className="flex items-center gap-4 px-4 py-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text-primary)' }}>
+            {post.title}
+          </p>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{post.content_type}</span>
+            <span style={{ color: 'var(--color-border)' }}>·</span>
+            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{post.platforms.join(', ')}</span>
+            {post.author?.full_name && (
+              <>
+                <span style={{ color: 'var(--color-border)' }}>·</span>
+                <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{post.author.full_name}</span>
+              </>
+            )}
+          </div>
+          {post.caption && (
+            <p className="text-xs mt-1 line-clamp-1" style={{ color: 'var(--color-text-muted)' }}>{post.caption}</p>
+          )}
+          {error && <p className="text-xs mt-1" style={{ color: 'var(--color-error)' }}>{error}</p>}
+        </div>
+        <button onClick={claim} disabled={pending}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-[var(--radius-md)] text-white flex-shrink-0 disabled:opacity-50"
+          style={{ background: 'var(--color-accent)' }}>
+          {pending && <Loader2 size={12} className="animate-spin" />}
+          İşi Üzerime Al
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function JobPool({ posts, userRole }: { posts: SpecialPost[]; userRole: string }) {
+  const available = posts.filter(p =>
+    p.status === 'ONAYLANDI' &&
+    (userRole === 'EDITOR'   ? !p.editor_id   : true) &&
+    (userRole === 'GRAFIKER' ? !p.designer_id : true)
+  );
+
+  if (available.length === 0) return null;
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-3">
+        <h2 className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
+          Havuzdaki Boş İşler
+        </h2>
+        <span className="px-2 py-0.5 rounded-full text-xs font-bold"
+          style={{ background: 'rgba(59,130,246,0.12)', color: 'var(--color-info)' }}>
+          {available.length} iş mevcut
+        </span>
+      </div>
+      <div className="space-y-2">
+        {available.map(post => <JobCard key={post.id} post={post} />)}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Creator View ─────────────────────────────────────────────────────────
 
 export function CreatorView({
   currentUser,
   dashboardData,
   allPosts,
+  poolPosts,
 }: {
   currentUser: User;
   dashboardData: CreatorDashboardData;
   allPosts: SpecialPost[];
+  poolPosts: SpecialPost[];
 }) {
   const [modalOpen, setModalOpen] = useState(false);
+  const canClaimJobs = currentUser.role === 'EDITOR' || currentUser.role === 'GRAFIKER';
 
   return (
     <div className="space-y-6">
       {/* Üst bar */}
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-            Hoş geldin, <span className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-              {currentUser.full_name}
-            </span>
-          </p>
-        </div>
+        <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+          Hoş geldin,{' '}
+          <span className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+            {currentUser.full_name}
+          </span>
+        </p>
         <button
           onClick={() => setModalOpen(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-[var(--radius-md)] text-sm font-bold text-white shadow-sm transition-opacity hover:opacity-90"
@@ -376,7 +467,10 @@ export function CreatorView({
         />
       </div>
 
-      {/* Tablo */}
+      {/* İş havuzu — Editör & Grafiker görür */}
+      {canClaimJobs && <JobPool posts={poolPosts} userRole={currentUser.role} />}
+
+      {/* Onaylanan & Yayınlanan tablo */}
       <div>
         <h2 className="text-sm font-bold mb-3" style={{ color: 'var(--color-text-primary)' }}>
           Onaylanan & Yayınlanan İçeriklerim
@@ -384,7 +478,7 @@ export function CreatorView({
         <PostsTable posts={allPosts} />
       </div>
 
-      {/* Tüm fikirler (bekleyenler dahil) */}
+      {/* Onay bekleyenler */}
       {allPosts.filter(p => p.status === 'ONAY_BEKLIYOR').length > 0 && (
         <div>
           <h2 className="text-sm font-bold mb-3" style={{ color: 'var(--color-text-primary)' }}>

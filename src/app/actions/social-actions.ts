@@ -104,24 +104,51 @@ export async function reviewContentIdea(
     return { success: false, error: 'Geçersiz durum. Sadece ONAYLANDI veya REDDEDILDI kabul edilir.' };
   }
 
-  // Önce durumu güncelle
+  // Durumu güncelle — editör/grafiker ataması yapılmaz, iş havuzuna bırakılır
   const statusResult = await specialPostService.updateStatus(postId, status);
   if (statusResult.error) return { success: false, error: statusResult.error };
 
-  // Onaylandıysa editör / grafiker ataması yap
-  if (status === 'ONAYLANDI') {
-    const updatePayload: { editor_id?: string | null; designer_id?: string | null } = {};
-    if (editorId  !== undefined) updatePayload.editor_id   = editorId  || null;
-    if (designerId !== undefined) updatePayload.designer_id = designerId || null;
-
-    if (Object.keys(updatePayload).length > 0) {
-      const updateResult = await specialPostService.update(postId, updatePayload);
-      if (updateResult.error) return { success: false, error: updateResult.error };
-    }
-  }
-
   revalidatePath('/content/ideas');
   revalidatePath('/sosyal-medya');
+  return { success: true };
+}
+
+// ── 2b. claimPost ─────────────────────────────────────────────────────────────
+
+/**
+ * Ekip üyesi (EDITOR veya GRAFIKER) iş havuzundan bir işi üzerine alır.
+ * - EDITOR   → editor_id  alanını kendi ID'siyle günceller
+ * - GRAFIKER → designer_id alanını kendi ID'siyle günceller
+ * İş zaten alınmışsa hata döner.
+ */
+export async function claimPost(
+  postId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const profile = await requireRole('EDITOR', 'GRAFIKER');
+
+  const post = await specialPostService.getById(postId);
+  if (!post) return { success: false, error: 'İçerik bulunamadı.' };
+  if (post.status !== 'ONAYLANDI')
+    return { success: false, error: 'Sadece onaylanmış işler alınabilir.' };
+
+  if (profile.role === 'EDITOR') {
+    if (post.editor_id)
+      return { success: false, error: 'Bu iş zaten bir editör tarafından alınmış.' };
+
+    const result = await specialPostService.update(postId, { editor_id: profile.id });
+    if (result.error) return { success: false, error: result.error };
+  }
+
+  if (profile.role === 'GRAFIKER') {
+    if (post.designer_id)
+      return { success: false, error: 'Bu iş zaten bir grafiker tarafından alınmış.' };
+
+    const result = await specialPostService.update(postId, { designer_id: profile.id });
+    if (result.error) return { success: false, error: result.error };
+  }
+
+  revalidatePath('/sosyal-medya');
+  revalidatePath('/content/ideas');
   return { success: true };
 }
 

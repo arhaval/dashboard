@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import {
-  CheckCircle2, XCircle, ChevronDown,
+  CheckCircle2, XCircle,
   Trophy, Users, Layers, Loader2, Pencil, X,
 } from 'lucide-react';
 import { reviewContentIdea, updatePostMetrics } from '@/app/actions/social-actions';
@@ -85,36 +85,21 @@ function InsightCard({ icon, label, value, sub }: {
 
 // ── Approve Row ───────────────────────────────────────────────────────────────
 
-function ApprovalRow({
-  post,
-  editors,
-  designers,
-}: {
-  post: SpecialPost;
-  editors: User[];
-  designers: User[];
-}) {
+function ApprovalRow({ post }: { post: SpecialPost }) {
   const [pending, start] = useTransition();
-  const [open, setOpen]  = useState(false);
-  const [editorId,   setEditorId]   = useState('');
-  const [designerId, setDesignerId] = useState('');
-  const [done, setDone] = useState<'approved' | 'rejected' | null>(null);
+  const [done, setDone]  = useState<'approved' | 'rejected' | null>(null);
 
   function approve() {
     start(async () => {
-      try {
-        await reviewContentIdea(post.id, 'ONAYLANDI', editorId || undefined, designerId || undefined);
-        setDone('approved');
-      } catch { /* handled */ }
+      await reviewContentIdea(post.id, 'ONAYLANDI');
+      setDone('approved');
     });
   }
 
   function reject() {
     start(async () => {
-      try {
-        await reviewContentIdea(post.id, 'REDDEDILDI');
-        setDone('rejected');
-      } catch { /* handled */ }
+      await reviewContentIdea(post.id, 'REDDEDILDI');
+      setDone('rejected');
     });
   }
 
@@ -127,11 +112,11 @@ function ApprovalRow({
         }}>
         {done === 'approved'
           ? <CheckCircle2 size={14} style={{ color: 'var(--color-success)' }} />
-          : <XCircle size={14} style={{ color: 'var(--color-error)' }} />
+          : <XCircle     size={14} style={{ color: 'var(--color-error)'   }} />
         }
         <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
           <span className="font-bold">{post.title}</span>
-          {done === 'approved' ? ' — Onaylandı' : ' — Reddedildi'}
+          {done === 'approved' ? ' — İş havuzuna eklendi' : ' — Reddedildi'}
         </p>
       </div>
     );
@@ -139,98 +124,44 @@ function ApprovalRow({
 
   return (
     <div className="rounded-[var(--radius-md)] border"
-      style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg-secondary)', opacity: pending ? 0.6 : 1 }}>
-
-      {/* Ana satır */}
+      style={{
+        borderColor: 'var(--color-border)',
+        background: 'var(--color-bg-secondary)',
+        opacity: pending ? 0.6 : 1,
+      }}>
       <div className="flex items-center gap-4 px-4 py-3">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text-primary)' }}>
             {post.title}
           </p>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              {post.author?.full_name}
-            </span>
+            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{post.author?.full_name}</span>
             <span style={{ color: 'var(--color-border)' }}>·</span>
-            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              {post.content_type}
-            </span>
+            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{post.content_type}</span>
             <span style={{ color: 'var(--color-border)' }}>·</span>
-            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              {post.platforms.join(', ')}
-            </span>
+            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{post.platforms.join(', ')}</span>
           </div>
+          {post.caption && (
+            <p className="text-xs mt-1 line-clamp-1" style={{ color: 'var(--color-text-muted)' }}>
+              {post.caption}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Atama dropdown */}
-          <div className="relative">
-            <button onClick={() => setOpen(x => !x)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-[var(--radius-md)] border transition-colors"
-              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}>
-              Ekip Ata <ChevronDown size={12} className={open ? 'rotate-180 transition-transform' : 'transition-transform'} />
-            </button>
-
-            {open && (
-              <div className="absolute right-0 top-full mt-1 z-30 w-56 rounded-[var(--radius-md)] border shadow-xl p-3 space-y-3"
-                style={{ background: 'var(--color-bg-secondary)', borderColor: 'var(--color-border)' }}>
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5"
-                    style={{ color: 'var(--color-text-muted)' }}>Editör</p>
-                  <select value={editorId} onChange={e => setEditorId(e.target.value)}
-                    className="w-full text-xs rounded-[var(--radius-sm)] border px-2 py-1.5"
-                    style={{ background: 'var(--color-bg-primary)', borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}>
-                    <option value="">— Seçilmedi —</option>
-                    {editors.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5"
-                    style={{ color: 'var(--color-text-muted)' }}>Grafiker</p>
-                  <select value={designerId} onChange={e => setDesignerId(e.target.value)}
-                    className="w-full text-xs rounded-[var(--radius-sm)] border px-2 py-1.5"
-                    style={{ background: 'var(--color-bg-primary)', borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}>
-                    <option value="">— Seçilmedi —</option>
-                    {designers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                  </select>
-                </div>
-                <button onClick={() => setOpen(false)}
-                  className="w-full text-xs py-1.5 rounded-[var(--radius-sm)] font-semibold"
-                  style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' }}>
-                  Kapat
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Reddet */}
           <button onClick={reject} disabled={pending}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-[var(--radius-md)] transition-colors disabled:opacity-50"
             style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--color-error)', border: '1px solid rgba(239,68,68,0.25)' }}>
             <XCircle size={13} /> Reddet
           </button>
-
-          {/* Onayla */}
           <button onClick={approve} disabled={pending}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-[var(--radius-md)] text-white transition-opacity disabled:opacity-50"
             style={{ background: 'var(--color-success)' }}>
-            {pending
-              ? <Loader2 size={13} className="animate-spin" />
-              : <CheckCircle2 size={13} />
-            }
-            Onayla
+            {pending ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+            Onayla → Havuza Al
           </button>
         </div>
       </div>
-
-      {/* Caption preview */}
-      {post.caption && (
-        <div className="px-4 pb-3">
-          <p className="text-xs line-clamp-1" style={{ color: 'var(--color-text-muted)' }}>
-            {post.caption}
-          </p>
-        </div>
-      )}
     </div>
   );
 }
@@ -484,10 +415,8 @@ export function AdminView({
   allPosts: SpecialPost[];
   allUsers: User[];
 }) {
-  const insights  = computeInsights(allPosts, allUsers);
-  const pending   = allPosts.filter(p => p.status === 'ONAY_BEKLIYOR');
-  const editors   = allUsers.filter(u => u.role === 'EDITOR');
-  const designers = allUsers.filter(u => u.role === 'GRAFIKER');
+  const insights = computeInsights(allPosts, allUsers);
+  const pending  = allPosts.filter(p => p.status === 'ONAY_BEKLIYOR');
 
   return (
     <div className="space-y-8">
@@ -537,12 +466,7 @@ export function AdminView({
         ) : (
           <div className="space-y-2">
             {pending.map(post => (
-              <ApprovalRow
-                key={post.id}
-                post={post}
-                editors={editors}
-                designers={designers}
-              />
+              <ApprovalRow key={post.id} post={post} />
             ))}
           </div>
         )}

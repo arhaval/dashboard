@@ -35,8 +35,11 @@ export default async function SosyalMedyaPage() {
   }
 
   // İçerik üretici / diğer roller
-  const creatorData = await getCreatorDashboardData(currentUser.id);
-  const allMyPosts = await specialPostService.getAll({ author_id: currentUser.id });
+  const [creatorData, allMyPosts, poolPosts] = await Promise.all([
+    getCreatorDashboardData(currentUser.id),
+    specialPostService.getAll({ author_id: currentUser.id }),
+    specialPostService.getAll({ status: 'ONAYLANDI' }),
+  ]);
 
   return (
     <PageShell
@@ -47,6 +50,7 @@ export default async function SosyalMedyaPage() {
         currentUser={currentUser}
         dashboardData={creatorData}
         allPosts={allMyPosts}
+        poolPosts={poolPosts}
       />
     </PageShell>
   );
