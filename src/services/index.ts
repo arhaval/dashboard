@@ -17,3 +17,5 @@ export { contentGoalService } from './content-goal.service';
 export { intelligenceReportService, getWeekRange, getPrevWeekRange } from './intelligence-report.service';
 export { weeklyScheduleService } from './weekly-schedule.service';
 export type { DaySchedule, WeekActivity } from './weekly-schedule.utils';
+export { cashFlowService } from './cash-flow.service';
+export type { ExpectedIncome, ExpectedExpense, CashFlowSummary, MonthlyPoint } from './cash-flow.service';

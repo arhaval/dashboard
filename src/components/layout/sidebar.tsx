@@ -19,6 +19,7 @@ import {
   ClipboardList,
   Tv2,
   X,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -49,7 +50,8 @@ const navSections: NavSection[] = [
       { label: tr.nav.team, href: '/team', icon: Users, adminOnly: true },
       { label: tr.nav.workItems, href: '/work-items', icon: FileText },
       { label: tr.nav.payments, href: '/payments', icon: CreditCard },
-      { label: tr.nav.finance, href: '/finance', icon: PiggyBank, adminOnly: true },
+      { label: tr.nav.finance,  href: '/finance', icon: PiggyBank,   adminOnly: true },
+      { label: 'Nakit Akışı',  href: '/nakit',   icon: TrendingUp,  adminOnly: true },
     ],
   },
   {
