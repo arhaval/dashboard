@@ -7,7 +7,7 @@
 // User & Auth Types
 // =============================================================================
 
-export type UserRole = 'ADMIN' | 'PUBLISHER' | 'EDITOR' | 'VOICE';
+export type UserRole = 'ADMIN' | 'PUBLISHER' | 'EDITOR' | 'VOICE' | 'GRAFIKER';
 
 export interface User {
   id: string;
@@ -820,4 +820,63 @@ export interface WeeklyGoalProgress {
   done_this_week: number;
   pct: number; // 0-100
   on_track: boolean;
+}
+
+// =============================================================================
+// Special Posts — İçerik Fikir Havuzu
+// =============================================================================
+
+export type PostStatus = 'ONAY_BEKLIYOR' | 'ONAYLANDI' | 'YAYINLANDI' | 'REDDEDILDI';
+
+export interface SpecialPost {
+  id: string;
+  title: string;
+  status: PostStatus;
+  platforms: string[];
+  content_type: string;
+  caption: string | null;
+  author_id: string;
+  editor_id: string | null;
+  designer_id: string | null;
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  engagement_rate: number;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  author?: Pick<User, 'id' | 'full_name' | 'avatar_url'>;
+  editor?: Pick<User, 'id' | 'full_name' | 'avatar_url'> | null;
+  designer?: Pick<User, 'id' | 'full_name' | 'avatar_url'> | null;
+}
+
+export interface CreateSpecialPostInput {
+  title: string;
+  platforms: string[];
+  content_type: string;
+  caption?: string;
+}
+
+export interface UpdateSpecialPostInput {
+  title?: string;
+  status?: PostStatus;
+  platforms?: string[];
+  content_type?: string;
+  caption?: string;
+  editor_id?: string | null;
+  designer_id?: string | null;
+  views?: number;
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  saves?: number;
+  engagement_rate?: number;
+}
+
+export interface SpecialPostFilters {
+  status?: PostStatus;
+  author_id?: string;
+  platform?: string;
 }

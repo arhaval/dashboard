@@ -20,6 +20,7 @@ import {
   Tv2,
   X,
   TrendingUp,
+  Lightbulb,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -58,6 +59,7 @@ const navSections: NavSection[] = [
     label: 'ANALİTİK',
     items: [
       { label: 'İçerik Takvimi', href: '/content', icon: CalendarDays },
+      { label: 'Fikir Havuzu', href: '/content/ideas', icon: Lightbulb },
       { label: 'İçerik Hedefleri', href: '/content/goals', icon: Target },
       { label: 'Haftalık Program', href: '/content/schedule', icon: CalendarDays },
       { label: tr.nav.social, href: '/social', icon: BarChart3 },

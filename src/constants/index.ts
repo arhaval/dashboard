@@ -93,6 +93,7 @@ export const ROLE_COLORS: Record<UserRole, string> = {
   PUBLISHER: 'bg-blue-500/15 text-blue-400',
   EDITOR: 'bg-purple-500/15 text-purple-400',
   VOICE: 'bg-green-500/15 text-green-400',
+  GRAFIKER: 'bg-orange-500/15 text-orange-400',
 } as const;
 
 export const TRANSACTION_TYPE_COLORS: Record<TransactionType, string> = {

@@ -19,3 +19,4 @@ export { weeklyScheduleService } from './weekly-schedule.service';
 export type { DaySchedule, WeekActivity } from './weekly-schedule.utils';
 export { cashFlowService } from './cash-flow.service';
 export type { ExpectedIncome, ExpectedExpense, CashFlowSummary, MonthlyPoint } from './cash-flow.service';
+export { specialPostService } from './special-post.service';

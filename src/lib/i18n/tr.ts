@@ -212,6 +212,7 @@ export const tr = {
     PUBLISHER: 'Yayıncı',
     EDITOR: 'Editör',
     VOICE: 'Seslendirmen',
+    GRAFIKER: 'Grafiker',
   },
 
   // Table headers
