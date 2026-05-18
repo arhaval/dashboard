@@ -13,16 +13,16 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { specialPostService } from '@/services';
+import { splitMetricFields } from '@/app/(dashboard)/sosyal-medya/platform-content-types';
 import type { PostStatus, SpecialPost } from '@/types';
 
 // ── Tipler ────────────────────────────────────────────────────────────────────
 
 export interface PostMetricsInput {
-  views: number;
-  likes: number;
-  comments: number;
-  shares: number;
-  saves: number;
+  /** Platform adı: 'Instagram' | 'YouTube' | 'X' | 'Twitch' | 'TikTok' */
+  platform: string;
+  /** Tüm alan değerleri: { views: 1000, likes: 50, watch_time_minutes: 120, ... } */
+  fields: Record<string, number>;
 }
 
 export interface CreatorDashboardData {
@@ -167,15 +167,16 @@ export async function updatePostMetrics(
 ): Promise<{ success: boolean; engagementRate?: number; error?: string }> {
   await requireRole('ADMIN', 'EDITOR', 'GRAFIKER', 'PUBLISHER');
 
-  const { views, likes, comments, shares, saves } = metrics;
-
   // Negatif değer koruması
-  for (const [key, val] of Object.entries(metrics)) {
+  for (const [key, val] of Object.entries(metrics.fields)) {
     if (val < 0) return { success: false, error: `${key} negatif olamaz.` };
   }
 
-  const engagementRate =
-    views > 0 ? Number((((likes + comments + saves) / views) * 100).toFixed(2)) : 0;
+  // Platform'a göre alanları standart sütunlar + JSONB'ye ayır
+  const {
+    views, likes, comments, shares, saves,
+    platform_metrics, engagement_rate,
+  } = splitMetricFields(metrics.platform, metrics.fields);
 
   const result = await specialPostService.update(postId, {
     views,
@@ -183,14 +184,15 @@ export async function updatePostMetrics(
     comments,
     shares,
     saves,
-    engagement_rate: engagementRate,
+    engagement_rate,
+    platform_metrics,
   });
 
   if (result.error) return { success: false, error: result.error };
 
   revalidatePath('/content/ideas');
   revalidatePath('/sosyal-medya');
-  return { success: true, engagementRate };
+  return { success: true, engagementRate: engagement_rate };
 }
 
 // ── 4. getCreatorDashboardData ────────────────────────────────────────────────

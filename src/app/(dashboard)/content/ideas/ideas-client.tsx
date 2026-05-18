@@ -57,33 +57,29 @@ function Field({ label, required, children }: {
 // ── Add Post Modal ────────────────────────────────────────────────────────────
 
 function AddPostModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
-  const contentTypes = getContentTypes(selectedPlatforms);
+  const [pending, start]   = useTransition();
+  const [error, setError]  = useState<string | null>(null);
+  const [done, setDone]    = useState(false);
+  const [platform, setPlatform] = useState<string>('');
+  const contentTypes = getContentTypes(platform ? [platform] : []);
 
   if (!open) return null;
 
-  function togglePlatform(p: string) {
-    setSelectedPlatforms(prev =>
-      prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
-    );
-  }
+  function reset() { setDone(false); setPlatform(''); setError(null); }
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (selectedPlatforms.length === 0) { setError('En az bir platform seçmelisin.'); return; }
+    if (!platform) { setError('Bir platform seçmelisin.'); return; }
     setError(null);
 
     const fd = new FormData(e.currentTarget);
-    selectedPlatforms.forEach(p => fd.append('platforms', p));
+    fd.append('platforms', platform);
 
     start(async () => {
       try {
         await createPostAction(fd);
         setDone(true);
-        setTimeout(onClose, 700);
+        setTimeout(() => { reset(); onClose(); }, 700);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Bir hata oluştu.');
       }
@@ -99,9 +95,14 @@ function AddPostModal({ open, onClose }: { open: boolean; onClose: () => void })
 
           <div className="flex items-center justify-between px-5 pt-5 pb-3"
             style={{ borderBottom: '1px solid var(--color-border)' }}>
-            <h2 className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>
-              Yeni İçerik Fikri
-            </h2>
+            <div>
+              <h2 className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>
+                Yeni İçerik Fikri
+              </h2>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                Her platform için ayrı kayıt — birden fazla platform için tekrar doldur
+              </p>
+            </div>
             <button onClick={onClose} className="p-1.5 rounded-[var(--radius-md)]"
               style={{ color: 'var(--color-text-muted)' }}>✕</button>
           </div>
@@ -111,38 +112,42 @@ function AddPostModal({ open, onClose }: { open: boolean; onClose: () => void })
               <input name="title" required placeholder="ör. Turnuva finali highlight" className={inputCls} />
             </Field>
 
-            <Field label="Platform(lar)" required>
+            {/* Platform — tek seçim */}
+            <Field label="Platform" required>
               <div className="flex flex-wrap gap-2">
-                {PLATFORMS.map(p => (
-                  <button key={p} type="button"
-                    onClick={() => togglePlatform(p)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] text-xs font-semibold border transition-colors"
-                    style={{
-                      background: selectedPlatforms.includes(p) ? 'var(--color-accent)' : 'transparent',
-                      color: selectedPlatforms.includes(p) ? '#fff' : 'var(--color-text-secondary)',
-                      borderColor: selectedPlatforms.includes(p) ? 'var(--color-accent)' : 'var(--color-border)',
-                    }}>
-                    {PLATFORM_ICONS[p]} {p}
-                  </button>
-                ))}
+                {PLATFORMS.map(p => {
+                  const selected = platform === p;
+                  return (
+                    <button key={p} type="button"
+                      onClick={() => setPlatform(p)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] text-xs font-semibold border transition-colors"
+                      style={{
+                        background:  selected ? 'var(--color-accent)' : 'transparent',
+                        color:       selected ? '#fff' : 'var(--color-text-secondary)',
+                        borderColor: selected ? 'var(--color-accent)' : 'var(--color-border)',
+                      }}>
+                      {PLATFORM_ICONS[p]} {p}
+                    </button>
+                  );
+                })}
               </div>
+              {platform && (
+                <p className="text-[11px] mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                  Seçili: <span className="font-semibold">{platform}</span>
+                </p>
+              )}
             </Field>
 
             <Field label="İçerik Türü" required>
               <select name="content_type" required className={inputCls}
-                disabled={contentTypes.length === 0}>
-                {contentTypes.length === 0
+                disabled={!platform}>
+                {!platform
                   ? <option value="">— Önce platform seç —</option>
                   : contentTypes.map(t => (
                       <option key={t.value} value={t.value}>{t.label}</option>
                     ))
                 }
               </select>
-              {selectedPlatforms.length > 1 && (
-                <p className="text-[11px] mt-1" style={{ color: 'var(--color-text-muted)' }}>
-                  {selectedPlatforms.join(' + ')} için uygun formatlar gösteriliyor
-                </p>
-              )}
             </Field>
 
             <Field label="Açıklama / Caption">

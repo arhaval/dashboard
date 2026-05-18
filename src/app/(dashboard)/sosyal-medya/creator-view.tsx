@@ -70,38 +70,37 @@ function StatCard({ icon, label, value, sub }: {
 }
 
 // ── New Idea Modal ────────────────────────────────────────────────────────────
+// Her form = tek platform → ayrı kayıt. Birden fazla platform için tekrar doldurulur.
 
 function NewIdeaModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [pending, start] = useTransition();
-  const [platforms, setPlatforms] = useState<string[]>([]);
-  const [error, setError]   = useState<string | null>(null);
-  const [done,  setDone]    = useState(false);
+  const [platform, setPlatform] = useState<string>('');
+  const [error, setError]       = useState<string | null>(null);
+  const [done,  setDone]        = useState(false);
 
-  const contentTypes = getContentTypes(platforms);
+  const contentTypes = getContentTypes(platform ? [platform] : []);
 
   if (!open) return null;
 
-  function toggle(p: string) {
-    setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
-  }
+  function reset() { setDone(false); setPlatform(''); setError(null); }
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    if (platforms.length === 0) { setError('En az bir platform seç.'); return; }
+    if (!platform) { setError('Bir platform seçmelisin.'); return; }
     const fd = new FormData(e.currentTarget);
 
     start(async () => {
       try {
         const result = await submitContentIdea(
           fd.get('title') as string,
-          platforms,
+          [platform],
           fd.get('content_type') as string,
           (fd.get('caption') as string) || undefined,
         );
         if (!result.success) { setError(result.error ?? 'Hata oluştu.'); return; }
         setDone(true);
-        setTimeout(() => { setDone(false); setPlatforms([]); onClose(); }, 800);
+        setTimeout(() => { reset(); onClose(); }, 900);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Sunucu hatası.');
       }
@@ -130,7 +129,7 @@ function NewIdeaModal({ open, onClose }: { open: boolean; onClose: () => void })
                 Yeni İçerik Fikri Öner
               </h2>
               <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                Fikrin yöneticiye iletilecek ve onay bekleyecek
+                Her platform için ayrı kayıt oluşturulur — birden fazla platform için tekrar doldur
               </p>
             </div>
             <button onClick={onClose} className="p-1.5 rounded-[var(--radius-md)] transition-colors hover:bg-white/5"
@@ -152,25 +151,34 @@ function NewIdeaModal({ open, onClose }: { open: boolean; onClose: () => void })
                 className={inputCls} />
             </div>
 
-            {/* Platformlar */}
+            {/* Platform — tek seçim */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-wide"
                 style={{ color: 'var(--color-text-secondary)' }}>
-                Platformlar <span style={{ color: 'var(--color-error)' }}>*</span>
+                Platform <span style={{ color: 'var(--color-error)' }}>*</span>
               </label>
               <div className="flex flex-wrap gap-2">
-                {PLATFORMS.map(p => (
-                  <button key={p.id} type="button" onClick={() => toggle(p.id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] border text-xs font-semibold transition-all"
-                    style={{
-                      background:   platforms.includes(p.id) ? 'var(--color-accent)' : 'transparent',
-                      color:        platforms.includes(p.id) ? '#fff' : 'var(--color-text-secondary)',
-                      borderColor:  platforms.includes(p.id) ? 'var(--color-accent)' : 'var(--color-border)',
-                    }}>
-                    {p.icon} {p.label}
-                  </button>
-                ))}
+                {PLATFORMS.map(p => {
+                  const selected = platform === p.id;
+                  return (
+                    <button key={p.id} type="button" onClick={() => setPlatform(p.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] border text-xs font-semibold transition-all"
+                      style={{
+                        background:  selected ? 'var(--color-accent)' : 'transparent',
+                        color:       selected ? '#fff' : 'var(--color-text-secondary)',
+                        borderColor: selected ? 'var(--color-accent)' : 'var(--color-border)',
+                      }}>
+                      {p.icon} {p.label}
+                    </button>
+                  );
+                })}
               </div>
+              {platform && (
+                <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                  Seçili: <span className="font-semibold">{platform}</span>
+                  {' · '}Farklı platform için formu ayrıca gönder
+                </p>
+              )}
             </div>
 
             {/* İçerik Türü */}
@@ -180,19 +188,14 @@ function NewIdeaModal({ open, onClose }: { open: boolean; onClose: () => void })
                 İçerik Türü <span style={{ color: 'var(--color-error)' }}>*</span>
               </label>
               <select name="content_type" required className={inputCls}
-                disabled={contentTypes.length === 0}>
-                {contentTypes.length === 0
+                disabled={!platform}>
+                {!platform
                   ? <option value="">— Önce platform seç —</option>
                   : contentTypes.map(t => (
                       <option key={t.value} value={t.value}>{t.label}</option>
                     ))
                 }
               </select>
-              {platforms.length > 1 && (
-                <p className="text-[11px] mt-1" style={{ color: 'var(--color-text-muted)' }}>
-                  {platforms.join(' + ')} için uygun formatlar listeleniyor
-                </p>
-              )}
             </div>
 
             {/* Caption / Açıklama */}

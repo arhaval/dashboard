@@ -832,6 +832,7 @@ export interface SpecialPost {
   id: string;
   title: string;
   status: PostStatus;
+  /** Her post tek platform tutar; dizi geriye dönük uyumluluk için korunuyor */
   platforms: string[];
   content_type: string;
   caption: string | null;
@@ -844,6 +845,8 @@ export interface SpecialPost {
   shares: number;
   saves: number;
   engagement_rate: number;
+  /** Platform'a özgü ek metrikler (JSONB) — örn. watch_time_minutes, peak_viewers */
+  platform_metrics: Record<string, number>;
   created_at: string;
   updated_at: string;
   // Joined
@@ -873,6 +876,7 @@ export interface UpdateSpecialPostInput {
   shares?: number;
   saves?: number;
   engagement_rate?: number;
+  platform_metrics?: Record<string, number>;
 }
 
 export interface SpecialPostFilters {

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { reviewContentIdea, updatePostMetrics } from '@/app/actions/social-actions';
 import { CaptionCell } from './caption-modal';
-import { getContentTypeLabel } from './platform-content-types';
+import { getContentTypeLabel, getPlatformMetrics } from './platform-content-types';
 import type { SpecialPost, User, PostStatus } from '@/types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -164,12 +164,20 @@ function ApprovalRow({ post }: { post: SpecialPost }) {
   );
 }
 
-// ── Metrics Update Modal ──────────────────────────────────────────────────────
+// ── Platform seçici yardımcı ─────────────────────────────────────────────────
+
+const ALL_PLATFORMS = ['Instagram', 'YouTube', 'X', 'Twitch', 'TikTok'] as const;
+
+// ── Metrics Update Modal (platform-aware) ────────────────────────────────────
 
 function MetricsModal({ post, onClose }: { post: SpecialPost; onClose: () => void }) {
   const [pending, start] = useTransition();
   const [done,  setDone]  = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Platform seçimi: posts.platforms[0] varsa oradan al, yoksa boş bırak (kullanıcı seçsin)
+  const [platform, setPlatform] = useState<string>(post.platforms[0] ?? '');
+  const fields = getPlatformMetrics(platform || 'Instagram');
 
   const inputCls = [
     'w-full rounded-[var(--radius-md)] border px-3 py-2 text-sm',
@@ -178,28 +186,28 @@ function MetricsModal({ post, onClose }: { post: SpecialPost; onClose: () => voi
     'focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:border-transparent',
   ].join(' ');
 
-  const FIELDS: { name: string; label: string; icon: string; defaultVal: number }[] = [
-    { name: 'views',    label: 'Görüntülenme', icon: '👁️',  defaultVal: post.views    },
-    { name: 'likes',    label: 'Beğeni',        icon: '❤️',  defaultVal: post.likes    },
-    { name: 'comments', label: 'Yorum',          icon: '💬', defaultVal: post.comments },
-    { name: 'shares',   label: 'Paylaşım',       icon: '↗️', defaultVal: post.shares   },
-    { name: 'saves',    label: 'Yer İşareti',    icon: '🔖', defaultVal: post.saves    },
-  ];
+  /** Mevcut değer: standart sütun veya JSONB'den al */
+  function currentValue(field: ReturnType<typeof getPlatformMetrics>[0]): number {
+    if (field.column === 'jsonb' && field.jsonbKey) {
+      return (post.platform_metrics?.[field.jsonbKey] as number | undefined) ?? 0;
+    }
+    return (post[field.column as keyof SpecialPost] as number | undefined) ?? 0;
+  }
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!platform) { setError('Önce platform seçmelisin.'); return; }
     setError(null);
     const fd = new FormData(e.currentTarget);
 
+    const fieldValues: Record<string, number> = {};
+    fields.forEach(f => {
+      fieldValues[f.key] = Number(fd.get(f.key) ?? 0);
+    });
+
     start(async () => {
       try {
-        const result = await updatePostMetrics(post.id, {
-          views:    Number(fd.get('views')),
-          likes:    Number(fd.get('likes')),
-          comments: Number(fd.get('comments')),
-          shares:   Number(fd.get('shares')),
-          saves:    Number(fd.get('saves')),
-        });
+        const result = await updatePostMetrics(post.id, { platform, fields: fieldValues });
         if (!result.success) { setError(result.error ?? 'Hata oluştu.'); return; }
         setDone(true);
         setTimeout(onClose, 900);
@@ -208,6 +216,9 @@ function MetricsModal({ post, onClose }: { post: SpecialPost; onClose: () => voi
       }
     });
   }
+
+  // İlk alan (views/impressions) → tam genişlik
+  const firstKey = fields[0]?.key;
 
   return (
     <>
@@ -221,7 +232,7 @@ function MetricsModal({ post, onClose }: { post: SpecialPost; onClose: () => voi
             style={{ borderBottom: '1px solid var(--color-border)' }}>
             <div>
               <h2 className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                Verileri Güncelle
+                Performans Verisi Gir
               </h2>
               <p className="text-xs mt-0.5 truncate max-w-[280px]"
                 style={{ color: 'var(--color-text-muted)' }}>
@@ -236,53 +247,93 @@ function MetricsModal({ post, onClose }: { post: SpecialPost; onClose: () => voi
           </div>
 
           {/* Form */}
-          <form onSubmit={submit} className="px-6 py-5">
-            <div className="grid grid-cols-2 gap-3">
-              {FIELDS.map(f => (
-                <div key={f.name} className={`flex flex-col gap-1.5 ${f.name === 'views' ? 'col-span-2' : ''}`}>
-                  <label className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5"
-                    style={{ color: 'var(--color-text-secondary)' }}>
-                    <span>{f.icon}</span> {f.label}
-                  </label>
-                  <input
-                    name={f.name}
-                    type="number"
-                    min="0"
-                    defaultValue={f.defaultVal}
-                    required
-                    className={inputCls}
-                  />
-                </div>
-              ))}
+          <form onSubmit={submit} className="px-6 py-5 space-y-4">
+
+            {/* Platform seçici */}
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide"
+                style={{ color: 'var(--color-text-secondary)' }}>
+                Platform <span style={{ color: 'var(--color-error)' }}>*</span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {ALL_PLATFORMS.map(pl => {
+                  const selected = platform === pl;
+                  return (
+                    <button key={pl} type="button"
+                      onClick={() => { setPlatform(pl); setDone(false); }}
+                      className="px-3 py-1.5 rounded-[var(--radius-md)] border text-xs font-semibold transition-all"
+                      style={{
+                        background:  selected ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
+                        color:       selected ? '#fff' : 'var(--color-text-secondary)',
+                        borderColor: selected ? 'var(--color-accent)' : 'var(--color-border)',
+                      }}>
+                      {pl}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
+            {/* Platform seçilince alanlar göster */}
+            {platform && (
+              <div className="grid grid-cols-2 gap-3">
+                {fields.map(f => (
+                  <div key={f.key}
+                    className={`flex flex-col gap-1.5 ${f.key === firstKey ? 'col-span-2' : ''}`}>
+                    <label className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5"
+                      style={{ color: 'var(--color-text-secondary)' }}>
+                      <span>{f.icon}</span> {f.label}
+                    </label>
+                    <input
+                      name={f.key}
+                      type="number"
+                      min="0"
+                      step={f.decimal ? '0.01' : '1'}
+                      defaultValue={currentValue(f)}
+                      required
+                      className={inputCls}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Etkileşim oranı bilgisi */}
-            <p className="mt-3 text-[11px] px-3 py-2 rounded-[var(--radius-sm)]"
-              style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-muted)' }}>
-              Etkileşim Oranı otomatik hesaplanır: ((beğeni + yorum + yer işareti) ÷ görüntülenme) × 100
-            </p>
+            {platform && (
+              <p className="text-[11px] px-3 py-2 rounded-[var(--radius-sm)]"
+                style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-muted)' }}>
+                Etkileşim Oranı otomatik hesaplanır: ((beğeni + yorum + kaydetme) ÷ görüntülenme) × 100
+              </p>
+            )}
+
+            {!platform && (
+              <p className="text-xs text-center py-4"
+                style={{ color: 'var(--color-text-muted)' }}>
+                ↑ Veri girmek istediğin platformu seç
+              </p>
+            )}
 
             {error && (
-              <p className="mt-3 text-xs px-3 py-2 rounded-[var(--radius-md)]"
+              <p className="text-xs px-3 py-2 rounded-[var(--radius-md)]"
                 style={{ color: 'var(--color-error)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
                 {error}
               </p>
             )}
 
             {done && (
-              <p className="mt-3 text-xs px-3 py-2 rounded-[var(--radius-md)] text-center font-semibold"
+              <p className="text-xs px-3 py-2 rounded-[var(--radius-md)] text-center font-semibold"
                 style={{ color: 'var(--color-success)', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)' }}>
                 ✓ Veriler güncellendi
               </p>
             )}
 
-            <div className="flex gap-3 mt-5">
+            <div className="flex gap-3">
               <button type="button" onClick={onClose}
                 className="flex-1 py-2.5 rounded-[var(--radius-md)] text-sm font-semibold border transition-colors"
                 style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}>
                 İptal
               </button>
-              <button type="submit" disabled={pending || done}
+              <button type="submit" disabled={pending || done || !platform}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[var(--radius-md)] text-sm font-bold text-white transition-opacity disabled:opacity-60"
                 style={{ background: 'var(--color-accent)' }}>
                 {pending
