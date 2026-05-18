@@ -119,10 +119,11 @@ export function getTransactionTypeBadgeClass(type: TransactionType): string {
 /** Badge classes for social platform */
 export function getPlatformBadgeClass(platform: MetricsPlatform): string {
   const map: Record<MetricsPlatform, string> = {
-    TWITCH: 'bg-purple-500/10 text-purple-400',
-    YOUTUBE: 'bg-red-500/10 text-red-400',
+    TWITCH:    'bg-purple-500/10 text-purple-400',
+    KICK:      'bg-green-500/10 text-green-400',
+    YOUTUBE:   'bg-red-500/10 text-red-400',
     INSTAGRAM: 'bg-pink-500/10 text-pink-400',
-    X: 'bg-blue-500/10 text-blue-400',
+    X:         'bg-blue-500/10 text-blue-400',
   };
   return map[platform];
 }

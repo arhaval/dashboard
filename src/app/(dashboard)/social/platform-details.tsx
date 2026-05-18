@@ -39,6 +39,11 @@ const SUMMARY_METRICS: Record<MetricsPlatform, MetricDef[]> = {
     { label: 'Gösterim', key: 'impressions' },
     { label: 'Beğeni', key: 'likes' },
   ],
+  KICK: [
+    { label: 'Takipçi', key: 'followers_total' },
+    { label: 'Ort. İzleyici', key: 'avg_viewers' },
+    { label: 'Canlı İzlenme', key: 'live_views' },
+  ],
 };
 
 // Additional metrics shown when expanded
@@ -66,6 +71,10 @@ const DETAIL_METRICS: Record<MetricsPlatform, MetricDef[]> = {
     { label: 'Etkileşim Oranı', key: 'engagement_rate', format: 'percent' },
     { label: 'Yanıt', key: 'replies' },
     { label: 'Profil Ziyareti', key: 'profile_visits' },
+  ],
+  KICK: [
+    { label: 'Zirve İzleyici', key: 'peak_viewers' },
+    { label: 'Yayın Süresi', key: 'total_stream_time_minutes', format: 'hours' },
   ],
 };
 

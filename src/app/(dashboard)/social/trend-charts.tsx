@@ -39,10 +39,11 @@ const MONTH_LABELS: Record<string, string> = {
 
 // Platform-specific main metric key
 const MAIN_METRIC: Record<MetricsPlatform, { key: string; label: string }> = {
-  TWITCH: { key: 'live_views', label: 'Canlı İzlenme' },
-  YOUTUBE: { key: 'video_views', label: 'Video Görüntülenme' },
-  INSTAGRAM: { key: 'views', label: 'Görüntülenme' },
-  X: { key: 'impressions', label: 'Gösterim' },
+  TWITCH:    { key: 'live_views',   label: 'Canlı İzlenme'       },
+  KICK:      { key: 'live_views',   label: 'Canlı İzlenme'       },
+  YOUTUBE:   { key: 'video_views',  label: 'Video Görüntülenme'  },
+  INSTAGRAM: { key: 'views',        label: 'Görüntülenme'        },
+  X:         { key: 'impressions',  label: 'Gösterim'            },
 };
 
 function formatMonthLabel(month: string): string {

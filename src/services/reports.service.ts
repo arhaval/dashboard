@@ -228,10 +228,11 @@ function generateInsights(
   // Best platform
   if (fastestGrowing) {
     const platformNames: Record<MetricsPlatform, string> = {
-      TWITCH: 'Twitch',
-      YOUTUBE: 'YouTube',
+      TWITCH:    'Twitch',
+      KICK:      'Kick',
+      YOUTUBE:   'YouTube',
       INSTAGRAM: 'Instagram',
-      X: 'X',
+      X:         'X',
     };
     sentences.push(
       `En hızlı büyüyen platform ${platformNames[fastestGrowing.platform]} oldu (+${fastestGrowing.growth.toLocaleString('tr-TR')} takipçi).`
@@ -266,10 +267,11 @@ function generateInsights(
 
   if (declining) {
     const platformNames: Record<MetricsPlatform, string> = {
-      TWITCH: 'Twitch',
-      YOUTUBE: 'YouTube',
+      TWITCH:    'Twitch',
+      KICK:      'Kick',
+      YOUTUBE:   'YouTube',
       INSTAGRAM: 'Instagram',
-      X: 'X',
+      X:         'X',
     };
     suggestions.push(
       `${platformNames[declining.platform]} platformunda takipçi kaybı yaşanıyor, içerik stratejisi gözden geçirilmeli.`
@@ -394,7 +396,7 @@ export const reportsService = {
     ]);
 
     // Process social data
-    const platforms: MetricsPlatform[] = ['TWITCH', 'YOUTUBE', 'INSTAGRAM', 'X'];
+    const platforms: MetricsPlatform[] = ['TWITCH', 'KICK', 'YOUTUBE', 'INSTAGRAM', 'X'];
     const platformData: PlatformReportData[] = [];
     let totalLiveViews = 0;
     let totalFollowersGrowth = 0;

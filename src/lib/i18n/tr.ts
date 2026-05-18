@@ -187,6 +187,7 @@ export const tr = {
       YOUTUBE: 'YouTube',
       INSTAGRAM: 'Instagram',
       X: 'X',
+      KICK: 'Kick',
     },
     fields: {
       platform: 'Platform',
@@ -434,6 +435,12 @@ export const tr = {
     engagementRate: 'Etkileşim Oranı (%)',
     replies: 'Yanıt',
     profileVisits: 'Profil Ziyareti',
+    // CSV upload
+    csvUpload: 'CSV Yükle',
+    csvUploadHint: 'Platform CSV dosyasını buraya sürükle veya tıkla',
+    csvParsing: 'CSV okunuyor…',
+    csvFilled: 'Alanlar CSV\'den dolduruldu',
+    csvError: 'CSV okunamadı — alanları elle doldur',
   },
   // CS2 / Turnuva
   cs2: {

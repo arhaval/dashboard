@@ -170,7 +170,7 @@ export interface SocialStatFilters {
 // Monthly Social Metrics Types (v2)
 // =============================================================================
 
-export type MetricsPlatform = 'TWITCH' | 'YOUTUBE' | 'INSTAGRAM' | 'X';
+export type MetricsPlatform = 'TWITCH' | 'YOUTUBE' | 'INSTAGRAM' | 'X' | 'KICK';
 
 // Base fields for all platforms
 export interface SocialMonthlyMetricsBase {
