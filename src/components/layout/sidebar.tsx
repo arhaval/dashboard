@@ -60,11 +60,11 @@ const navSections: NavSection[] = [
   {
     label: 'ANALİTİK',
     items: [
-      { label: 'İçerik Takvimi', href: '/content', icon: CalendarDays },
-      { label: 'Fikir Havuzu', href: '/content/ideas', icon: Lightbulb },
-      { label: 'İçerik Hedefleri', href: '/content/goals', icon: Target },
-      { label: 'Haftalık Program', href: '/content/schedule', icon: CalendarDays },
-      { label: tr.nav.social, href: '/social', icon: BarChart3 },
+      { label: 'İçerik Takvimi',  href: '/content',         icon: CalendarDays, excludeRoles: ['TEAM_MEMBER'] },
+      { label: 'Fikir Havuzu',    href: '/content/ideas',   icon: Lightbulb },
+      { label: 'İçerik Hedefleri',href: '/content/goals',   icon: Target,       excludeRoles: ['TEAM_MEMBER'] },
+      { label: 'Haftalık Program', href: '/content/schedule',icon: CalendarDays, excludeRoles: ['TEAM_MEMBER'] },
+      { label: tr.nav.social,     href: '/social',           icon: BarChart3,    excludeRoles: ['TEAM_MEMBER'] },
       { label: 'İçerik Yönetimi', href: '/sosyal-medya', icon: Users },
       { label: tr.cs2.nav, href: '/matches', icon: Crosshair, excludeRoles: ['TEAM_MEMBER'] },
       { label: tr.cs2.dathost.operations, href: '/matches/operations', icon: Radio, adminOnly: true },
