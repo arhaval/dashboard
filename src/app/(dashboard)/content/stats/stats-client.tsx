@@ -57,12 +57,10 @@ function LeaderboardCard({
   entry,
   rank,
   isMe,
-  sortBy,
 }: {
   entry: LeaderboardEntry;
   rank: number;
   isMe: boolean;
-  sortBy: SortKey;
 }) {
   const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
 
@@ -229,7 +227,6 @@ export function StatsClient({ leaderboard, summary, currentUserId }: Props) {
                 entry={e}
                 rank={i + 1}
                 isMe={e.userId === currentUserId}
-                sortBy={sortBy}
               />
             </div>
           ))}
