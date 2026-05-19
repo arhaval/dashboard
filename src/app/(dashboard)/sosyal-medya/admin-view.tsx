@@ -5,9 +5,11 @@ import {
   CheckCircle2, XCircle,
   Trophy, Users, Layers, Loader2, Pencil, X,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { reviewContentIdea, updatePostMetrics } from '@/app/actions/social-actions';
 import { CaptionCell } from './caption-modal';
 import { getContentTypeLabel, getPlatformMetrics } from './platform-content-types';
+import { PerformanceDashboard } from './performance-dashboard';
 import type { SpecialPost, User, PostStatus } from '@/types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -458,6 +460,8 @@ function ManagementTable({ posts }: { posts: SpecialPost[] }) {
 
 // ── Main Admin View ───────────────────────────────────────────────────────────
 
+type AdminTab = 'yonetim' | 'performans';
+
 export function AdminView({
   allPosts,
   allUsers,
@@ -465,11 +469,12 @@ export function AdminView({
   allPosts: SpecialPost[];
   allUsers: User[];
 }) {
+  const [activeTab, setActiveTab] = useState<AdminTab>('yonetim');
   const insights = computeInsights(allPosts, allUsers);
   const pending  = allPosts.filter(p => p.status === 'ONAY_BEKLIYOR');
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
 
       {/* ── Insight Kartları ── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -493,47 +498,84 @@ export function AdminView({
         />
       </div>
 
-      {/* ── Onay Havuzu ── */}
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
-            Fikir Onay Havuzu
-          </h2>
-          {pending.length > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-xs font-bold"
-              style={{ background: 'rgba(234,179,8,0.15)', color: 'var(--color-warning)' }}>
-              {pending.length} bekliyor
-            </span>
-          )}
-        </div>
-
-        {pending.length === 0 ? (
-          <div className="py-10 text-center rounded-[var(--radius-md)] border"
-            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
-            <CheckCircle2 size={20} className="mx-auto mb-2 opacity-40" />
-            <p className="text-sm">Onay bekleyen fikir yok.</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {pending.map(post => (
-              <ApprovalRow key={post.id} post={post} />
-            ))}
-          </div>
-        )}
+      {/* ── Tab Navigasyonu ── */}
+      <div className="flex gap-1 border-b border-[var(--color-border)]">
+        {(
+          [
+            { key: 'yonetim',   label: 'Onay & Yönetim' },
+            { key: 'performans', label: 'Performans' },
+          ] as { key: AdminTab; label: string }[]
+        ).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={cn(
+              '-mb-px px-4 py-2 text-sm font-medium transition-colors border-b-2',
+              activeTab === key
+                ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+            )}
+          >
+            {label}
+            {key === 'yonetim' && pending.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-[var(--color-warning)] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {pending.length}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
-      {/* ── Genel Yönetim Tablosu ── */}
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
-            Tüm İçerikler
-          </h2>
-          <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            {allPosts.length} kayıt
-          </span>
+      {/* ── Tab İçerikleri ── */}
+      {activeTab === 'yonetim' && (
+        <div className="space-y-8">
+          {/* Onay Havuzu */}
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
+                Fikir Onay Havuzu
+              </h2>
+              {pending.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold"
+                  style={{ background: 'rgba(234,179,8,0.15)', color: 'var(--color-warning)' }}>
+                  {pending.length} bekliyor
+                </span>
+              )}
+            </div>
+
+            {pending.length === 0 ? (
+              <div className="py-10 text-center rounded-[var(--radius-md)] border"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
+                <CheckCircle2 size={20} className="mx-auto mb-2 opacity-40" />
+                <p className="text-sm">Onay bekleyen fikir yok.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pending.map(post => (
+                  <ApprovalRow key={post.id} post={post} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Genel Yönetim Tablosu */}
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
+                Tüm İçerikler
+              </h2>
+              <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                {allPosts.length} kayıt
+              </span>
+            </div>
+            <ManagementTable posts={allPosts} />
+          </div>
         </div>
-        <ManagementTable posts={allPosts} />
-      </div>
+      )}
+
+      {activeTab === 'performans' && (
+        <PerformanceDashboard posts={allPosts} />
+      )}
 
     </div>
   );

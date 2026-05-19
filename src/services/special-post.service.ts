@@ -102,15 +102,21 @@ export const specialPostService = {
 
   /**
    * Durumu değiştir (admin)
+   * YAYINLANDI'ya geçişte published_at otomatik set edilir.
    */
   async updateStatus(
     id: string,
     status: SpecialPost['status'],
   ): Promise<{ error?: string }> {
     const supabase = await createClient();
+    const now = new Date().toISOString();
     const { error } = await supabase
       .from('special_posts')
-      .update({ status, updated_at: new Date().toISOString() })
+      .update({
+        status,
+        updated_at: now,
+        ...(status === 'YAYINLANDI' ? { published_at: now } : {}),
+      })
       .eq('id', id);
 
     if (error) return { error: error.message };

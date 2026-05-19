@@ -68,7 +68,7 @@ const DETAIL_METRICS: Record<MetricsPlatform, MetricDef[]> = {
     { label: 'Paylaşım', key: 'shares' },
   ],
   X: [
-    { label: 'Etkileşim Oranı', key: 'engagement_rate', format: 'percent' },
+    { label: 'Retweet', key: 'shares' },
     { label: 'Yanıt', key: 'replies' },
     { label: 'Profil Ziyareti', key: 'profile_visits' },
   ],
@@ -175,6 +175,20 @@ function PlatformCard({
         })}
       </div>
 
+      {/* Engagement rate badge — X, Instagram, YouTube only */}
+      {current?.total_engagement_rate !== undefined &&
+        current.total_engagement_rate > 0 &&
+        (platform === 'X' || platform === 'INSTAGRAM' || platform === 'YOUTUBE') && (
+          <div className="mb-2 flex items-center gap-1.5">
+            <span className="text-xs text-[var(--color-text-muted)]">
+              Aylık Etkileşim Oranı
+            </span>
+            <span className="rounded-full bg-[var(--color-accent-muted)] px-2 py-0.5 font-mono text-xs font-medium text-[var(--color-accent)]">
+              %{current.total_engagement_rate.toFixed(2)}
+            </span>
+          </div>
+        )}
+
       {/* Expand toggle */}
       <button
         onClick={() => setExpanded(!expanded)}
@@ -228,7 +242,7 @@ interface PlatformDetailCardsProps {
   activeMonth: string;
 }
 
-const PLATFORMS: MetricsPlatform[] = ['TWITCH', 'YOUTUBE', 'INSTAGRAM', 'X'];
+const PLATFORMS: MetricsPlatform[] = ['TWITCH', 'KICK', 'YOUTUBE', 'INSTAGRAM', 'X'];
 
 export function PlatformDetailCards({
   currentMetrics,

@@ -214,6 +214,7 @@ export const tr = {
     EDITOR: 'Editör',
     VOICE: 'Seslendirmen',
     GRAFIKER: 'Grafiker',
+    TEAM_MEMBER: 'Ekip Üyesi',
   },
 
   // Table headers
@@ -434,6 +435,7 @@ export const tr = {
     impressions: 'Gösterim',
     engagementRate: 'Etkileşim Oranı (%)',
     replies: 'Yanıt',
+    retweets: 'Retweet',
     profileVisits: 'Profil Ziyareti',
     // CSV upload
     csvUpload: 'CSV Yükle',

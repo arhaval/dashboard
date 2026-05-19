@@ -31,6 +31,8 @@ interface NavItem {
   href: string;
   icon: LucideIcon;
   adminOnly?: boolean;
+  /** Bu roller için menü öğesi gizlenir */
+  excludeRoles?: string[];
 }
 
 interface NavSection {
@@ -64,7 +66,7 @@ const navSections: NavSection[] = [
       { label: 'Haftalık Program', href: '/content/schedule', icon: CalendarDays },
       { label: tr.nav.social, href: '/social', icon: BarChart3 },
       { label: 'İçerik Yönetimi', href: '/sosyal-medya', icon: Users },
-      { label: tr.cs2.nav, href: '/matches', icon: Crosshair },
+      { label: tr.cs2.nav, href: '/matches', icon: Crosshair, excludeRoles: ['TEAM_MEMBER'] },
       { label: tr.cs2.dathost.operations, href: '/matches/operations', icon: Radio, adminOnly: true },
     ],
   },
@@ -137,7 +139,9 @@ export function Sidebar({ userRole = 'ADMIN', isOpen = false, onClose }: Sidebar
         <nav className="flex-1 overflow-y-auto px-4 py-4">
           {navSections.map((section) => {
             const visibleItems = section.items.filter(
-              (item) => !item.adminOnly || userRole === 'ADMIN'
+              (item) =>
+                (!item.adminOnly || userRole === 'ADMIN') &&
+                (!item.excludeRoles || !item.excludeRoles.includes(userRole))
             );
 
             if (visibleItems.length === 0) return null;

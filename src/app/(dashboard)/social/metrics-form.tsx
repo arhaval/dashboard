@@ -75,9 +75,9 @@ const PLATFORM_FIELDS: Record<MetricsPlatform, FieldConfig[]> = {
   ],
   X: [
     { name: 'impressions',    label: tr.metricsForm.impressions,    type: 'number',  csvKey: 'impressions'    },
-    { name: 'engagement_rate',label: tr.metricsForm.engagementRate, type: 'decimal', csvKey: 'engagement_rate'},
     { name: 'likes',          label: tr.metricsForm.likes,          type: 'number',  csvKey: 'likes'          },
     { name: 'replies',        label: tr.metricsForm.replies,        type: 'number',  csvKey: 'replies'        },
+    { name: 'shares',         label: tr.metricsForm.retweets,       type: 'number',  csvKey: 'retweets'       },
     { name: 'profile_visits', label: tr.metricsForm.profileVisits,  type: 'number',  csvKey: 'profile_visits' },
   ],
 };

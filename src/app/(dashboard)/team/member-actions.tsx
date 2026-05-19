@@ -18,10 +18,12 @@ interface RoleControlProps {
 }
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: 'ADMIN', label: 'Admin' },
-  { value: 'PUBLISHER', label: 'Publisher' },
-  { value: 'EDITOR', label: 'Editor' },
-  { value: 'VOICE', label: 'Voice' },
+  { value: 'TEAM_MEMBER', label: 'Ekip Üyesi' },
+  { value: 'PUBLISHER',   label: 'Yayıncı'    },
+  { value: 'EDITOR',      label: 'Editör'      },
+  { value: 'VOICE',       label: 'Seslendirmen'},
+  { value: 'GRAFIKER',    label: 'Grafiker'    },
+  { value: 'ADMIN',       label: 'Yönetici'   },
 ];
 
 export function RoleControl({ userId, currentRole, isCurrentUser }: RoleControlProps) {
@@ -144,15 +146,12 @@ export function StatusControl({ userId, isActive, isCurrentUser }: StatusControl
 
 function getRoleBadgeStyles(role: string) {
   switch (role) {
-    case 'ADMIN':
-      return 'bg-[var(--color-accent-muted)] text-[var(--color-accent)]';
-    case 'PUBLISHER':
-      return 'bg-[var(--color-info-muted)] text-[var(--color-info)]';
-    case 'EDITOR':
-      return 'bg-[var(--color-success-muted)] text-[var(--color-success)]';
-    case 'VOICE':
-      return 'bg-[var(--color-warning-muted)] text-[var(--color-warning)]';
-    default:
-      return 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]';
+    case 'ADMIN':       return 'bg-[var(--color-accent-muted)] text-[var(--color-accent)]';
+    case 'PUBLISHER':   return 'bg-[var(--color-info-muted)] text-[var(--color-info)]';
+    case 'EDITOR':      return 'bg-[var(--color-success-muted)] text-[var(--color-success)]';
+    case 'VOICE':       return 'bg-[var(--color-warning-muted)] text-[var(--color-warning)]';
+    case 'GRAFIKER':    return 'bg-orange-500/15 text-orange-400';
+    case 'TEAM_MEMBER': return 'bg-slate-500/15 text-slate-400';
+    default:            return 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]';
   }
 }

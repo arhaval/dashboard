@@ -48,6 +48,48 @@ async function verifyAdmin(): Promise<{ isAdmin: boolean; error?: string }> {
   return { isAdmin: true };
 }
 
+// =============================================================================
+// Engagement Rate Calculation
+// =============================================================================
+
+/**
+ * Aylık kanal geneli etkileşim oranını platform'a göre hesaplar.
+ *
+ * X         : (beğeni + yanıt + retweet) / gösterim * 100
+ * Instagram : (beğeni + yorum + kaydetme) / görüntülenme * 100
+ * YouTube   : (beğeni + yorum) / video_görüntülenme * 100
+ * Twitch / Kick : 0 (standart formül yok)
+ */
+function calculateMonthlyEngagementRate(
+  input: CreateSocialMonthlyMetricsInput
+): number {
+  switch (input.platform) {
+    case 'X': {
+      const numerator =
+        (input.likes ?? 0) + (input.replies ?? 0) + (input.shares ?? 0);
+      const denominator = input.impressions ?? 0;
+      if (denominator <= 0) return 0;
+      return parseFloat(((numerator / denominator) * 100).toFixed(2));
+    }
+    case 'INSTAGRAM': {
+      const numerator =
+        (input.likes ?? 0) + (input.comments ?? 0) + (input.saves ?? 0);
+      const denominator = input.views ?? 0;
+      if (denominator <= 0) return 0;
+      return parseFloat(((numerator / denominator) * 100).toFixed(2));
+    }
+    case 'YOUTUBE': {
+      const numerator =
+        (input.total_likes ?? 0) + (input.total_comments ?? 0);
+      const denominator = input.video_views ?? 0;
+      if (denominator <= 0) return 0;
+      return parseFloat(((numerator / denominator) * 100).toFixed(2));
+    }
+    default:
+      return 0;
+  }
+}
+
 /**
  * Create or update monthly metrics (admin only)
  */
@@ -80,8 +122,14 @@ export async function upsertSocialMetrics(
     return { success: false, error: 'Followers cannot be negative' };
   }
 
-  // 3. Upsert via service
-  const result = await socialMetricsService.upsert(input);
+  // 3. Auto-calculate monthly engagement rate
+  const inputWithRate: CreateSocialMonthlyMetricsInput = {
+    ...input,
+    total_engagement_rate: calculateMonthlyEngagementRate(input),
+  };
+
+  // 4. Upsert via service
+  const result = await socialMetricsService.upsert(inputWithRate);
 
   if (result.error || !result.metrics) {
     return { success: false, error: result.error || 'Failed to save metrics' };

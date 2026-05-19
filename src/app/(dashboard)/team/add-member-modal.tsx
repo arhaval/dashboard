@@ -20,10 +20,12 @@ interface AddMemberModalProps {
 }
 
 const ROLE_OPTIONS = [
-  { value: 'PUBLISHER', label: tr.roles.PUBLISHER },
-  { value: 'EDITOR', label: tr.roles.EDITOR },
-  { value: 'VOICE', label: tr.roles.VOICE },
-  { value: 'ADMIN', label: tr.roles.ADMIN },
+  { value: 'TEAM_MEMBER', label: tr.roles.TEAM_MEMBER },
+  { value: 'PUBLISHER',   label: tr.roles.PUBLISHER },
+  { value: 'EDITOR',      label: tr.roles.EDITOR },
+  { value: 'VOICE',       label: tr.roles.VOICE },
+  { value: 'GRAFIKER',    label: tr.roles.GRAFIKER },
+  { value: 'ADMIN',       label: tr.roles.ADMIN },
 ];
 
 export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {

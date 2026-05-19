@@ -7,7 +7,7 @@
 // User & Auth Types
 // =============================================================================
 
-export type UserRole = 'ADMIN' | 'PUBLISHER' | 'EDITOR' | 'VOICE' | 'GRAFIKER';
+export type UserRole = 'ADMIN' | 'PUBLISHER' | 'EDITOR' | 'VOICE' | 'GRAFIKER' | 'TEAM_MEMBER';
 
 export interface User {
   id: string;
@@ -246,12 +246,14 @@ export interface SocialMonthlyMetrics extends SocialMonthlyMetricsBase {
   likes?: number;
   comments?: number;
   saves?: number;
-  shares?: number;
+  shares?: number; // Instagram: paylaşım / X: retweet (aynı sütun, farklı platform satırı)
   // X
   impressions?: number;
   engagement_rate?: number;
   replies?: number;
   profile_visits?: number;
+  /** Aylık kanal geneli etkileşim oranı — kayıt sırasında otomatik hesaplanır */
+  total_engagement_rate?: number;
 }
 
 // Input type for creating/updating metrics
@@ -283,6 +285,7 @@ export interface CreateSocialMonthlyMetricsInput {
   engagement_rate?: number;
   replies?: number;
   profile_visits?: number;
+  total_engagement_rate?: number;
 }
 
 // Growth data for dashboard
@@ -847,6 +850,8 @@ export interface SpecialPost {
   engagement_rate: number;
   /** Platform'a özgü ek metrikler (JSONB) — örn. watch_time_minutes, peak_viewers */
   platform_metrics: Record<string, number>;
+  /** YAYINLANDI statüsüne geçildiğinde otomatik set edilir */
+  published_at: string | null;
   created_at: string;
   updated_at: string;
   // Joined
