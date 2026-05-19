@@ -71,8 +71,10 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
         className={cn(
           'min-h-screen',
           'lg:ml-[var(--sidebar-width)]',
-          'pt-[var(--header-height)]'
         )}
+        style={{
+          paddingTop: 'calc(var(--header-height) + env(safe-area-inset-top, 0px))',
+        }}
       >
         {children}
       </main>

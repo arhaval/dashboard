@@ -57,13 +57,17 @@ export function Header({ user, onSignOut, onMenuToggle }: HeaderProps) {
     <header
       className={cn(
         'fixed right-0 top-0 z-30',
-        'h-[var(--header-height)]',
         'left-0 lg:left-[var(--sidebar-width)]',
         'border-b border-[var(--color-border)]',
         'bg-[var(--color-bg-secondary)]'
       )}
+      style={{
+        // Include iOS/Android status bar height so hamburger isn't hidden behind it
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        height: 'calc(var(--header-height) + env(safe-area-inset-top, 0px))',
+      }}
     >
-      <div className="flex h-full items-center justify-between px-4 lg:px-6">
+      <div className="flex h-[var(--header-height)] items-center justify-between px-4 lg:px-6">
         {/* Left side - Hamburger (mobile) + Breadcrumb */}
         <div className="flex items-center gap-3">
           <button

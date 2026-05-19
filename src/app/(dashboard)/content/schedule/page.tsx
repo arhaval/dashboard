@@ -22,28 +22,6 @@ export default async function WeeklySchedulePage() {
       title="Haftalık Program"
       description="Sabit haftalık içerik ritmi — ekibinle paylaş"
     >
-      {/* ── Nav Tabs ── */}
-      <div className="mb-6 flex gap-1 border-b border-[var(--color-border)]">
-        {[
-          { href: '/content', label: 'Takvim' },
-          { href: '/content/performance', label: 'Performans & ROI' },
-          { href: '/content/goals', label: 'Haftalık Hedefler' },
-          { href: '/content/schedule', label: 'Haftalık Program', active: true },
-        ].map((tab) => (
-          <a
-            key={tab.href}
-            href={tab.href}
-            className={
-              tab.active
-                ? 'border-b-2 border-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-[var(--color-accent)]'
-                : 'px-4 py-2 text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors'
-            }
-          >
-            {tab.label}
-          </a>
-        ))}
-      </div>
-
       <Card>
         <CardHeader className="border-b border-[var(--color-border)] pb-4">
           <div className="flex items-center gap-2">
