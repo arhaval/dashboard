@@ -62,6 +62,7 @@ const navSections: NavSection[] = [
     items: [
       { label: 'İçerik Takvimi',  href: '/content',         icon: CalendarDays, excludeRoles: ['TEAM_MEMBER'] },
       { label: 'Fikir Havuzu',    href: '/content/ideas',   icon: Lightbulb },
+      { label: 'İçerik İstatistikleri', href: '/content/stats', icon: BarChart3 },
       { label: 'İçerik Hedefleri',href: '/content/goals',   icon: Target,       excludeRoles: ['TEAM_MEMBER'] },
       { label: 'Haftalık Program', href: '/content/schedule',icon: CalendarDays, excludeRoles: ['TEAM_MEMBER'] },
       { label: tr.nav.social,     href: '/social',           icon: BarChart3,    excludeRoles: ['TEAM_MEMBER'] },

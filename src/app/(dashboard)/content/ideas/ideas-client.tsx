@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import {
   Plus, Loader2, CheckCircle2, XCircle, Clock, Send,
-  Instagram, Youtube, Twitter, Tv2, Trash2, Trophy,
+  Instagram, Youtube, Twitter, Tv2, Trash2,
 } from 'lucide-react';
 import {
   createPostAction, updatePostStatusAction, deletePostAction,
@@ -11,7 +11,6 @@ import {
 import { CaptionCell } from '@/app/(dashboard)/sosyal-medya/caption-modal';
 import { getContentTypes, getContentTypeLabel } from '@/app/(dashboard)/sosyal-medya/platform-content-types';
 import type { SpecialPost, User, PostStatus } from '@/types';
-import type { LeaderboardEntry } from './page';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -299,114 +298,16 @@ const TABS: { key: PostStatus | 'TUMU'; label: string }[] = [
   { key: 'REDDEDILDI',    label: 'Reddedilenler' },
 ];
 
-// ── Leaderboard ───────────────────────────────────────────────────────────────
-
-function Leaderboard({ entries, currentUserId }: {
-  entries: LeaderboardEntry[];
-  currentUserId: string;
-}) {
-  if (entries.length === 0) return null;
-
-  function fmt(n: number) {
-    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
-    if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
-    return n.toString();
-  }
-
-  return (
-    <div className="rounded-[var(--radius-md)] border overflow-hidden"
-      style={{ borderColor: 'var(--color-border)' }}>
-      <div className="px-4 py-3 border-b flex items-center gap-2"
-        style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg-secondary)' }}>
-        <Trophy size={14} style={{ color: 'var(--color-accent)' }} />
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-          Sıralama — Fikir Tutma Oranı
-        </h3>
-      </div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-xs border-b"
-            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
-            <th className="px-4 py-2 text-left font-medium">#</th>
-            <th className="px-4 py-2 text-left font-medium">İsim</th>
-            <th className="px-4 py-2 text-right font-medium">Gönderilen</th>
-            <th className="px-4 py-2 text-right font-medium">Onaylanan</th>
-            <th className="px-4 py-2 text-right font-medium">Yayınlanan</th>
-            <th className="px-4 py-2 text-right font-medium">Tutma %</th>
-            <th className="px-4 py-2 text-right font-medium">Görüntülenme</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((e, i) => {
-            const isMe = e.userId === currentUserId;
-            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
-            return (
-              <tr key={e.userId}
-                className="border-b last:border-0 transition-colors"
-                style={{
-                  borderColor: 'var(--color-border)',
-                  background: isMe
-                    ? 'rgba(255,77,0,0.06)'
-                    : i % 2 === 0 ? 'var(--color-bg-secondary)' : 'var(--color-bg-primary)',
-                }}>
-                <td className="px-4 py-2.5 font-mono text-xs w-8"
-                  style={{ color: 'var(--color-text-muted)' }}>
-                  {medal}
-                </td>
-                <td className="px-4 py-2.5">
-                  <span className="font-medium text-sm"
-                    style={{ color: isMe ? 'var(--color-accent)' : 'var(--color-text-primary)' }}>
-                    {e.fullName}{isMe && ' (sen)'}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5 text-right font-mono text-xs"
-                  style={{ color: 'var(--color-text-secondary)' }}>
-                  {e.totalSubmitted}
-                </td>
-                <td className="px-4 py-2.5 text-right font-mono text-xs"
-                  style={{ color: 'var(--color-text-secondary)' }}>
-                  {e.totalApproved}
-                </td>
-                <td className="px-4 py-2.5 text-right font-mono text-xs"
-                  style={{ color: 'var(--color-success)' }}>
-                  {e.totalPublished}
-                </td>
-                <td className="px-4 py-2.5 text-right">
-                  <span className="rounded-full px-2 py-0.5 font-mono text-xs font-semibold"
-                    style={{
-                      background: e.approvalRate >= 50
-                        ? 'rgba(34,197,94,0.12)' : 'rgba(234,179,8,0.12)',
-                      color: e.approvalRate >= 50
-                        ? 'var(--color-success)' : 'var(--color-warning)',
-                    }}>
-                    %{e.approvalRate}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5 text-right font-mono text-xs"
-                  style={{ color: 'var(--color-text-secondary)' }}>
-                  {e.totalViews > 0 ? fmt(e.totalViews) : '—'}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 // ── Main Client ───────────────────────────────────────────────────────────────
 
 export function IdeasClient({
   posts: initialPosts,
   currentUser,
   allUsers,
-  leaderboard,
 }: {
   posts: SpecialPost[];
   currentUser: User;
   allUsers: User[];
-  leaderboard: LeaderboardEntry[];
 }) {
   const [posts]      = useState<SpecialPost[]>(initialPosts);
   const [modalOpen, setModalOpen] = useState(false);
@@ -427,9 +328,6 @@ export function IdeasClient({
 
   return (
     <div className="space-y-5">
-
-      {/* Yarış tablosu — herkes görür */}
-      <Leaderboard entries={leaderboard} currentUserId={currentUser.id} />
 
       {/* Kendi istatistik kartları */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
