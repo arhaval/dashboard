@@ -15,7 +15,6 @@ import {
   Crosshair,
   Radio,
   CalendarDays,
-  Target,
   ClipboardList,
   Tv2,
   X,
@@ -60,10 +59,8 @@ const navSections: NavSection[] = [
   {
     label: 'ANALİTİK',
     items: [
-      { label: 'İçerik Takvimi',  href: '/content',         icon: CalendarDays, excludeRoles: ['TEAM_MEMBER'] },
       { label: 'Fikir Havuzu',    href: '/content/ideas',   icon: Lightbulb },
       { label: 'İçerik İstatistikleri', href: '/content/stats', icon: BarChart3 },
-      { label: 'İçerik Hedefleri',href: '/content/goals',   icon: Target,       excludeRoles: ['TEAM_MEMBER'] },
       { label: 'Haftalık Program', href: '/content/schedule',icon: CalendarDays, excludeRoles: ['TEAM_MEMBER'] },
       { label: tr.nav.social,     href: '/social',           icon: BarChart3,    excludeRoles: ['TEAM_MEMBER'] },
       { label: 'İçerik Yönetimi', href: '/sosyal-medya', icon: Users },
