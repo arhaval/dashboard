@@ -68,7 +68,7 @@ export function Header({ user, onSignOut, onMenuToggle }: HeaderProps) {
         <div className="flex items-center gap-3">
           <button
             onClick={onMenuToggle}
-            className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)] lg:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)] lg:hidden"
             aria-label="Menüyü aç"
           >
             <Menu className="h-5 w-5" />
@@ -153,7 +153,9 @@ export function Header({ user, onSignOut, onMenuToggle }: HeaderProps) {
                     'border border-[var(--color-border)]',
                     'bg-[var(--color-bg-secondary)]',
                     'py-1',
-                    'animate-fade-in'
+                    'animate-fade-in',
+                    // Prevent overflow on narrow screens
+                    'max-w-[calc(100vw-1rem)]'
                   )}
                   style={{ boxShadow: 'var(--shadow-card)' }}
                 >
@@ -171,7 +173,7 @@ export function Header({ user, onSignOut, onMenuToggle }: HeaderProps) {
                   <button
                     className={cn(
                       'flex w-full items-center gap-3',
-                      'px-4 py-2',
+                      'px-4 py-3',
                       'text-sm text-[var(--color-text-secondary)]',
                       'transition-colors',
                       'hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]'
@@ -190,7 +192,7 @@ export function Header({ user, onSignOut, onMenuToggle }: HeaderProps) {
                     }}
                     className={cn(
                       'flex w-full items-center gap-3',
-                      'px-4 py-2',
+                      'px-4 py-3',
                       'text-sm text-[var(--color-error)]',
                       'transition-colors',
                       'hover:bg-[var(--color-error-muted)]'

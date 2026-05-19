@@ -1,55 +1,134 @@
-// Arhaval Dashboard — Service Worker
-const CACHE_NAME = 'arhaval-v1';
+// Arhaval Dashboard — Service Worker v2
+const CACHE_VERSION = 'arhaval-v2';
+const STATIC_CACHE  = `${CACHE_VERSION}-static`;
+const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 
-// Basic install — cache shell
+// Shell assets to pre-cache on install
+const PRECACHE_ASSETS = [
+  '/',
+  '/offline',
+  '/manifest.json',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+];
+
+// ── Install: pre-cache shell ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll(['/', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png'])
+    caches.open(STATIC_CACHE).then((cache) =>
+      cache.addAll(PRECACHE_ASSETS)
     )
   );
   self.skipWaiting();
 });
 
+// ── Activate: remove old caches ───────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter((k) => k !== STATIC_CACHE && k !== DYNAMIC_CACHE)
+          .map((k) => caches.delete(k))
+      )
     )
   );
   self.clients.claim();
 });
 
-// Network-first for navigation, cache fallback for assets
+// ── Fetch ─────────────────────────────────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
   const url = new URL(event.request.url);
 
-  // Skip API routes and Supabase calls
-  if (url.pathname.startsWith('/api/') || url.hostname.includes('supabase')) return;
+  // Skip: API routes, Supabase, hot-reload, extension traffic
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.hostname.includes('supabase') ||
+    url.pathname.startsWith('/_next/webpack-hmr') ||
+    url.protocol === 'chrome-extension:'
+  ) return;
 
-  event.respondWith(
-    fetch(event.request)
-      .then((res) => {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        return res;
-      })
-      .catch(() => caches.match(event.request))
-  );
+  // Static assets (_next/static): cache-first
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(cacheFirst(event.request, STATIC_CACHE));
+    return;
+  }
+
+  // Images & icons: cache-first with dynamic cache
+  if (
+    url.pathname.startsWith('/icons/') ||
+    url.pathname.match(/\.(png|jpg|jpeg|svg|webp|ico)$/)
+  ) {
+    event.respondWith(cacheFirst(event.request, DYNAMIC_CACHE));
+    return;
+  }
+
+  // Navigation requests: network-first, fallback to /offline
+  if (event.request.mode === 'navigate') {
+    event.respondWith(navigationHandler(event.request));
+    return;
+  }
+
+  // Everything else: network-first, fallback to cache
+  event.respondWith(networkFirst(event.request, DYNAMIC_CACHE));
 });
 
-// Push notification handler
+// ── Strategies ────────────────────────────────────────────────────────────────
+
+async function cacheFirst(request, cacheName) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response.ok) {
+    const cache = await caches.open(cacheName);
+    cache.put(request, response.clone());
+  }
+  return response;
+}
+
+async function networkFirst(request, cacheName) {
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(cacheName);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    const cached = await caches.match(request);
+    return cached ?? new Response('', { status: 503 });
+  }
+}
+
+async function navigationHandler(request) {
+  try {
+    const response = await fetch(request);
+    // Cache successful navigations for offline use
+    if (response.ok) {
+      const cache = await caches.open(DYNAMIC_CACHE);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    // Try exact match first, then the offline page
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    const offline = await caches.match('/offline');
+    return offline ?? new Response('Çevrimdışısın', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+  }
+}
+
+// ── Push Notifications ────────────────────────────────────────────────────────
 self.addEventListener('push', (event) => {
   if (!event.data) return;
-
   const data = event.data.json();
-
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: data.icon || '/icons/icon-192.png',
-      badge: '/icons/badge-72.png',
+      badge: '/icons/icon-192.png',
       tag: data.tag || 'arhaval',
       data: { url: data.url || '/' },
       requireInteraction: false,
@@ -57,11 +136,9 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Notification click — open/focus window
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = event.notification.data?.url || '/';
-
   event.waitUntil(
     self.clients
       .matchAll({ type: 'window', includeUncontrolled: true })

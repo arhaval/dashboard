@@ -59,10 +59,10 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     const sizes = {
-      sm: 'h-8 px-3 text-sm rounded-[var(--radius-sm)]',
-      md: 'h-10 px-4 text-sm rounded-[var(--radius-md)]',
-      lg: 'h-12 px-6 text-base rounded-[var(--radius-md)]',
-      icon: 'h-10 w-10 rounded-[var(--radius-md)]',
+      sm: 'h-9 px-3 text-sm rounded-[var(--radius-sm)]',           // 36px — min for secondary
+      md: 'h-10 px-4 text-sm rounded-[var(--radius-md)]',           // 40px
+      lg: 'h-12 px-6 text-base rounded-[var(--radius-md)]',         // 48px — primary CTA
+      icon: 'h-11 w-11 rounded-[var(--radius-md)]',                  // 44px — WCAG touch target
     };
 
     return (

@@ -126,10 +126,10 @@ export function Sidebar({ userRole = 'ADMIN', isOpen = false, onClose }: Sidebar
           {/* Mobile close button */}
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] text-white/60 hover:bg-white/10 hover:text-white lg:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] text-white/60 hover:bg-white/10 hover:text-white lg:hidden"
             aria-label="Menüyü kapat"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
@@ -166,7 +166,7 @@ export function Sidebar({ userRole = 'ADMIN', isOpen = false, onClose }: Sidebar
                           onClick={onClose}
                           className={cn(
                             'flex items-center gap-3',
-                            'rounded-[var(--radius-md)] px-3 py-2',
+                            'rounded-[var(--radius-md)] px-3 py-2.5',
                             'text-sm font-medium transition-all duration-150'
                           )}
                           style={

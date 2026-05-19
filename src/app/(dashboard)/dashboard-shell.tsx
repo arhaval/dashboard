@@ -23,6 +23,19 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
     setSidebarOpen(false);
   }, [pathname]);
 
+  // Lock body scroll when mobile sidebar is open
+  React.useEffect(() => {
+    const isMobile = window.matchMedia('(max-width: 1023px)').matches;
+    if (sidebarOpen && isMobile) {
+      document.body.classList.add('sidebar-open');
+    } else {
+      document.body.classList.remove('sidebar-open');
+    }
+    return () => {
+      document.body.classList.remove('sidebar-open');
+    };
+  }, [sidebarOpen]);
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.push('/login');

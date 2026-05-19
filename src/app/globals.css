@@ -122,6 +122,10 @@
 /* Base Styles */
 html {
   color-scheme: light;
+  /* Smooth scrolling everywhere */
+  scroll-behavior: smooth;
+  /* iOS momentum scrolling */
+  -webkit-overflow-scrolling: touch;
 }
 
 body {
@@ -131,6 +135,40 @@ body {
   font-weight: var(--font-weight-normal);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent text size adjustment on orientation change (iOS) */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Prevent double-tap zoom on interactive elements */
+  touch-action: manipulation;
+}
+
+/* Body scroll lock — applied via JS when mobile sidebar is open */
+body.sidebar-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
+/* Safe area insets for notched devices (iPhone X+) */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Prevent iOS input auto-zoom: all inputs must be >= 16px */
+input, select, textarea {
+  font-size: 16px;
+}
+
+@media (min-width: 640px) {
+  input, select, textarea {
+    font-size: 0.875rem; /* 14px on desktop */
+  }
+}
+
+/* Touch targets — minimum 44x44px per WCAG */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
 }
 
 /* Focus Styles */

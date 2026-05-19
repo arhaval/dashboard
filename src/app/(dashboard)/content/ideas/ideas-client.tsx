@@ -34,10 +34,11 @@ const PLATFORM_ICONS: Record<string, React.ReactNode> = {
 // ── Input styles ──────────────────────────────────────────────────────────────
 
 const inputCls = [
-  'w-full rounded-[var(--radius-md)] border px-3 py-2 text-sm',
+  'w-full rounded-[var(--radius-md)] border px-3 py-3 text-base sm:text-sm',
   'bg-[var(--color-bg-primary)] border-[var(--color-border)]',
   'text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]',
   'focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:border-transparent',
+  'min-h-[44px]', // WCAG touch target
 ].join(' ');
 
 function Field({ label, required, children }: {
@@ -88,26 +89,52 @@ function AddPostModal({ open, onClose }: { open: boolean; onClose: () => void })
 
   return (
     <>
+      {/* Backdrop */}
       <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-lg pointer-events-auto rounded-[var(--radius-lg)] shadow-2xl overflow-hidden"
-          style={{ background: 'var(--color-bg-secondary)' }}>
 
-          <div className="flex items-center justify-between px-5 pt-5 pb-3"
+      {/*
+        Mobile: bottom sheet (slides up from bottom, full width, rounded top corners)
+        Desktop: centered modal
+      */}
+      <div className="fixed inset-x-0 bottom-0 z-50 sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4">
+        <div
+          className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-[var(--radius-lg)] overflow-hidden flex flex-col"
+          style={{
+            background: 'var(--color-bg-secondary)',
+            maxHeight: '92dvh',
+          }}
+        >
+          {/* Drag handle (mobile only) */}
+          <div className="flex justify-center pt-3 pb-1 sm:hidden">
+            <div className="w-10 h-1 rounded-full bg-[var(--color-border-hover)]" />
+          </div>
+
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 pt-3 pb-3 sm:pt-5"
             style={{ borderBottom: '1px solid var(--color-border)' }}>
             <div>
               <h2 className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>
                 Yeni İçerik Fikri
               </h2>
               <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                Her platform için ayrı kayıt — birden fazla platform için tekrar doldur
+                Her platform için ayrı kayıt
               </p>
             </div>
-            <button onClick={onClose} className="p-1.5 rounded-[var(--radius-md)]"
-              style={{ color: 'var(--color-text-muted)' }}>✕</button>
+            <button
+              onClick={onClose}
+              className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)]"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              ✕
+            </button>
           </div>
 
-          <form onSubmit={submit} className="px-5 py-4 space-y-4">
+          {/* Scrollable form */}
+          <form
+            onSubmit={submit}
+            className="overflow-y-auto px-5 py-4 space-y-4"
+            style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+          >
             <Field label="Başlık" required>
               <input name="title" required placeholder="ör. Turnuva finali highlight" className={inputCls} />
             </Field>
@@ -120,7 +147,7 @@ function AddPostModal({ open, onClose }: { open: boolean; onClose: () => void })
                   return (
                     <button key={p} type="button"
                       onClick={() => setPlatform(p)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] text-xs font-semibold border transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-2.5 rounded-[var(--radius-md)] text-xs font-semibold border transition-colors min-h-[44px]"
                       style={{
                         background:  selected ? 'var(--color-accent)' : 'transparent',
                         color:       selected ? '#fff' : 'var(--color-text-secondary)',
@@ -139,8 +166,7 @@ function AddPostModal({ open, onClose }: { open: boolean; onClose: () => void })
             </Field>
 
             <Field label="İçerik Türü" required>
-              <select name="content_type" required className={inputCls}
-                disabled={!platform}>
+              <select name="content_type" required className={inputCls} disabled={!platform}>
                 {!platform
                   ? <option value="">— Önce platform seç —</option>
                   : contentTypes.map(t => (
@@ -171,7 +197,7 @@ function AddPostModal({ open, onClose }: { open: boolean; onClose: () => void })
             )}
 
             <button type="submit" disabled={pending || done}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-[var(--radius-md)] text-sm font-bold text-white transition-opacity disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2 min-h-[52px] rounded-[var(--radius-md)] text-sm font-bold text-white transition-opacity disabled:opacity-60"
               style={{ background: 'var(--color-accent)' }}>
               {pending ? <><Loader2 size={14} className="animate-spin" /> Kaydediliyor…</> : 'Fikri Ekle'}
             </button>
@@ -345,12 +371,12 @@ export function IdeasClient({
       </div>
 
       {/* Üst bar */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex gap-1 flex-wrap">
           {TABS.map(t => (
             <button key={t.key}
               onClick={() => setActiveTab(t.key)}
-              className="px-3 py-1.5 text-xs font-semibold rounded-[var(--radius-md)] transition-colors"
+              className="px-3 min-h-[40px] text-xs font-semibold rounded-[var(--radius-md)] transition-colors"
               style={{
                 background: activeTab === t.key ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
                 color: activeTab === t.key ? '#fff' : 'var(--color-text-secondary)',
@@ -363,7 +389,7 @@ export function IdeasClient({
 
         <button
           onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-semibold text-white"
+          className="flex items-center gap-2 px-4 min-h-[44px] rounded-[var(--radius-md)] text-sm font-semibold text-white shrink-0"
           style={{ background: 'var(--color-accent)' }}>
           <Plus size={15} /> Fikir Ekle
         </button>
