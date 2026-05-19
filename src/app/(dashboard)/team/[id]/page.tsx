@@ -61,7 +61,7 @@ export default async function TeamMemberProfilePage({ params }: PageProps) {
   // Finansal veriler sadece admin için
   const [transactions, stats, memberPosts] = await Promise.all([
     isAdmin ? financeService.getByUserId(id) : Promise.resolve([]),
-    isAdmin ? financeService.getUserStats(id) : Promise.resolve({ totalEarned: 0, totalAdvances: 0, balance: 0 }),
+    isAdmin ? financeService.getUserStats(id) : Promise.resolve({ totalIncome: 0, totalExpenses: 0, netBalance: 0, transactionCount: 0 }),
     specialPostService.getAll({ author_id: id }),
   ]);
 
