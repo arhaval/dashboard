@@ -1,57 +1,28 @@
-/**
- * Sosyal Medya Yönetimi
- * Rol bazlı: İçerik Üretici → kendi dashboard'u | Admin → onay + analitik
- */
-
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
-import { userService, specialPostService } from '@/services';
-import { getCreatorDashboardData } from '@/app/actions/social-actions';
-import { CreatorView } from './creator-view';
-import { AdminView } from './admin-view';
+import { userService } from '@/services';
+import { contentQueueService } from '@/services/content-queue.service';
+import { ContentTable } from './content-table';
 
 export const dynamic = 'force-dynamic';
 
-export default async function SosyalMedyaPage() {
+export default async function IcerikPlaniPage() {
   const currentUser = await userService.getCurrentUser();
   if (!currentUser) redirect('/login');
 
-  const isAdmin = currentUser.role === 'ADMIN';
-
-  if (isAdmin) {
-    const [allPosts, allUsers] = await Promise.all([
-      specialPostService.getAll(),
-      userService.getAll(),
-    ]);
-
-    return (
-      <PageShell
-        title="Sosyal Medya Yönetimi"
-        description="Fikir onaylama, ekip atama ve genel analitik ekranı"
-      >
-        <AdminView allPosts={allPosts} allUsers={allUsers} />
-      </PageShell>
-    );
+  if (!['ADMIN', 'PUBLISHER'].includes(currentUser.role)) {
+    redirect('/');
   }
 
-  // İçerik üretici / diğer roller
-  const [creatorData, allMyPosts, poolPosts] = await Promise.all([
-    getCreatorDashboardData(currentUser.id),
-    specialPostService.getAll({ author_id: currentUser.id }),
-    specialPostService.getAll({ status: 'ONAYLANDI' }),
-  ]);
+  const isAdmin = currentUser.role === 'ADMIN';
+  const items = await contentQueueService.getAll();
 
   return (
     <PageShell
-      title="Sosyal Medya"
-      description="İçeriklerinizin performansı ve yeni fikir önerisi"
+      title="İçerik Planı"
+      description="Hazır içerikler ve yayın takvimi"
     >
-      <CreatorView
-        currentUser={currentUser}
-        dashboardData={creatorData}
-        allPosts={allMyPosts}
-        poolPosts={poolPosts}
-      />
+      <ContentTable items={items} isAdmin={isAdmin} />
     </PageShell>
   );
 }
