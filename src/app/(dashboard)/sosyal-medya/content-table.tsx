@@ -9,7 +9,7 @@ import {
   type ContentQueueItem,
   type ContentPlatform,
   type ContentStatus,
-} from '@/services/content-queue.service';
+} from './content-queue.constants';
 import { updateContentStatus, deleteContentItem } from './queue-actions';
 import { ContentForm } from './content-form';
 

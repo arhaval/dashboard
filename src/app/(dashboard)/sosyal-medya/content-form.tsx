@@ -11,7 +11,7 @@ import {
   type ContentQueueItem,
   type ContentPlatform,
   type ContentStatus,
-} from '@/services/content-queue.service';
+} from './content-queue.constants';
 import { createContentItem, updateContentItem } from './queue-actions';
 
 interface ContentFormProps {

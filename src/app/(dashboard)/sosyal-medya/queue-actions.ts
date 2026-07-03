@@ -8,7 +8,7 @@ import type {
   ContentStatus,
   CreateContentQueueInput,
   UpdateContentQueueInput,
-} from '@/services/content-queue.service';
+} from './content-queue.constants';
 
 export async function createContentItem(input: Omit<CreateContentQueueInput, 'created_by'>) {
   const user = await userService.getCurrentUser();
@@ -50,4 +50,4 @@ export async function deleteContentItem(id: string) {
   return { success: true };
 }
 
-export type { ContentPlatform, ContentStatus };
+export type { ContentPlatform, ContentStatus } from './content-queue.constants';

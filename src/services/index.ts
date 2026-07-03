@@ -20,4 +20,3 @@ export type { DaySchedule, WeekActivity } from './weekly-schedule.utils';
 export { cashFlowService } from './cash-flow.service';
 export type { ExpectedIncome, ExpectedExpense, CashFlowSummary, MonthlyPoint } from './cash-flow.service';
 export { contentQueueService } from './content-queue.service';
-export type { ContentQueueItem, ContentPlatform, ContentStatus, CreateContentQueueInput, UpdateContentQueueInput, } from './content-queue.service';
