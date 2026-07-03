@@ -21,7 +21,7 @@ export const contentQueueService = {
       .select('*')
       .order('planned_date', { ascending: true, nullsFirst: false });
 
-    if (filters?.platform) query = query.eq('platform', filters.platform);
+    if (filters?.platform) query = query.contains('platforms', [filters.platform]);
     if (filters?.status)   query = query.eq('status', filters.status);
 
     const { data, error } = await query;
@@ -29,22 +29,20 @@ export const contentQueueService = {
       console.error('content_queue getAll error:', error.message);
       return [];
     }
-    return data || [];
+    return (data || []) as ContentQueueItem[];
   },
 
   async create(
     input: CreateContentQueueInput
   ): Promise<{ item: ContentQueueItem | null; error?: string }> {
     const supabase = await createClient();
-
     const { data, error } = await supabase
       .from('content_queue')
       .insert(input)
       .select()
       .single();
-
     if (error) return { item: null, error: error.message };
-    return { item: data };
+    return { item: data as ContentQueueItem };
   },
 
   async update(
@@ -52,36 +50,26 @@ export const contentQueueService = {
     input: UpdateContentQueueInput
   ): Promise<{ item: ContentQueueItem | null; error?: string }> {
     const supabase = await createClient();
-
     const payload: Record<string, unknown> = {
       ...input,
       updated_at: new Date().toISOString(),
     };
-
-    // Yayınlandı yapılırken tarihi otomatik ata
     if (input.status === 'YAYINLANDI' && !input.published_date) {
       payload.published_date = new Date().toISOString().split('T')[0];
     }
-
     const { data, error } = await supabase
       .from('content_queue')
       .update(payload)
       .eq('id', id)
       .select()
       .single();
-
     if (error) return { item: null, error: error.message };
-    return { item: data };
+    return { item: data as ContentQueueItem };
   },
 
   async delete(id: string): Promise<{ success: boolean; error?: string }> {
     const supabase = await createClient();
-
-    const { error } = await supabase
-      .from('content_queue')
-      .delete()
-      .eq('id', id);
-
+    const { error } = await supabase.from('content_queue').delete().eq('id', id);
     if (error) return { success: false, error: error.message };
     return { success: true };
   },
