@@ -256,42 +256,68 @@ function findCol(headers: string[], candidates: string[]): number {
 // ── Platform parserleri ───────────────────────────────────────────────────────
 
 function parseTwitchKickCsv(lines: string[]): Record<string, number> {
-  const headers = splitCsvLine(lines[0]).map(h => h.toLowerCase().replace(/['"]/g, '').trim());
-  const dataLines = lines.slice(1).filter(l => l.trim());
+  // Türkçe karakter normalizasyonu: İ→i, ı→i, ş→s, ğ→g, ü→u, ö→o, ç→c
+  const norm = (h: string) => h
+    .toLowerCase()
+    .replace(/['"]/g, '')
+    .trim()
+    .replace(/̇/g, '')   // combining dot above (İ.toLowerCase() artığı)
+    .replace(/ı/g, 'i')  // dotless ı
+    .replace(/ş/g, 's')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c');
 
-  const colAvg     = findCol(headers, ['average viewers', 'concurrent viewers (average)', 'avg viewers']);
-  const colPeak    = findCol(headers, ['peak viewers', 'concurrent viewers (peak)', 'peak_viewers']);
-  const colHrsWatched = findCol(headers, ['hours watched', 'hours_watched']);
-  const colMinWatched = findCol(headers, ['minutes watched']);
-  const colHrsStreamed = findCol(headers, ['hours streamed', 'stream hours', 'duration (hours)']);
-  const colMinStreamed = findCol(headers, ['minutes streamed', 'stream minutes', 'duration (minutes)']);
-  const colUniqueViewers = findCol(headers, ['unique viewers', 'unique_viewers']);
+  const headers    = splitCsvLine(lines[0]).map(norm);
+  const dataLines  = lines.slice(1).filter(l => l.trim());
 
-  let sumAvg = 0, maxPeak = 0, totalLiveViews = 0, totalStreamMinutes = 0, rowCount = 0;
+  // Türkçe (Twitch TR dashboard) + İngilizce kolon isimleri
+  const colAvg          = findCol(headers, ['ortalama izleyici', 'average viewers', 'concurrent viewers (average)', 'avg viewers']);
+  const colPeak         = findCol(headers, ['maks. izleyici', 'maks izleyici', 'peak viewers', 'concurrent viewers (peak)', 'peak_viewers']);
+  const colLiveViews    = findCol(headers, ['canli izleme', 'live views', 'live_views']);
+  const colMinWatched   = findCol(headers, ['izlenen dakika', 'minutes watched', 'hours watched']);
+  const colMinStreamed   = findCol(headers, ['yayin yapilan dakika', 'minutes streamed', 'stream minutes', 'duration (minutes)', 'hours streamed']);
+  const colUniqueViewers= findCol(headers, ['tekil izleyici', 'unique viewers', 'unique_viewers']);
+  const colChatters     = findCol(headers, ['sohbetciler', 'unique chatters', 'chatters']);
+  const colPaidSubs     = findCol(headers, ['toplam ucretli abonelik', 'paid subscriptions', 'ucretli abonelik']);
+  const colGiftSubs     = findCol(headers, ['toplam hediye abonelik', 'gift subscriptions', 'hediye abonelik']);
+
+  let sumAvg = 0, avgCount = 0, maxPeak = 0;
+  let totalLiveViews = 0, totalStreamMinutes = 0;
+  let totalUnique = 0, totalChatters = 0, totalPaidSubs = 0, totalGiftSubs = 0;
 
   for (const line of dataLines) {
     const cols = splitCsvLine(line);
     if (cols.length < 2) continue;
-    rowCount++;
 
-    if (colAvg >= 0)  sumAvg += toNum(cols[colAvg] ?? '0');
-    if (colPeak >= 0) { const v = toNum(cols[colPeak] ?? '0'); if (v > maxPeak) maxPeak = v; }
+    const avg = colAvg >= 0 ? toNum(cols[colAvg] ?? '0') : 0;
+    if (avg > 0) { sumAvg += avg; avgCount++; }
 
-    if (colHrsWatched >= 0)  totalLiveViews  += toNum(cols[colHrsWatched] ?? '0') * 60;  // hrs → mins as proxy
-    if (colMinWatched >= 0)  totalLiveViews  += toNum(cols[colMinWatched] ?? '0');
-    if (colUniqueViewers >= 0 && colHrsWatched < 0 && colMinWatched < 0) {
-      totalLiveViews += toNum(cols[colUniqueViewers] ?? '0');
+    if (colPeak >= 0) {
+      const v = toNum(cols[colPeak] ?? '0');
+      if (v > maxPeak) maxPeak = v;
     }
 
-    if (colHrsStreamed >= 0) totalStreamMinutes += toNum(cols[colHrsStreamed] ?? '0') * 60;
-    if (colMinStreamed >= 0) totalStreamMinutes += toNum(cols[colMinStreamed] ?? '0');
+    // Canlı İzleme tercih edilir; yoksa İzlenen Dakika proxy olarak kullanılır
+    if (colLiveViews >= 0)  totalLiveViews    += toNum(cols[colLiveViews]    ?? '0');
+    else if (colMinWatched >= 0) totalLiveViews += toNum(cols[colMinWatched] ?? '0');
+
+    if (colMinStreamed >= 0)  totalStreamMinutes += toNum(cols[colMinStreamed]   ?? '0');
+    if (colUniqueViewers >= 0) totalUnique       += toNum(cols[colUniqueViewers] ?? '0');
+    if (colChatters >= 0)      totalChatters     += toNum(cols[colChatters]      ?? '0');
+    if (colPaidSubs >= 0)      totalPaidSubs     += toNum(cols[colPaidSubs]      ?? '0');
+    if (colGiftSubs >= 0)      totalGiftSubs     += toNum(cols[colGiftSubs]      ?? '0');
   }
 
   const out: Record<string, number> = {};
-  if (rowCount > 0 && colAvg >= 0)      out.avg_viewers = Math.round(sumAvg / rowCount);
-  if (colPeak >= 0)                      out.peak_viewers = maxPeak;
-  if (totalLiveViews > 0)                out.live_views = Math.round(totalLiveViews);
-  if (totalStreamMinutes > 0)            out.total_stream_time_minutes = Math.round(totalStreamMinutes);
+  if (avgCount > 0)             out.avg_viewers              = Math.round(sumAvg / avgCount);
+  if (maxPeak > 0)              out.peak_viewers             = maxPeak;
+  if (totalLiveViews > 0)       out.live_views               = Math.round(totalLiveViews);
+  if (totalStreamMinutes > 0)   out.total_stream_time_minutes = Math.round(totalStreamMinutes);
+  if (totalUnique > 0)          out.unique_viewers           = Math.round(totalUnique);
+  if (totalChatters > 0)        out.unique_chatters          = Math.round(totalChatters);
+  if (totalPaidSubs + totalGiftSubs > 0) out.subs_total     = totalPaidSubs + totalGiftSubs;
   return out;
 }
 
