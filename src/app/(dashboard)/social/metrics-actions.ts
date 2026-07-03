@@ -429,37 +429,53 @@ function parseInstagramCsv(lines: string[]): Record<string, number> {
 
 function parseXCsv(lines: string[]): Record<string, number> {
   const out: Record<string, number> = {};
-  const headers = splitCsvLine(lines[0]).map(h => h.toLowerCase().trim());
 
-  const colImpressions = findCol(headers, ['impressions', 'tweet impressions']);
-  const colLikes       = findCol(headers, ['likes', 'favorites']);
-  const colRetweets    = findCol(headers, ['retweets']);
-  const colReplies     = findCol(headers, ['replies']);
-  const colProfileVisits = findCol(headers, ['user profile clicks', 'profile visits', 'profile clicks']);
-  const colLinkClicks  = findCol(headers, ['url clicks', 'link clicks']);
-  const colEngRate     = findCol(headers, ['engagement rate', 'engagements']);
+  // Türkçe karakter normalizasyonu (X TR dashboard CSV için)
+  const norm = (h: string) => h
+    .toLowerCase()
+    .replace(/['"]/g, '')
+    .trim()
+    .replace(/̇/g, '')  // combining dot (İ artığı)
+    .replace(/ı/g, 'i')
+    .replace(/ş/g, 's')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c');
 
-  let sumImp = 0, sumLikes = 0, sumRT = 0, sumReplies = 0, sumProfile = 0, sumLinks = 0, sumEng = 0;
+  const headers = splitCsvLine(lines[0]).map(norm);
+
+  // Türkçe + İngilizce kolon eşlemeleri
+  const colImpressions   = findCol(headers, ['goruntulenmeler', 'impressions', 'tweet impressions']);
+  const colLikes         = findCol(headers, ['begeni', 'likes', 'favorites']);
+  const colRetweets      = findCol(headers, ['yeniden gonderiler', 'retweets']);
+  const colReplies       = findCol(headers, ['yanitlar', 'replies']);
+  const colProfileVisits = findCol(headers, ['profil ziyaretleri', 'user profile clicks', 'profile visits', 'profile clicks']);
+  const colLinkClicks    = findCol(headers, ['url clicks', 'link clicks']);
+  const colFollowersNew  = findCol(headers, ['yeni takip sayisi', 'new followers', 'followers gained']);
+
+  let sumImp = 0, sumLikes = 0, sumRT = 0, sumReplies = 0;
+  let sumProfile = 0, sumLinks = 0, sumFollowers = 0;
 
   for (const line of lines.slice(1)) {
     const cols = splitCsvLine(line);
     if (cols.length < 2) continue;
-    if (colImpressions >= 0)   sumImp     += toNum(cols[colImpressions] ?? '0');
-    if (colLikes >= 0)         sumLikes   += toNum(cols[colLikes] ?? '0');
-    if (colRetweets >= 0)      sumRT      += toNum(cols[colRetweets] ?? '0');
-    if (colReplies >= 0)       sumReplies += toNum(cols[colReplies] ?? '0');
-    if (colProfileVisits >= 0) sumProfile += toNum(cols[colProfileVisits] ?? '0');
-    if (colLinkClicks >= 0)    sumLinks   += toNum(cols[colLinkClicks] ?? '0');
-    if (colEngRate >= 0)       sumEng     += toNum(cols[colEngRate] ?? '0');
+    if (colImpressions >= 0)   sumImp       += toNum(cols[colImpressions]   ?? '0');
+    if (colLikes >= 0)         sumLikes     += toNum(cols[colLikes]         ?? '0');
+    if (colRetweets >= 0)      sumRT        += toNum(cols[colRetweets]      ?? '0');
+    if (colReplies >= 0)       sumReplies   += toNum(cols[colReplies]       ?? '0');
+    if (colProfileVisits >= 0) sumProfile   += toNum(cols[colProfileVisits] ?? '0');
+    if (colLinkClicks >= 0)    sumLinks     += toNum(cols[colLinkClicks]    ?? '0');
+    if (colFollowersNew >= 0)  sumFollowers += toNum(cols[colFollowersNew]  ?? '0');
   }
 
-  if (sumImp > 0)     out.impressions    = Math.round(sumImp);
-  if (sumLikes > 0)   out.likes          = Math.round(sumLikes);
-  if (sumRT > 0)      out.retweets       = Math.round(sumRT);
-  if (sumReplies > 0) out.replies        = Math.round(sumReplies);
-  if (sumProfile > 0) out.profile_visits = Math.round(sumProfile);
-  if (sumLinks > 0)   out.link_clicks    = Math.round(sumLinks);
-  if (sumEng > 0 && sumImp > 0) out.engagement_rate = parseFloat(((sumEng / sumImp) * 100).toFixed(2));
+  if (sumImp > 0)       out.impressions    = Math.round(sumImp);
+  if (sumLikes > 0)     out.likes          = Math.round(sumLikes);
+  if (sumRT > 0)        out.retweets       = Math.round(sumRT);
+  if (sumReplies > 0)   out.replies        = Math.round(sumReplies);
+  if (sumProfile > 0)   out.profile_visits = Math.round(sumProfile);
+  if (sumLinks > 0)     out.link_clicks    = Math.round(sumLinks);
+  if (sumFollowers > 0) out.followers_gained = Math.round(sumFollowers);
   return out;
 }
 
