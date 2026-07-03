@@ -24,9 +24,10 @@ const PLATFORM_OPTIONS: { value: MetricsPlatform; label: string }[] = [
   { value: 'X',         label: tr.social.platforms.X         },
 ];
 
-function getCurrentMonth(): string {
+function getPreviousMonth(): string {
   const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 // ── Field definitions ─────────────────────────────────────────────────────────
@@ -206,7 +207,7 @@ export function MetricsForm() {
   const [error, setError]   = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const [month, setMonth]   = useState(getCurrentMonth());
+  const [month, setMonth]   = useState(getPreviousMonth());
   const [platform, setPlatform] = useState<MetricsPlatform>('TWITCH');
   const [followersTotal, setFollowersTotal] = useState('');
   const [platformFields, setPlatformFields] = useState<Record<string, string>>({});
