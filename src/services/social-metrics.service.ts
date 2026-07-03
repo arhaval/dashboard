@@ -14,6 +14,8 @@ import type {
   SocialGoal,
   CreateSocialGoalInput,
   GoalProgress,
+  MonthlyGrowthReport,
+  PlatformTarget,
 } from '@/types';
 
 // Helper to get previous month in YYYY-MM format
@@ -495,6 +497,111 @@ export const socialMetricsService = {
     }
 
     return { success: true };
+  },
+
+  /**
+   * Comprehensive monthly growth report with cross-platform totals and smart targets
+   */
+  async getMonthlyGrowthReport(month?: string): Promise<MonthlyGrowthReport> {
+    const allData = await this.getTrendData(); // asc order
+    const availableMonths = [...new Set(allData.map((d) => d.month))].sort().reverse();
+
+    const activeMonth =
+      month ?? (availableMonths.length > 0 ? availableMonths[0] : getCurrentMonth());
+    const prevMonth = getPreviousMonth(activeMonth);
+
+    const currentMetrics = allData.filter((d) => d.month === activeMonth);
+    const previousMetrics = allData.filter((d) => d.month === prevMonth);
+
+    const sumFollowers = (list: SocialMonthlyMetrics[]) =>
+      list.reduce((s, m) => s + (m.followers_total || 0), 0);
+    const sumViews = (list: SocialMonthlyMetrics[]) =>
+      list.reduce((s, m) => s + getViews(m), 0);
+    const sumEngagement = (list: SocialMonthlyMetrics[]) =>
+      list.reduce((s, m) => s + getEngagement(m), 0);
+
+    const pct = (curr: number, prev: number) =>
+      prev > 0 ? Math.round(((curr - prev) / prev) * 1000) / 10 : 0;
+
+    const totalFollowers = sumFollowers(currentMetrics);
+    const totalFollowersPrev = sumFollowers(previousMetrics);
+    const totalViews = sumViews(currentMetrics);
+    const totalViewsPrev = sumViews(previousMetrics);
+    const totalEngagement = sumEngagement(currentMetrics);
+    const totalEngagementPrev = sumEngagement(previousMetrics);
+
+    const twitch = currentMetrics.find((m) => m.platform === 'TWITCH');
+    const youtube = currentMetrics.find((m) => m.platform === 'YOUTUBE');
+    const twitchPrev = previousMetrics.find((m) => m.platform === 'TWITCH');
+    const youtubePrev = previousMetrics.find((m) => m.platform === 'YOUTUBE');
+    const totalLiveViews = (twitch?.live_views || 0) + (youtube?.live_views || 0);
+    const totalLiveViewsPrev = (twitchPrev?.live_views || 0) + (youtubePrev?.live_views || 0);
+
+    // Status based on 3-month follower trend
+    const last3 = availableMonths.slice(0, 3);
+    const followersByMonth = last3.map((m) =>
+      allData.filter((d) => d.month === m).reduce((s, d) => s + (d.followers_total || 0), 0)
+    );
+    let status: 'growing' | 'stable' | 'declining' = 'stable';
+    if (followersByMonth.length >= 2 && followersByMonth[1] > 0) {
+      const rate = pct(followersByMonth[0], followersByMonth[1]);
+      if (rate > 1) status = 'growing';
+      else if (rate < -1) status = 'declining';
+    }
+
+    // Smart per-platform targets (avg of last 3 month-over-month growth × 1.1 stretch)
+    const platforms: MetricsPlatform[] = ['TWITCH', 'YOUTUBE', 'INSTAGRAM', 'X'];
+    const platformTargets: PlatformTarget[] = platforms
+      .map((platform) => {
+        const history = allData
+          .filter((d) => d.platform === platform)
+          .sort((a, b) => a.month.localeCompare(b.month));
+
+        const growthSamples: number[] = [];
+        for (let i = Math.max(1, history.length - 3); i < history.length; i++) {
+          const curr = history[i].followers_total || 0;
+          const prev = history[i - 1].followers_total || 0;
+          if (prev > 0) growthSamples.push(curr - prev);
+        }
+
+        const avgGrowth =
+          growthSamples.length > 0
+            ? Math.round(growthSamples.reduce((s, r) => s + r, 0) / growthSamples.length)
+            : 0;
+
+        const current =
+          currentMetrics.find((m) => m.platform === platform)?.followers_total || 0;
+
+        return {
+          platform,
+          current,
+          target: current + Math.max(0, Math.round(avgGrowth * 1.1)),
+          avgMonthlyGrowth: avgGrowth,
+        };
+      })
+      .filter((p) => p.current > 0);
+
+    return {
+      activeMonth,
+      totalFollowers,
+      totalFollowersPrev,
+      totalFollowersChange: totalFollowers - totalFollowersPrev,
+      totalFollowersChangePct: pct(totalFollowers, totalFollowersPrev),
+      totalViews,
+      totalViewsPrev,
+      totalViewsChange: totalViews - totalViewsPrev,
+      totalViewsChangePct: pct(totalViews, totalViewsPrev),
+      totalLiveViews,
+      totalLiveViewsPrev,
+      totalLiveViewsChange: totalLiveViews - totalLiveViewsPrev,
+      totalLiveViewsChangePct: pct(totalLiveViews, totalLiveViewsPrev),
+      totalEngagement,
+      totalEngagementPrev,
+      totalEngagementChange: totalEngagement - totalEngagementPrev,
+      totalEngagementChangePct: pct(totalEngagement, totalEngagementPrev),
+      status,
+      platformTargets,
+    };
   },
 
   /**

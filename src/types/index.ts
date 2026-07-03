@@ -305,6 +305,39 @@ export interface PlatformGrowth {
 }
 
 // =============================================================================
+// Monthly Growth Report
+// =============================================================================
+
+export interface PlatformTarget {
+  platform: MetricsPlatform;
+  current: number;
+  target: number;
+  avgMonthlyGrowth: number;
+}
+
+export interface MonthlyGrowthReport {
+  activeMonth: string;
+  totalFollowers: number;
+  totalFollowersPrev: number;
+  totalFollowersChange: number;
+  totalFollowersChangePct: number;
+  totalViews: number;
+  totalViewsPrev: number;
+  totalViewsChange: number;
+  totalViewsChangePct: number;
+  totalLiveViews: number;
+  totalLiveViewsPrev: number;
+  totalLiveViewsChange: number;
+  totalLiveViewsChangePct: number;
+  totalEngagement: number;
+  totalEngagementPrev: number;
+  totalEngagementChange: number;
+  totalEngagementChangePct: number;
+  status: 'growing' | 'stable' | 'declining';
+  platformTargets: PlatformTarget[];
+}
+
+// =============================================================================
 // Social Notes & Goals Types
 // =============================================================================
 

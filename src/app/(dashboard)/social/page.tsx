@@ -15,6 +15,7 @@ import { TrendCharts } from './trend-charts';
 import { MonthlyNotes } from './monthly-notes';
 import { GoalProgress } from './goal-progress';
 import { PlatformDetailCards } from './platform-details';
+import { GrowthReport } from './growth-report';
 
 function getCurrentMonth(): string {
   const now = new Date();
@@ -50,11 +51,12 @@ export default async function SocialPage() {
   }
 
   const prevMonth = getPreviousMonth(activeMonth);
-  const [previousMetrics, trendData, monthNote, goalProgress] = await Promise.all([
+  const [previousMetrics, trendData, monthNote, goalProgress, growthReport] = await Promise.all([
     socialMetricsService.getByMonth(prevMonth),
     socialMetricsService.getTrendData(),
     socialMetricsService.getNoteForMonth(activeMonth),
     socialMetricsService.getGoalProgress(activeMonth),
+    socialMetricsService.getMonthlyGrowthReport(activeMonth),
   ]);
 
   return (
@@ -62,6 +64,11 @@ export default async function SocialPage() {
       title={tr.pages.social.title}
       description={isAdmin ? tr.pages.social.subtitle : 'Sosyal medya performansını görüntüle'}
     >
+      {/* Monthly Growth Report */}
+      <div className="mb-6">
+        <GrowthReport report={growthReport} />
+      </div>
+
       {/* Platform Detail Cards - All metrics per platform */}
       <div className="mb-6">
         <PlatformDetailCards
