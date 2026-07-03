@@ -19,7 +19,6 @@ import {
   Tv2,
   X,
   TrendingUp,
-  Lightbulb,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -59,8 +58,6 @@ const navSections: NavSection[] = [
   {
     label: 'ANALİTİK',
     items: [
-      { label: 'Fikir Havuzu',    href: '/content/ideas',   icon: Lightbulb },
-      { label: 'İçerik İstatistikleri', href: '/content/stats', icon: BarChart3 },
       { label: 'Haftalık Program', href: '/content/schedule',icon: CalendarDays, excludeRoles: ['TEAM_MEMBER'] },
       { label: tr.nav.social,     href: '/social',           icon: BarChart3,    excludeRoles: ['TEAM_MEMBER', 'PUBLISHER'] },
       { label: 'İçerik Yönetimi', href: '/sosyal-medya',     icon: Users,        excludeRoles: ['TEAM_MEMBER', 'PUBLISHER'] },
