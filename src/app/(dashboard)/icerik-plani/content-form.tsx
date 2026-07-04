@@ -182,25 +182,20 @@ export function ContentForm({ open, onClose, item, defaultDate }: ContentFormPro
               </div>
             </div>
 
-            {/* Format + Tarih */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                  Format <span style={{ color: 'var(--color-error)' }}>*</span>
-                </label>
-                <Select value={contentType} onChange={(e) => setContentType(e.target.value)} required>
-                  <option value="">Seçin</option>
-                  {CONTENT_FORMATS.map((f) => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
-                </Select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                  Planlı Yayın Tarihi
-                </label>
-                <Input type="date" value={plannedDate} onChange={(e) => setPlannedDate(e.target.value)} />
-              </div>
+            {/* Format */}
+            <div>
+              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+                Format <span style={{ color: 'var(--color-error)' }}>*</span>
+              </label>
+              <Select value={contentType} onChange={(e) => setContentType(e.target.value)} required>
+                <option value="">Seçin</option>
+                {CONTENT_FORMATS.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </Select>
+              <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                Yayın tarihini üretim bitince Takvim görünümünden sürükleyerek verirsin.
+              </p>
             </div>
 
             {/* İçerik Metni */}

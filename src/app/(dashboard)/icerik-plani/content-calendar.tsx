@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Plus, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { useMemo, useState, useTransition } from 'react';
+import { Plus, ChevronLeft, ChevronRight, CalendarDays, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   PLATFORM_LABELS,
@@ -9,6 +9,7 @@ import {
   type ContentQueueItem,
   type ContentPlatform,
 } from './content-queue.constants';
+import { updateContentItem } from './queue-actions';
 import { ContentForm } from './content-form';
 
 // ── Date helpers (local, TZ-safe via YYYY-MM-DD keys) ───────────────────────────
@@ -42,21 +43,41 @@ function addDays(d: Date, n: number): Date {
 
 // ── Card ─────────────────────────────────────────────────────────────────────
 
-function CalendarCard({ item, onClick }: { item: ContentQueueItem; onClick: () => void }) {
+interface CardProps {
+  item: ContentQueueItem;
+  onClick: () => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  dragging: boolean;
+}
+
+function CalendarCard({ item, onClick, onDragStart, onDragEnd, dragging }: CardProps) {
   const isPublished = item.status === 'YAYINLANDI';
 
   return (
-    <button
+    <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', item.id);
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
       onClick={onClick}
-      className="w-full rounded-[var(--radius-sm)] p-2 text-left transition-shadow hover:shadow-sm"
+      className="group w-full cursor-grab rounded-[var(--radius-sm)] p-2 text-left transition-shadow hover:shadow-sm active:cursor-grabbing"
       style={{
         backgroundColor: 'var(--color-surface-2)',
         border: '1px solid var(--color-border)',
-        opacity: isPublished ? 0.6 : 1,
+        boxShadow: 'var(--shadow-card)',
+        opacity: dragging ? 0.4 : isPublished ? 0.6 : 1,
       }}
     >
       {/* Platform badges */}
-      <div className="mb-1 flex flex-wrap gap-1">
+      <div className="mb-1 flex flex-wrap items-center gap-1">
+        <GripVertical
+          className="h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-60"
+          style={{ color: 'var(--color-text-muted)' }}
+        />
         {item.platforms.map((p: ContentPlatform) => {
           const c = PLATFORM_COLORS[p];
           return (
@@ -73,7 +94,7 @@ function CalendarCard({ item, onClick }: { item: ContentQueueItem; onClick: () =
 
       {/* Title */}
       <p
-        className="line-clamp-2 text-[11px] font-medium leading-snug"
+        className="line-clamp-2 text-[11px] font-semibold leading-snug"
         style={{ color: 'var(--color-text-primary)' }}
       >
         {item.title}
@@ -83,12 +104,12 @@ function CalendarCard({ item, onClick }: { item: ContentQueueItem; onClick: () =
       {item.content_text && (
         <p
           className="mt-1 line-clamp-2 text-[10px] leading-snug"
-          style={{ color: 'var(--color-text-muted)' }}
+          style={{ color: 'var(--color-text-secondary)' }}
         >
           {item.content_text}
         </p>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -103,6 +124,10 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
   const [editItem, setEditItem] = useState<ContentQueueItem | null>(null);
   const [addDate, setAddDate] = useState<string | undefined>(undefined);
   const [formOpen, setFormOpen] = useState(false);
+
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null); // day key or 'UNPLANNED'
+  const [, startTransition] = useTransition();
 
   const todayKey = toKey(new Date());
 
@@ -136,6 +161,22 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
     setFormOpen(true);
   }
 
+  // Schedule / reschedule / unschedule via drag-drop
+  function handleDrop(target: string | null) {
+    const id = draggingId;
+    setDropTarget(null);
+    setDraggingId(null);
+    if (!id) return;
+
+    const item = items.find((i) => i.id === id);
+    const newDate = target === 'UNPLANNED' ? null : target;
+    if (!item || item.planned_date === newDate) return;
+
+    startTransition(async () => {
+      await updateContentItem(id, { planned_date: newDate });
+    });
+  }
+
   const weekLabel = `${anchor.getDate()} ${MONTHS[anchor.getMonth()]} – ${
     days[6].getDate()
   } ${MONTHS[days[6].getMonth()]}`;
@@ -147,7 +188,7 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setAnchor(addDays(anchor, -7))}
-            className="rounded-[var(--radius-sm)] p-1.5 transition-colors hover:bg-white/10"
+            className="rounded-[var(--radius-sm)] p-1.5 transition-colors hover:bg-black/5"
             style={{ color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }}
             title="Önceki hafta"
           >
@@ -155,14 +196,14 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
           </button>
           <button
             onClick={() => setAnchor(startOfWeek(new Date()))}
-            className="rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/10"
+            className="rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-medium transition-colors hover:bg-black/5"
             style={{ color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
           >
             Bu Hafta
           </button>
           <button
             onClick={() => setAnchor(addDays(anchor, 7))}
-            className="rounded-[var(--radius-sm)] p-1.5 transition-colors hover:bg-white/10"
+            className="rounded-[var(--radius-sm)] p-1.5 transition-colors hover:bg-black/5"
             style={{ color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }}
             title="Sonraki hafta"
           >
@@ -183,14 +224,31 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
           const key = toKey(day);
           const dayItems = byDate[key] || [];
           const isToday = key === todayKey;
+          const isDropHover = dropTarget === key;
 
           return (
             <div
               key={key}
-              className="flex min-h-[140px] flex-col rounded-[var(--radius-md)]"
+              onDragOver={(e) => {
+                if (!draggingId) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (dropTarget !== key) setDropTarget(key);
+              }}
+              onDragLeave={(e) => {
+                if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                setDropTarget((t) => (t === key ? null : t));
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleDrop(key);
+              }}
+              className="flex min-h-[140px] flex-col rounded-[var(--radius-md)] transition-colors"
               style={{
-                backgroundColor: 'var(--color-surface-1)',
-                border: isToday
+                backgroundColor: isDropHover ? 'var(--color-accent-muted)' : 'var(--color-surface-1)',
+                border: isDropHover
+                  ? '1px dashed var(--color-accent)'
+                  : isToday
                   ? '1px solid var(--color-accent)'
                   : '1px solid var(--color-border)',
               }}
@@ -208,7 +266,7 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
                 </span>
                 <button
                   onClick={() => openAdd(key)}
-                  className="rounded p-0.5 transition-colors hover:bg-white/10"
+                  className="rounded p-0.5 transition-colors hover:bg-black/5"
                   title="Bu güne içerik ekle"
                   style={{ color: 'var(--color-text-muted)' }}
                 >
@@ -219,16 +277,25 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
               {/* Cards */}
               <div className="flex flex-1 flex-col gap-1.5 p-2">
                 {dayItems.length === 0 ? (
-                  <button
-                    onClick={() => openAdd(key)}
-                    className="flex flex-1 items-center justify-center rounded-[var(--radius-sm)] py-3 text-[10px] transition-colors hover:bg-white/5"
-                    style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)' }}
+                  <div
+                    className="flex flex-1 items-center justify-center rounded-[var(--radius-sm)] py-3 text-[10px]"
+                    style={{ color: 'var(--color-text-muted)' }}
                   >
-                    +
-                  </button>
+                    {isDropHover ? 'Buraya bırak' : ''}
+                  </div>
                 ) : (
                   dayItems.map((item) => (
-                    <CalendarCard key={item.id} item={item} onClick={() => openEdit(item)} />
+                    <CalendarCard
+                      key={item.id}
+                      item={item}
+                      onClick={() => openEdit(item)}
+                      onDragStart={() => setDraggingId(item.id)}
+                      onDragEnd={() => {
+                        setDraggingId(null);
+                        setDropTarget(null);
+                      }}
+                      dragging={draggingId === item.id}
+                    />
                   ))
                 )}
               </div>
@@ -237,25 +304,62 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
         })}
       </div>
 
-      {/* Unplanned bucket */}
-      {unplanned.length > 0 && (
-        <div className="mt-5">
-          <div className="mb-2 flex items-center gap-2">
-            <CalendarDays className="h-3.5 w-3.5" style={{ color: 'var(--color-text-muted)' }} />
-            <span className="text-xs font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
-              Tarihsiz ({unplanned.length})
-            </span>
-            <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
-              — bir tarih vermek için karta tıkla
-            </span>
-          </div>
+      {/* Stock / unplanned tray — drop here to unschedule, drag out to schedule */}
+      <div
+        onDragOver={(e) => {
+          if (!draggingId) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (dropTarget !== 'UNPLANNED') setDropTarget('UNPLANNED');
+        }}
+        onDragLeave={(e) => {
+          if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+          setDropTarget((t) => (t === 'UNPLANNED' ? null : t));
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          handleDrop('UNPLANNED');
+        }}
+        className="mt-5 rounded-[var(--radius-md)] p-3 transition-colors"
+        style={{
+          backgroundColor: dropTarget === 'UNPLANNED' ? 'var(--color-accent-muted)' : 'var(--color-surface-1)',
+          border:
+            dropTarget === 'UNPLANNED'
+              ? '1px dashed var(--color-accent)'
+              : '1px solid var(--color-border)',
+        }}
+      >
+        <div className="mb-2 flex items-center gap-2">
+          <CalendarDays className="h-3.5 w-3.5" style={{ color: 'var(--color-text-muted)' }} />
+          <span className="text-xs font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
+            Stok — Tarih Bekleyenler ({unplanned.length})
+          </span>
+          <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
+            — hazır içerikleri yukarıda bir güne sürükle
+          </span>
+        </div>
+        {unplanned.length === 0 ? (
+          <p className="py-2 text-center text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+            {dropTarget === 'UNPLANNED' ? 'Tarihten çıkarmak için bırak' : 'Bekleyen içerik yok.'}
+          </p>
+        ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             {unplanned.map((item) => (
-              <CalendarCard key={item.id} item={item} onClick={() => openEdit(item)} />
+              <CalendarCard
+                key={item.id}
+                item={item}
+                onClick={() => openEdit(item)}
+                onDragStart={() => setDraggingId(item.id)}
+                onDragEnd={() => {
+                  setDraggingId(null);
+                  setDropTarget(null);
+                }}
+                dragging={draggingId === item.id}
+              />
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <ContentForm
         open={formOpen}
