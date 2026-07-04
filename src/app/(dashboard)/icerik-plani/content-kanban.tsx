@@ -92,7 +92,7 @@ interface CardProps {
   onEdit: () => void;
   onDelete: () => void;
   isPending: boolean;
-  onAdvance: () => void;
+  onAdvance: (patch: UpdateContentQueueInput) => void;
 }
 
 function ProductionProgress({ item }: { item: ContentQueueItem }) {
@@ -123,7 +123,17 @@ function ProductionProgress({ item }: { item: ContentQueueItem }) {
 
 function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance }: CardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [voiceLink, setVoiceLink] = useState(item.voice_url || '');
+  const [videoLink, setVideoLink] = useState(item.video_url || '');
   const hasDetails = Boolean(item.content_text || item.voice_url || item.video_url);
+
+  const base = stage.advance(item);
+  function handleAdvanceClick() {
+    if (!base) return;
+    if (stage.id === 'SES')    return onAdvance({ ...base, voice_url: voiceLink.trim() || null });
+    if (stage.id === 'EDITOR') return onAdvance({ ...base, video_url: videoLink.trim() || null });
+    onAdvance(base);
+  }
 
   return (
     <div
@@ -251,11 +261,56 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance }: Car
           </div>
         )}
 
+        {/* Stage handoff input */}
+        {stage.id === 'SES' && (
+          <div className="mb-2.5">
+            <input
+              value={voiceLink}
+              onChange={(e) => setVoiceLink(e.target.value)}
+              placeholder="🎙 Ses linkini yapıştır"
+              type="url"
+              className="w-full rounded-[var(--radius-sm)] px-2 py-1.5 text-[11px] outline-none"
+              style={{
+                backgroundColor: 'var(--color-surface-sunken)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-primary)',
+              }}
+            />
+          </div>
+        )}
+        {stage.id === 'EDITOR' && (
+          <div className="mb-2.5 space-y-1.5">
+            {item.voice_url && (
+              <a
+                href={item.voice_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium transition-opacity hover:opacity-70"
+                style={{ backgroundColor: 'var(--color-info-muted)', color: 'var(--color-info)' }}
+              >
+                🎙 Sesi aç <ExternalLink className="h-2.5 w-2.5" />
+              </a>
+            )}
+            <input
+              value={videoLink}
+              onChange={(e) => setVideoLink(e.target.value)}
+              placeholder="🎬 Video/edit linkini yapıştır"
+              type="url"
+              className="w-full rounded-[var(--radius-sm)] px-2 py-1.5 text-[11px] outline-none"
+              style={{
+                backgroundColor: 'var(--color-surface-sunken)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-primary)',
+              }}
+            />
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex items-center gap-1.5 border-t pt-2.5" style={{ borderColor: 'var(--color-border)' }}>
-          {stage.advance(item) && (
+          {base && (
             <button
-              onClick={onAdvance}
+              onClick={handleAdvanceClick}
               disabled={isPending}
               className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius-sm)] py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
               style={{ backgroundColor: stage.color, color: '#fff' }}
@@ -326,7 +381,6 @@ function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, isPending }: 
           </div>
         )}
         {items.map((item) => {
-          const patch = stage.advance(item);
           return (
             <KanbanCard
               key={item.id}
@@ -334,7 +388,7 @@ function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, isPending }: 
               stage={stage}
               onEdit={() => onEdit(item)}
               onDelete={() => onDelete(item.id)}
-              onAdvance={() => patch && onAdvance(item, patch)}
+              onAdvance={(patch) => onAdvance(item, patch)}
               isPending={isPending}
             />
           );
