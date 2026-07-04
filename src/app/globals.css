@@ -14,6 +14,12 @@
   --color-border: #E2E8F0;
   --color-border-hover: #CBD5E0;
 
+  /* Surface Colors - elevation aliases (light theme) */
+  --color-surface-1: #F4F7FE;   /* subtle container / tracks */
+  --color-surface-2: #FFFFFF;   /* cards, inputs */
+  --color-surface-3: #FFFFFF;   /* modals, elevated panels */
+  --color-surface-sunken: #EDF2F7; /* nested wells inside white cards */
+
   /* Sidebar - Dark Navy */
   --color-sidebar-bg: #0B1437;
   --color-sidebar-bg-hover: rgba(255, 255, 255, 0.08);

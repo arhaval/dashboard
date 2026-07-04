@@ -115,18 +115,25 @@ export function ContentForm({ open, onClose, item, defaultDate }: ContentFormPro
   if (!open) return null;
 
   const inputStyle = {
-    backgroundColor: 'var(--color-surface-2)',
+    backgroundColor: 'var(--color-bg-secondary)',
     border: '1px solid var(--color-border)',
     color: 'var(--color-text-primary)',
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={() => { if (!isPending) onClose(); }} />
+      <div
+        className="absolute inset-0 bg-[#0B1437]/50 backdrop-blur-sm"
+        onClick={() => { if (!isPending) onClose(); }}
+      />
 
       <div
-        className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[var(--radius-md)]"
-        style={{ backgroundColor: 'var(--color-surface-3)', border: '1px solid var(--color-border)' }}
+        className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[var(--radius-lg)]"
+        style={{
+          backgroundColor: 'var(--color-surface-3)',
+          border: '1px solid var(--color-border)',
+          boxShadow: '0 20px 60px rgba(11,20,55,0.25)',
+        }}
       >
         {/* Header */}
         <div className="flex-shrink-0 border-b px-6 py-4" style={{ borderColor: 'var(--color-border)' }}>
@@ -205,7 +212,7 @@ export function ContentForm({ open, onClose, item, defaultDate }: ContentFormPro
                 value={contentText}
                 onChange={(e) => setContentText(e.target.value)}
                 placeholder="İçerik metni, script veya caption buraya yazılır…"
-                rows={6}
+                rows={9}
                 className="w-full resize-y rounded-[var(--radius-sm)] px-3 py-2.5 text-sm leading-relaxed outline-none transition-colors"
                 style={inputStyle}
               />

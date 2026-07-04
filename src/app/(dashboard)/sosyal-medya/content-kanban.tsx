@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Plus, Pencil, Trash2, ExternalLink, ChevronRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, ExternalLink, ChevronRight, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   PLATFORM_LABELS,
@@ -95,157 +95,191 @@ interface CardProps {
   onAdvance: () => void;
 }
 
+function ProductionProgress({ item }: { item: ContentQueueItem }) {
+  const steps = [
+    { done: item.has_text,  label: 'Metin' },
+    { done: item.has_voice, label: 'Ses'   },
+    { done: item.has_video, label: 'Video' },
+  ];
+  return (
+    <div className="flex items-center gap-1.5">
+      {steps.map(({ done, label }) => (
+        <div key={label} className="flex flex-1 flex-col items-center gap-1">
+          <div
+            className="h-1 w-full rounded-full"
+            style={{ backgroundColor: done ? 'var(--color-success)' : 'var(--color-border)' }}
+          />
+          <span
+            className="text-[9px] font-medium"
+            style={{ color: done ? 'var(--color-success)' : 'var(--color-text-muted)' }}
+          >
+            {label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance }: CardProps) {
   const [expanded, setExpanded] = useState(false);
+  const hasDetails = Boolean(item.content_text || item.voice_url || item.video_url);
 
   return (
     <div
-      className="rounded-[var(--radius-md)] p-3 transition-shadow"
+      className="overflow-hidden rounded-[var(--radius-md)]"
       style={{
         backgroundColor: 'var(--color-surface-2)',
         border: '1px solid var(--color-border)',
+        boxShadow: 'var(--shadow-card)',
       }}
     >
-      {/* Platform badges */}
-      <div className="mb-2 flex flex-wrap gap-1">
-        {item.platforms.map((p: ContentPlatform) => {
-          const c = PLATFORM_COLORS[p];
-          return (
-            <span
-              key={p}
-              className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
-              style={{ backgroundColor: c.bg, color: c.color }}
-            >
-              {PLATFORM_LABELS[p]}
-            </span>
-          );
-        })}
-        <span
-          className="ml-auto rounded px-1.5 py-0.5 text-[10px]"
-          style={{ color: 'var(--color-text-muted)', backgroundColor: 'var(--color-surface-3)' }}
-        >
-          {item.content_type}
-        </span>
-      </div>
+      {/* Accent strip by stage */}
+      <div className="h-1 w-full" style={{ backgroundColor: stage.color }} />
 
-      {/* Title */}
-      <p
-        className="mb-2 text-sm font-medium leading-snug"
-        style={{ color: 'var(--color-text-primary)' }}
-      >
-        {item.title}
-      </p>
-
-      {/* Production dots */}
-      <div className="mb-2.5 flex items-center gap-2">
-        {[
-          { done: item.has_text,  label: 'Metin' },
-          { done: item.has_voice, label: 'Ses'   },
-          { done: item.has_video, label: 'Video' },
-        ].map(({ done, label }) => (
+      <div className="p-3">
+        {/* Platform badges + format */}
+        <div className="mb-2 flex flex-wrap items-center gap-1">
+          {item.platforms.map((p: ContentPlatform) => {
+            const c = PLATFORM_COLORS[p];
+            return (
+              <span
+                key={p}
+                className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                style={{ backgroundColor: c.bg, color: c.color }}
+              >
+                {PLATFORM_LABELS[p]}
+              </span>
+            );
+          })}
           <span
-            key={label}
-            className="flex items-center gap-1 text-[10px]"
-            style={{ color: done ? '#22C55E' : 'var(--color-text-muted)' }}
+            className="ml-auto rounded px-1.5 py-0.5 text-[10px] font-medium"
+            style={{ color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface-sunken)' }}
           >
-            <span>{done ? '●' : '○'}</span>{label}
+            {item.content_type}
           </span>
-        ))}
-        {item.planned_date && (
-          <span className="ml-auto text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
-            {formatDate(item.planned_date)}
-          </span>
-        )}
-      </div>
+        </div>
 
-      {/* Expand: content text + links */}
-      {(item.content_text || item.voice_url || item.video_url) && (
+        {/* Title */}
+        <p
+          className="mb-2 text-sm font-semibold leading-snug"
+          style={{ color: 'var(--color-text-primary)' }}
+        >
+          {item.title}
+        </p>
+
+        {/* Text snippet (always visible so card isn't empty) */}
+        {item.content_text && !expanded && (
+          <p
+            className="mb-2.5 line-clamp-2 text-[11px] leading-relaxed"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
+            {item.content_text}
+          </p>
+        )}
+
+        {/* Production progress bar */}
         <div className="mb-2.5">
+          <ProductionProgress item={item} />
+        </div>
+
+        {/* Meta row: date */}
+        {item.planned_date && (
+          <div className="mb-2.5 flex items-center gap-1 text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
+            <CalendarDays className="h-3 w-3" />
+            {formatDate(item.planned_date)}
+          </div>
+        )}
+
+        {/* Expand: FULL content text + links */}
+        {hasDetails && (
+          <div className="mb-2.5">
+            <button
+              onClick={() => setExpanded((v) => !v)}
+              className="flex items-center gap-1 text-[10px] font-semibold transition-opacity hover:opacity-70"
+              style={{ color: 'var(--color-accent)' }}
+            >
+              <ChevronRight
+                className="h-3 w-3 transition-transform"
+                style={{ transform: expanded ? 'rotate(90deg)' : 'none' }}
+              />
+              {expanded ? 'Gizle' : 'Tam metni gör'}
+            </button>
+
+            {expanded && (
+              <div className="mt-2 space-y-2">
+                {item.content_text && (
+                  <div
+                    className="rounded-[var(--radius-sm)] p-2.5 text-[11px] leading-relaxed whitespace-pre-wrap"
+                    style={{
+                      backgroundColor: 'var(--color-surface-sunken)',
+                      border: '1px solid var(--color-border)',
+                      color: 'var(--color-text-primary)',
+                    }}
+                  >
+                    {item.content_text}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-1.5">
+                  {item.voice_url && (
+                    <a
+                      href={item.voice_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium transition-opacity hover:opacity-70"
+                      style={{ backgroundColor: 'var(--color-info-muted)', color: 'var(--color-info)' }}
+                    >
+                      🎙 Ses <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                  )}
+                  {item.video_url && (
+                    <a
+                      href={item.video_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium transition-opacity hover:opacity-70"
+                      style={{ backgroundColor: 'var(--color-success-muted)', color: 'var(--color-success)' }}
+                    >
+                      🎬 Video <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center gap-1.5 border-t pt-2.5" style={{ borderColor: 'var(--color-border)' }}>
+          {stage.advance(item) && (
+            <button
+              onClick={onAdvance}
+              disabled={isPending}
+              className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius-sm)] py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
+              style={{ backgroundColor: stage.color, color: '#fff' }}
+            >
+              {stage.advanceLabel}
+            </button>
+          )}
           <button
-            onClick={() => setExpanded((v) => !v)}
-            className="flex items-center gap-1 text-[10px] font-medium transition-opacity hover:opacity-70"
+            onClick={onEdit}
+            className="rounded p-1.5 transition-colors hover:bg-black/5"
+            title="Düzenle"
             style={{ color: 'var(--color-text-muted)' }}
           >
-            <ChevronRight
-              className="h-3 w-3 transition-transform"
-              style={{ transform: expanded ? 'rotate(90deg)' : 'none' }}
-            />
-            {expanded ? 'Gizle' : 'Detaylar'}
+            <Pencil className="h-3.5 w-3.5" />
           </button>
-
-          {expanded && (
-            <div className="mt-2 space-y-2">
-              {item.content_text && (
-                <div
-                  className="max-h-32 overflow-y-auto rounded p-2 text-[11px] leading-relaxed whitespace-pre-wrap"
-                  style={{
-                    backgroundColor: 'var(--color-surface-3)',
-                    border: '1px solid var(--color-border)',
-                    color: 'var(--color-text-secondary)',
-                  }}
-                >
-                  {item.content_text}
-                </div>
-              )}
-              <div className="flex flex-wrap gap-1.5">
-                {item.voice_url && (
-                  <a
-                    href={item.voice_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium transition-opacity hover:opacity-70"
-                    style={{ backgroundColor: 'rgba(59,130,246,0.1)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.3)' }}
-                  >
-                    🎙 Ses <ExternalLink className="h-2.5 w-2.5" />
-                  </a>
-                )}
-                {item.video_url && (
-                  <a
-                    href={item.video_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium transition-opacity hover:opacity-70"
-                    style={{ backgroundColor: 'rgba(34,197,94,0.1)', color: '#22C55E', border: '1px solid rgba(34,197,94,0.3)' }}
-                  >
-                    🎬 Video <ExternalLink className="h-2.5 w-2.5" />
-                  </a>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="flex items-center gap-1.5">
-        {stage.advance(item) && (
           <button
-            onClick={onAdvance}
-            disabled={isPending}
-            className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius-sm)] py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
-            style={{ backgroundColor: stage.bg, color: stage.color, border: `1px solid ${stage.borderColor}` }}
+            onClick={onDelete}
+            className="rounded p-1.5 transition-colors hover:bg-red-500/10"
+            title="Sil"
+            style={{ color: 'var(--color-error)' }}
           >
-            {stage.advanceLabel}
+            <Trash2 className="h-3.5 w-3.5" />
           </button>
-        )}
-        <button
-          onClick={onEdit}
-          className="rounded p-1.5 transition-colors hover:bg-white/10"
-          title="Düzenle"
-          style={{ color: 'var(--color-text-muted)' }}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={onDelete}
-          className="rounded p-1.5 transition-colors hover:bg-red-500/10"
-          title="Sil"
-          style={{ color: 'var(--color-error)' }}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        </div>
       </div>
     </div>
   );
