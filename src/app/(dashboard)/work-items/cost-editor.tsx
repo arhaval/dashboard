@@ -56,9 +56,9 @@ export function CostEditor({ workItemId, currentCost, canEdit }: CostEditorProps
             : 'text-[var(--color-accent)] underline underline-offset-2',
           'hover:opacity-80 transition-opacity'
         )}
-        title="Click to edit cost"
+        title="Fiyat gir — kaydedince otomatik onaylanır"
       >
-        {currentCost ? formatCurrency(currentCost) : 'Set cost'}
+        {currentCost ? formatCurrency(currentCost) : 'Fiyat gir →'}
       </button>
     );
   }

@@ -150,8 +150,12 @@ export async function updateWorkItemCost(
     return { success: false, error: 'Can only set cost on DRAFT items' };
   }
 
-  // 8. Update cost
-  const updated = await workItemService.update(workItemId, { cost });
+  // 8. Set cost AND approve in a single step — entering a price approves the
+  //    item so it's immediately ready for payment (no separate approve click).
+  const updated = await workItemService.update(workItemId, {
+    cost,
+    status: 'APPROVED',
+  });
 
   if (!updated) {
     return { success: false, error: 'Failed to update cost' };
