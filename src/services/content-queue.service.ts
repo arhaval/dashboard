@@ -5,7 +5,7 @@ import type {
   ContentQueueItem,
   CreateContentQueueInput,
   UpdateContentQueueInput,
-} from '@/app/(dashboard)/sosyal-medya/content-queue.constants';
+} from '@/app/(dashboard)/icerik-plani/content-queue.constants';
 
 export type { ContentPlatform, ContentStatus, ContentQueueItem, CreateContentQueueInput, UpdateContentQueueInput };
 

@@ -60,7 +60,7 @@ const navSections: NavSection[] = [
     items: [
       { label: 'Haftalık Program', href: '/content/schedule',icon: CalendarDays, excludeRoles: ['TEAM_MEMBER'] },
       { label: tr.nav.social,     href: '/social',           icon: BarChart3,    excludeRoles: ['TEAM_MEMBER', 'PUBLISHER'] },
-      { label: 'İçerik Planı',    href: '/sosyal-medya',     icon: Users,        excludeRoles: ['TEAM_MEMBER'] },
+      { label: 'İçerik Planı',    href: '/icerik-plani',     icon: Users,        excludeRoles: ['TEAM_MEMBER'] },
       { label: tr.cs2.nav, href: '/matches', icon: Crosshair, excludeRoles: ['TEAM_MEMBER', 'PUBLISHER'] },
       { label: tr.cs2.dathost.operations, href: '/matches/operations', icon: Radio, adminOnly: true },
     ],

@@ -19,7 +19,7 @@ export async function createContentItem(input: Omit<CreateContentQueueInput, 'cr
   const result = await contentQueueService.create({ ...input, created_by: user.id });
   if (result.error) return { error: result.error };
 
-  revalidatePath('/sosyal-medya');
+  revalidatePath('/icerik-plani');
   return { success: true };
 }
 
@@ -31,7 +31,7 @@ export async function updateContentItem(id: string, input: UpdateContentQueueInp
   const result = await contentQueueService.update(id, input);
   if (result.error) return { error: result.error };
 
-  revalidatePath('/sosyal-medya');
+  revalidatePath('/icerik-plani');
   return { success: true };
 }
 
@@ -47,7 +47,7 @@ export async function deleteContentItem(id: string) {
   const result = await contentQueueService.delete(id);
   if (!result.success) return { error: result.error };
 
-  revalidatePath('/sosyal-medya');
+  revalidatePath('/icerik-plani');
   return { success: true };
 }
 
