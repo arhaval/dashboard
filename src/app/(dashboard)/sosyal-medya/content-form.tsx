@@ -19,12 +19,13 @@ interface ContentFormProps {
   open: boolean;
   onClose: () => void;
   item?: ContentQueueItem | null;
+  defaultDate?: string;
 }
 
 const ALL_PLATFORMS = Object.keys(PLATFORM_LABELS) as ContentPlatform[];
 const ALL_STATUSES  = Object.keys(STATUS_LABELS) as ContentStatus[];
 
-export function ContentForm({ open, onClose, item }: ContentFormProps) {
+export function ContentForm({ open, onClose, item, defaultDate }: ContentFormProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -66,11 +67,11 @@ export function ContentForm({ open, onClose, item }: ContentFormProps) {
       setHasText(false);
       setHasVoice(false);
       setHasVideo(false);
-      setPlannedDate('');
+      setPlannedDate(defaultDate || '');
       setNotes('');
     }
     setError(null);
-  }, [item, open]);
+  }, [item, open, defaultDate]);
 
   function togglePlatform(p: ContentPlatform) {
     setPlatforms((prev) => {

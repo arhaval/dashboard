@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
 import { contentQueueService } from '@/services/content-queue.service';
-import { ContentKanban } from './content-kanban';
+import { ContentPlanner } from './content-planner';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +22,7 @@ export default async function IcerikPlaniPage() {
       title="İçerik Planı"
       description="Hazır içerikler ve yayın takvimi"
     >
-      <ContentKanban items={items} />
+      <ContentPlanner items={items} />
     </PageShell>
   );
 }
