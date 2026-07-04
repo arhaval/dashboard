@@ -229,6 +229,7 @@ export function TeamTable({ users, currentUserId, isAdmin }: TeamTableProps) {
         isOpen={editingUser !== null}
         onClose={() => setEditingUser(null)}
         user={editingUser}
+        isSelf={editingUser?.id === currentUserId}
       />
     </>
   );

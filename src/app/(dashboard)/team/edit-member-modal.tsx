@@ -8,22 +8,34 @@
 import { useState, useTransition, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Phone, CreditCard, MapPin, FileText } from 'lucide-react';
+import { Select } from '@/components/ui/select';
+import { X, Phone, CreditCard, MapPin, FileText, Shield } from 'lucide-react';
 import { tr } from '@/lib/i18n';
 import { updateTeamMember } from './actions';
-import type { User } from '@/types';
+import type { User, UserRole } from '@/types';
 
 interface EditMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: User | null;
+  isSelf?: boolean;
 }
 
-export function EditMemberModal({ isOpen, onClose, user }: EditMemberModalProps) {
+const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
+  { value: 'TEAM_MEMBER', label: 'Ekip Üyesi'   },
+  { value: 'PUBLISHER',   label: 'Yayıncı'      },
+  { value: 'EDITOR',      label: 'Editör'       },
+  { value: 'VOICE',       label: 'Seslendirmen' },
+  { value: 'GRAFIKER',    label: 'Grafiker'     },
+  { value: 'ADMIN',       label: 'Yönetici'     },
+];
+
+export function EditMemberModal({ isOpen, onClose, user, isSelf = false }: EditMemberModalProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  const [role, setRole] = useState<UserRole>('TEAM_MEMBER');
   const [formData, setFormData] = useState({
     phone: '',
     iban: '',
@@ -35,6 +47,7 @@ export function EditMemberModal({ isOpen, onClose, user }: EditMemberModalProps)
   // Update form when user changes
   useEffect(() => {
     if (user) {
+      setRole(user.role as UserRole);
       setFormData({
         phone: user.phone || '',
         iban: user.iban || '',
@@ -59,6 +72,8 @@ export function EditMemberModal({ isOpen, onClose, user }: EditMemberModalProps)
         bank_name: formData.bank_name || null,
         address: formData.address || null,
         notes: formData.notes || null,
+        // Only send role when it actually changed and not editing self
+        ...(!isSelf && role !== user.role ? { role } : {}),
       });
 
       if (!result.success) {
@@ -121,6 +136,31 @@ export function EditMemberModal({ isOpen, onClose, user }: EditMemberModalProps)
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Role / Permission Section */}
+          <div>
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-[var(--color-text-primary)]">
+              <Shield className="h-4 w-4" />
+              Yetki / Rol
+            </h3>
+            {isSelf ? (
+              <p className="text-sm text-[var(--color-text-muted)]">
+                Kendi rolünü değiştiremezsin.
+              </p>
+            ) : (
+              <Select
+                value={role}
+                onChange={(e) => setRole(e.target.value as UserRole)}
+                disabled={isPending}
+              >
+                {ROLE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </div>
+
           {/* Contact Info Section */}
           <div>
             <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-[var(--color-text-primary)]">

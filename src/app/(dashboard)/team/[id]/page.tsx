@@ -8,11 +8,12 @@ import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { PageShell } from '@/components/layout';
 import { Button } from '@/components/ui/button';
-import { userService, financeService } from '@/services';
+import { userService, financeService, workItemService } from '@/services';
 import { tr } from '@/lib/i18n';
 import { ArrowLeft } from 'lucide-react';
 import { MemberProfileCard } from './member-profile-card';
 import { MemberTransactions } from './member-transactions';
+import { MemberWork } from './member-work';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -34,11 +35,12 @@ export default async function TeamMemberProfilePage({ params }: PageProps) {
   const member = await userService.getById(id);
   if (!member) notFound();
 
-  const [transactions, stats] = await Promise.all([
+  const [transactions, stats, workItems] = await Promise.all([
     isAdmin ? financeService.getByUserId(id) : Promise.resolve([]),
     isAdmin
       ? financeService.getUserStats(id)
       : Promise.resolve({ totalIncome: 0, totalExpenses: 0, netBalance: 0, transactionCount: 0 }),
+    isAdmin ? workItemService.getAll({ user_id: id }) : Promise.resolve([]),
   ]);
 
   return (
@@ -55,6 +57,15 @@ export default async function TeamMemberProfilePage({ params }: PageProps) {
       }
     >
       <MemberProfileCard member={member} stats={stats} />
+
+      {isAdmin && (
+        <div className="mt-6">
+          <h3 className="mb-4 text-lg font-medium text-[var(--color-text-primary)]">
+            İş Takibi
+          </h3>
+          <MemberWork workItems={workItems} />
+        </div>
+      )}
 
       {isAdmin && (
         <div className="mt-6">
