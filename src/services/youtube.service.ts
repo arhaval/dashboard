@@ -12,7 +12,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { ContentType } from '@/app/(dashboard)/icerik-performansi/perf.constants';
 
 const YT = 'https://www.googleapis.com/youtube/v3';
-const MAX_VIDEOS = 30;
+const MAX_VIDEOS = 100; // how far back to pull; YouTube quota cost is negligible
+const PAGE_SIZE = 50;   // playlistItems / videos.list max per request
 const SHORT_MAX_SECONDS = 120; // non-live and <=120s counts as a Short
 
 interface SyncResult {
@@ -51,26 +52,24 @@ export async function syncYouTubeVideos(): Promise<SyncResult> {
       ch.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
     if (!uploads) return { synced: 0, error: 'Uploads playlist bulunamadı' };
 
-    // 2. last N video ids
-    const plRes = await fetch(
-      `${YT}/playlistItems?part=contentDetails&playlistId=${uploads}&maxResults=${MAX_VIDEOS}&key=${KEY}`
-    );
-    const pl = await plRes.json();
-    if (pl.error) return { synced: 0, error: pl.error.message || 'playlistItems.list hatası' };
-    const ids: string[] = (pl.items ?? []).map(
-      (i: { contentDetails: { videoId: string } }) => i.contentDetails.videoId
-    );
-    if (ids.length === 0) return { synced: 0 };
+    // 2. last N video ids (paginated, PAGE_SIZE per request)
+    const ids: string[] = [];
+    let pageToken = '';
+    while (ids.length < MAX_VIDEOS) {
+      const tokenParam = pageToken ? `&pageToken=${pageToken}` : '';
+      const plRes = await fetch(
+        `${YT}/playlistItems?part=contentDetails&playlistId=${uploads}&maxResults=${PAGE_SIZE}${tokenParam}&key=${KEY}`
+      );
+      const pl = await plRes.json();
+      if (pl.error) return { synced: 0, error: pl.error.message || 'playlistItems.list hatası' };
+      for (const i of pl.items ?? []) ids.push(i.contentDetails.videoId);
+      if (!pl.nextPageToken || (pl.items ?? []).length === 0) break;
+      pageToken = pl.nextPageToken;
+    }
+    const wanted = ids.slice(0, MAX_VIDEOS);
+    if (wanted.length === 0) return { synced: 0 };
 
-    // 3. video details (single call, <=50 ids)
-    const vRes = await fetch(
-      `${YT}/videos?part=snippet,statistics,contentDetails,liveStreamingDetails&id=${ids.join(
-        ','
-      )}&key=${KEY}`
-    );
-    const v = await vRes.json();
-    if (v.error) return { synced: 0, error: v.error.message || 'videos.list hatası' };
-
+    // 3. video details, batched by PAGE_SIZE ids per call
     interface YtItem {
       id: string;
       snippet: {
@@ -83,7 +82,20 @@ export async function syncYouTubeVideos(): Promise<SyncResult> {
       liveStreamingDetails?: unknown;
     }
 
-    const rows = (v.items ?? []).map((it: YtItem) => {
+    const items: YtItem[] = [];
+    for (let i = 0; i < wanted.length; i += PAGE_SIZE) {
+      const chunk = wanted.slice(i, i + PAGE_SIZE);
+      const vRes = await fetch(
+        `${YT}/videos?part=snippet,statistics,contentDetails,liveStreamingDetails&id=${chunk.join(
+          ','
+        )}&key=${KEY}`
+      );
+      const v = await vRes.json();
+      if (v.error) return { synced: 0, error: v.error.message || 'videos.list hatası' };
+      for (const it of v.items ?? []) items.push(it as YtItem);
+    }
+
+    const rows = items.map((it: YtItem) => {
       const seconds = parseDuration(it.contentDetails?.duration);
       const isLive = Boolean(it.liveStreamingDetails);
       const thumb =
