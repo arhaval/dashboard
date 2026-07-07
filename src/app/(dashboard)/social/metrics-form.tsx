@@ -57,13 +57,9 @@ const PLATFORM_FIELDS: Record<MetricsPlatform, FieldConfig[]> = {
     { name: 'live_views',                label: tr.metricsForm.liveViews,        type: 'number',  csvKey: 'live_views'                 },
     { name: 'total_stream_time_minutes', label: tr.metricsForm.totalStreamTime,  type: 'number',  csvKey: 'total_stream_time_minutes'  },
   ],
+  // YouTube: abone/izlenme/beğeni/yorum cron ile otomatik dolar.
+  // Elle sadece canlı izleyici (ort/zirve) girilir.
   YOUTUBE: [
-    { name: 'subscribers_total',  label: tr.metricsForm.subscribersTotal,  type: 'number',  csvKey: 'subscribers_total'   },
-    { name: 'video_views',        label: tr.metricsForm.videoViews,        type: 'number',  csvKey: 'video_views'         },
-    { name: 'shorts_views',       label: tr.metricsForm.shortsViews,       type: 'number'                                 },
-    { name: 'live_views',         label: tr.metricsForm.liveViews,         type: 'number'                                 },
-    { name: 'total_likes',        label: tr.metricsForm.totalLikes,        type: 'number',  csvKey: 'total_likes'         },
-    { name: 'total_comments',     label: tr.metricsForm.totalComments,     type: 'number',  csvKey: 'total_comments'      },
     { name: 'avg_live_viewers',   label: tr.metricsForm.avgLiveViewers,    type: 'number'                                 },
     { name: 'peak_live_viewers',  label: tr.metricsForm.peakLiveViewers,   type: 'number'                                 },
   ],
@@ -254,10 +250,13 @@ export function MetricsForm() {
     setError(null);
     setSuccess(false);
 
+    const isYT = platform === 'YOUTUBE';
     const input: CreateSocialMonthlyMetricsInput = {
       month,
       platform,
-      followers_total: parseInt(followersTotal) || 0,
+      // YouTube abone sayısı cron'dan gelir (subscribers_total); bu satırdan
+      // followers_total göndermeyip otomatik değerleri ezmiyoruz.
+      followers_total: isYT ? 0 : parseInt(followersTotal) || 0,
     };
 
     const fields = PLATFORM_FIELDS[platform];
@@ -342,21 +341,34 @@ export function MetricsForm() {
               </Select>
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]">
-                {isYouTube ? tr.metricsForm.subscribersTotal : tr.metricsForm.followersTotal}
-              </label>
-              <Input
-                type="number"
-                value={followersTotal}
-                onChange={(e) => setFollowersTotal(e.target.value)}
-                placeholder="0"
-                min="0"
-                required
-                disabled={isPending}
-              />
-            </div>
+            {!isYouTube && (
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]">
+                  {tr.metricsForm.followersTotal}
+                </label>
+                <Input
+                  type="number"
+                  value={followersTotal}
+                  onChange={(e) => setFollowersTotal(e.target.value)}
+                  placeholder="0"
+                  min="0"
+                  required
+                  disabled={isPending}
+                />
+              </div>
+            )}
           </div>
+
+          {isYouTube && (
+            <div
+              className="rounded-[var(--radius-sm)] border p-3 text-xs leading-relaxed"
+              style={{ borderColor: 'var(--color-info-muted)', backgroundColor: 'var(--color-info-muted)', color: 'var(--color-info)' }}
+            >
+              📊 Abone, video/Shorts/canlı izlenme, beğeni ve yorum <strong>cron ile her gün otomatik</strong> dolar
+              (İçerik Performansı senkronundan). Sen sadece aşağıdaki <strong>canlı izleyici</strong> alanlarını gir.
+              Canlı yayınlar "Video İzlenme"ye dahil edilmez — ayrı sayılır.
+            </div>
+          )}
 
           {/* Platform metrik alanları */}
           <div className="border-t border-[var(--color-border)] pt-4">

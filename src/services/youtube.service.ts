@@ -37,6 +37,71 @@ function classify(isLive: boolean, seconds: number): ContentType {
   return 'video';
 }
 
+interface RollupRow {
+  view_count: number;
+  like_count: number;
+  comment_count: number;
+  content_type: ContentType;
+}
+
+/**
+ * Aggregate the synced videos by type and write the current month's YouTube
+ * row in social_monthly_metrics. Only the auto fields are set; avg/peak live
+ * viewers (manual entry) are never overwritten. Non-fatal — a failure here
+ * does not fail the video sync.
+ */
+async function rollUpMonthlyMetrics(
+  admin: ReturnType<typeof createAdminClient>,
+  rows: RollupRow[],
+  subscribers: number
+): Promise<void> {
+  const now = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  if (month < '2026-07') return; // only from July 2026 onward
+
+  let video_views = 0;
+  let shorts_views = 0;
+  let live_views = 0;
+  let total_likes = 0;
+  let total_comments = 0;
+  for (const r of rows) {
+    total_likes += r.like_count;
+    total_comments += r.comment_count;
+    if (r.content_type === 'video') video_views += r.view_count;
+    else if (r.content_type === 'short') shorts_views += r.view_count;
+    else if (r.content_type === 'live') live_views += r.view_count;
+  }
+
+  const auto = {
+    subscribers_total: subscribers,
+    video_views,
+    shorts_views,
+    live_views,
+    total_likes,
+    total_comments,
+    updated_at: new Date().toISOString(),
+  };
+
+  try {
+    const { data: existing } = await admin
+      .from('social_monthly_metrics')
+      .select('id')
+      .eq('month', month)
+      .eq('platform', 'YOUTUBE')
+      .maybeSingle();
+
+    if (existing) {
+      await admin.from('social_monthly_metrics').update(auto).eq('id', existing.id);
+    } else {
+      await admin
+        .from('social_monthly_metrics')
+        .insert({ month, platform: 'YOUTUBE', followers_total: 0, ...auto });
+    }
+  } catch {
+    // metrics roll-up is secondary — ignore failures
+  }
+}
+
 export async function syncYouTubeVideos(): Promise<SyncResult> {
   const KEY = process.env.YOUTUBE_API_KEY;
   const CH = process.env.YOUTUBE_CHANNEL_ID;
@@ -45,13 +110,14 @@ export async function syncYouTubeVideos(): Promise<SyncResult> {
   }
 
   try {
-    // 1. channel -> uploads playlist id
-    const chRes = await fetch(`${YT}/channels?part=contentDetails&id=${CH}&key=${KEY}`);
+    // 1. channel -> uploads playlist id + subscriber count
+    const chRes = await fetch(`${YT}/channels?part=contentDetails,statistics&id=${CH}&key=${KEY}`);
     const ch = await chRes.json();
     if (ch.error) return { synced: 0, error: ch.error.message || 'channels.list hatası' };
     const uploads: string | undefined =
       ch.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
     if (!uploads) return { synced: 0, error: 'Uploads playlist bulunamadı' };
+    const subscribers = Number(ch.items?.[0]?.statistics?.subscriberCount ?? 0);
 
     // 2. last N video ids (paginated, PAGE_SIZE per request)
     const ids: string[] = [];
@@ -126,6 +192,13 @@ export async function syncYouTubeVideos(): Promise<SyncResult> {
         .upsert(rows.slice(i, i + UPSERT_BATCH), { onConflict: 'video_id' });
       if (error) return { synced: i, error: error.message };
     }
+
+    // 5. roll up into the monthly Social Media metrics row (July 2026 onward).
+    //    Types are mutually exclusive (video / short / live) so there is NO
+    //    double counting — a finished live stream (VOD) stays 'live', never
+    //    counted as a normal video. Manual fields (avg/peak live viewers) are
+    //    intentionally left untouched.
+    await rollUpMonthlyMetrics(admin, rows, subscribers);
 
     return { synced: rows.length };
   } catch (e) {
