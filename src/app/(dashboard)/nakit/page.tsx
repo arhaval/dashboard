@@ -6,6 +6,7 @@
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { cashFlowService, userService } from '@/services';
+import { FinanceHubTabs } from '../finance/finance-hub-tabs';
 import { CashFlowClient } from './cash-flow-client';
 
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,7 @@ export default async function NakitPage() {
       title="Nakit Akışı Tahmini"
       description="Sözleşmeli ama henüz hesaba geçmemiş gelirler ve planlanmış giderler"
     >
+      <FinanceHubTabs />
       <CashFlowClient data={data} />
     </PageShell>
   );

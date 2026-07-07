@@ -17,6 +17,7 @@ import { tr } from '@/lib/i18n';
 import { Plus, Clock, CheckCircle2, DollarSign, TrendingUp } from 'lucide-react';
 import { PaymentFilters } from './filters';
 import { PaymentDeleteButton } from './delete-button';
+import { FinanceHubTabs } from '../finance/finance-hub-tabs';
 import { PaymentsTabs } from './payments-tabs';
 import { SelectablePaymentsTable } from './selectable-payments-table';
 import { RealizedTransactionForm } from './realized-transaction-form';
@@ -176,6 +177,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         title={tr.pages.payments.title}
         description={tr.pages.payments.subtitle}
       >
+        <FinanceHubTabs />
         <PaymentsTabs activeTab={activeTab} />
 
         {/* Stats Summary for Realized Transactions */}
@@ -219,6 +221,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         title={tr.pages.payments.title}
         description={tr.pages.payments.subtitle}
       >
+        <FinanceHubTabs />
         <PaymentsTabs activeTab={activeTab} />
 
         {/* Stats Summary */}
@@ -269,6 +272,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         </Link>
       }
     >
+      <FinanceHubTabs />
       <PaymentsTabs activeTab={activeTab} />
 
       {/* ── Stat Cards ── */}

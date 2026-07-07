@@ -15,6 +15,7 @@ import { cn, formatDate, formatCurrency, getTransactionTypeLabel, getTransaction
 import { tr } from '@/lib/i18n';
 import { TRANSACTION_TYPES } from '@/constants';
 import { FinanceFilters } from './filters';
+import { FinanceHubTabs } from './finance-hub-tabs';
 import { FinanceMonthPicker } from './month-picker';
 import { FinanceExportButtons } from './export-buttons';
 import { TransactionDeleteButton } from './delete-button';
@@ -176,6 +177,8 @@ export default async function FinancePage({ searchParams }: PageProps) {
         </div>
       }
     >
+      <FinanceHubTabs />
+
       {/* ── Stat Cards ── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
