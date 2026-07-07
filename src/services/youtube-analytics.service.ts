@@ -154,16 +154,41 @@ export const youtubeAnalyticsService = {
     return { video_views, shorts_views, live_views, total_likes, total_comments };
   },
 
+  /** Current cumulative subscriber count via the Data API (no OAuth needed). */
+  async fetchSubscribers(): Promise<number | null> {
+    const KEY = process.env.YOUTUBE_API_KEY;
+    const CH = process.env.YOUTUBE_CHANNEL_ID;
+    if (!KEY || !CH) return null;
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${CH}&key=${KEY}`
+      );
+      const d = await res.json();
+      const n = Number(d.items?.[0]?.statistics?.subscriberCount);
+      return Number.isFinite(n) ? n : null;
+    } catch {
+      return null;
+    }
+  },
+
   /**
    * Write one month's per-month view/like/comment values into
-   * social_monthly_metrics, preserving subscribers_total and manual avg/peak.
+   * social_monthly_metrics, preserving manual avg/peak. For the current month
+   * it also refreshes subscribers_total (cumulative).
    */
   async fillMonth(month: string): Promise<{ ok: boolean; error?: string }> {
     const metrics = await this.queryMonth(month);
     if (!metrics) return { ok: false, error: 'Analytics verisi alınamadı (kanal bağlı mı?)' };
 
     const admin = createAdminClient();
-    const patch = { ...metrics, updated_at: new Date().toISOString() };
+    const patch: Record<string, unknown> = { ...metrics, updated_at: new Date().toISOString() };
+
+    const now = new Date();
+    const curMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    if (month === curMonth) {
+      const subs = await this.fetchSubscribers();
+      if (subs != null) patch.subscribers_total = subs;
+    }
     const { data: existing } = await admin
       .from('social_monthly_metrics')
       .select('id')
