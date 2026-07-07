@@ -167,6 +167,39 @@ export async function toggleTeamMemberStatus(userId: string): Promise<ActionResu
 }
 
 /**
+ * Permanently delete a team member (admin only).
+ * Cascades to the member's work items, payments and advances.
+ */
+export async function deleteTeamMember(userId: string): Promise<ActionResult> {
+  // 1. Verify admin
+  const { isAdmin, error: adminError } = await verifyAdmin();
+  if (!isAdmin) {
+    return { success: false, error: adminError };
+  }
+
+  // 2. Prevent deleting yourself
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  if (authUser?.id === userId) {
+    return { success: false, error: 'Kendi hesabını silemezsin' };
+  }
+
+  // 3. Delete via service
+  const result = await userService.delete(userId);
+  if (!result.success) {
+    return { success: false, error: result.error || 'Silme başarısız' };
+  }
+
+  // 4. Revalidate team page
+  revalidatePath('/team');
+
+  return { success: true };
+}
+
+/**
  * Update team member profile (admin only)
  */
 export async function updateTeamMember(

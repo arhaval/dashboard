@@ -210,6 +210,27 @@ export const userService = {
   },
 
   /**
+   * Permanently delete a user (admin only).
+   * Removes the auth user; the public.users row and all ON DELETE CASCADE
+   * related rows (work_items, payments, advances) are removed with it.
+   */
+  async delete(id: string): Promise<{ success: boolean; error?: string }> {
+    const adminClient = createAdminClient();
+
+    // Delete auth user — cascades to public.users and dependent rows
+    const { error: authError } = await adminClient.auth.admin.deleteUser(id);
+    if (authError) {
+      console.error('Error deleting auth user:', authError.message);
+      return { success: false, error: authError.message };
+    }
+
+    // Safety net: ensure the profile row is gone even if no FK cascade exists
+    await adminClient.from('users').delete().eq('id', id);
+
+    return { success: true };
+  },
+
+  /**
    * Get user stats
    */
   async getStats(): Promise<{
