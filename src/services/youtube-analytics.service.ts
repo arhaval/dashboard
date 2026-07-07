@@ -134,14 +134,21 @@ export const youtubeAnalyticsService = {
     let total_comments = 0;
 
     for (const row of (data.rows ?? []) as [string, number, number, number][]) {
-      const [type, views, likes, comments] = row;
+      const [rawType, views, likes, comments] = row;
+      // API returns camelCase: videoOnDemand / shorts / liveStream / posts
+      const t = String(rawType).toLowerCase();
+      let bucket: 'video' | 'shorts' | 'live' | null = null;
+      if (t === 'videoondemand') bucket = 'video';
+      else if (t === 'shorts') bucket = 'shorts';
+      else if (t === 'livestream') bucket = 'live';
+      if (!bucket) continue; // ignore 'posts' (community posts) / story / unspecified
+
+      const v = Number(views) || 0;
+      if (bucket === 'video') video_views += v;
+      else if (bucket === 'shorts') shorts_views += v;
+      else live_views += v;
       total_likes += Number(likes) || 0;
       total_comments += Number(comments) || 0;
-      const v = Number(views) || 0;
-      if (type === 'VIDEO_ON_DEMAND') video_views += v;
-      else if (type === 'SHORTS') shorts_views += v;
-      else if (type === 'LIVE_STREAM') live_views += v;
-      // STORY / UNSPECIFIED ignored for the three view columns
     }
 
     return { video_views, shorts_views, live_views, total_likes, total_comments };
