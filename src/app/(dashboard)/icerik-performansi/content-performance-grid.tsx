@@ -70,6 +70,8 @@ function VideoCard({ video, commentsEnabled }: { video: ScoredVideo; commentsEna
           <img
             src={video.thumbnail_url}
             alt={video.title}
+            loading="lazy"
+            decoding="async"
             className="aspect-video w-full object-cover"
           />
         ) : (
