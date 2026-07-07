@@ -12,8 +12,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { ContentType } from '@/app/(dashboard)/icerik-performansi/perf.constants';
 
 const YT = 'https://www.googleapis.com/youtube/v3';
-const MAX_VIDEOS = 100; // how far back to pull; YouTube quota cost is negligible
-const PAGE_SIZE = 50;   // playlistItems / videos.list max per request
+const MAX_VIDEOS = 5000; // safety backstop; in practice pulls the ENTIRE channel
+const PAGE_SIZE = 50;    // playlistItems / videos.list max per request
+const UPSERT_BATCH = 500;
 const SHORT_MAX_SECONDS = 120; // non-live and <=120s counts as a Short
 
 interface SyncResult {
@@ -117,13 +118,14 @@ export async function syncYouTubeVideos(): Promise<SyncResult> {
       };
     });
 
-    // 4. upsert — claude_comment/commented_at intentionally omitted (preserved)
+    // 4. upsert in batches — claude_comment/commented_at omitted (preserved)
     const admin = createAdminClient();
-    const { error } = await admin
-      .from('video_performance')
-      .upsert(rows, { onConflict: 'video_id' });
-
-    if (error) return { synced: 0, error: error.message };
+    for (let i = 0; i < rows.length; i += UPSERT_BATCH) {
+      const { error } = await admin
+        .from('video_performance')
+        .upsert(rows.slice(i, i + UPSERT_BATCH), { onConflict: 'video_id' });
+      if (error) return { synced: i, error: error.message };
+    }
 
     return { synced: rows.length };
   } catch (e) {
