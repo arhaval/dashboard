@@ -5,6 +5,7 @@
  */
 
 import { syncYouTubeVideos } from '@/services/youtube.service';
+import { youtubeAnalyticsService } from '@/services/youtube-analytics.service';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -19,6 +20,13 @@ export async function GET(request: Request) {
   }
 
   const result = await syncYouTubeVideos();
+
+  // Independent safety net: fill the current month's Analytics metrics even if
+  // the video sync bailed early (e.g. video_performance table not yet created).
+  const now = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const analytics = await youtubeAnalyticsService.fillMonth(month).catch(() => ({ ok: false }));
+
   const status = result.error ? 500 : 200;
-  return Response.json({ ...result, at: new Date().toISOString() }, { status });
+  return Response.json({ ...result, analytics, at: new Date().toISOString() }, { status });
 }

@@ -8,8 +8,10 @@
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { socialMetricsService, userService } from '@/services';
+import { youtubeAnalyticsService } from '@/services/youtube-analytics.service';
 import { tr } from '@/lib/i18n';
 import { MetricsForm } from './metrics-form';
+import { YouTubeConnect } from './youtube-connect';
 import { PlatformHistory } from './platform-history';
 import { TrendCharts } from './trend-charts';
 import { MonthlyNotes } from './monthly-notes';
@@ -59,6 +61,10 @@ export default async function SocialPage() {
     socialMetricsService.getMonthlyGrowthReport(activeMonth),
   ]);
 
+  const ytStatus = isAdmin
+    ? await youtubeAnalyticsService.getStatus()
+    : { connected: false };
+
   return (
     <PageShell
       title={tr.pages.social.title}
@@ -96,6 +102,7 @@ export default async function SocialPage() {
       {/* Manual Entry - Admin only */}
       {isAdmin && (
         <div className="mb-6">
+          <YouTubeConnect connected={ytStatus.connected} />
           <MetricsForm />
         </div>
       )}

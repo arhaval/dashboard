@@ -9,6 +9,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { youtubeAnalyticsService } from '@/services/youtube-analytics.service';
 import type { ContentType } from '@/app/(dashboard)/icerik-performansi/perf.constants';
 
 const YT = 'https://www.googleapis.com/youtube/v3';
@@ -37,68 +38,47 @@ function classify(isLive: boolean, seconds: number): ContentType {
   return 'video';
 }
 
-interface RollupRow {
-  view_count: number;
-  like_count: number;
-  comment_count: number;
-  content_type: ContentType;
-}
-
 /**
- * Aggregate the synced videos by type and write the current month's YouTube
- * row in social_monthly_metrics. Only the auto fields are set; avg/peak live
- * viewers (manual entry) are never overwritten. Non-fatal — a failure here
- * does not fail the video sync.
+ * Update the current month's YouTube row in social_monthly_metrics.
+ *  - subscribers_total: current cumulative count (from the Data API).
+ *  - per-month video/shorts/live views + likes + comments: pulled from the
+ *    YouTube Analytics API (true "o ay içinde" numbers, split by content type,
+ *    no double counting) when the channel is connected.
+ * Manual fields (avg/peak live viewers) are never touched. Non-fatal.
  */
 async function rollUpMonthlyMetrics(
   admin: ReturnType<typeof createAdminClient>,
-  rows: RollupRow[],
   subscribers: number
 ): Promise<void> {
   const now = new Date();
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   if (month < '2026-07') return; // only from July 2026 onward
 
-  let video_views = 0;
-  let shorts_views = 0;
-  let live_views = 0;
-  let total_likes = 0;
-  let total_comments = 0;
-  for (const r of rows) {
-    total_likes += r.like_count;
-    total_comments += r.comment_count;
-    if (r.content_type === 'video') video_views += r.view_count;
-    else if (r.content_type === 'short') shorts_views += r.view_count;
-    else if (r.content_type === 'live') live_views += r.view_count;
-  }
-
-  const auto = {
-    subscribers_total: subscribers,
-    video_views,
-    shorts_views,
-    live_views,
-    total_likes,
-    total_comments,
-    updated_at: new Date().toISOString(),
-  };
-
+  // 1. subscribers_total (cumulative) — preserve every other column
   try {
+    const sub = { subscribers_total: subscribers, updated_at: new Date().toISOString() };
     const { data: existing } = await admin
       .from('social_monthly_metrics')
       .select('id')
       .eq('month', month)
       .eq('platform', 'YOUTUBE')
       .maybeSingle();
-
     if (existing) {
-      await admin.from('social_monthly_metrics').update(auto).eq('id', existing.id);
+      await admin.from('social_monthly_metrics').update(sub).eq('id', existing.id);
     } else {
       await admin
         .from('social_monthly_metrics')
-        .insert({ month, platform: 'YOUTUBE', followers_total: 0, ...auto });
+        .insert({ month, platform: 'YOUTUBE', followers_total: 0, ...sub });
     }
   } catch {
-    // metrics roll-up is secondary — ignore failures
+    // secondary — ignore
+  }
+
+  // 2. per-month views/likes/comments from Analytics API (no-op if not connected)
+  try {
+    await youtubeAnalyticsService.fillMonth(month);
+  } catch {
+    // Analytics not connected or transient failure — ignore
   }
 }
 
@@ -198,7 +178,7 @@ export async function syncYouTubeVideos(): Promise<SyncResult> {
     //    double counting — a finished live stream (VOD) stays 'live', never
     //    counted as a normal video. Manual fields (avg/peak live viewers) are
     //    intentionally left untouched.
-    await rollUpMonthlyMetrics(admin, rows, subscribers);
+    await rollUpMonthlyMetrics(admin, subscribers);
 
     return { synced: rows.length };
   } catch (e) {
