@@ -66,6 +66,8 @@ export default async function SocialPage() {
     ? await youtubeAnalyticsService.getStatus()
     : { connected: false };
 
+  const latestFollowers = await socialMetricsService.getLatestFollowers();
+
   return (
     <PageShell
       title={tr.pages.social.title}
@@ -73,7 +75,7 @@ export default async function SocialPage() {
     >
       {/* Platform follower summary — original logos, latest counts */}
       <div className="mb-6">
-        <PlatformSummary metrics={currentMetrics} month={activeMonth} />
+        <PlatformSummary followers={latestFollowers} />
       </div>
 
       {/* Monthly Growth Report */}

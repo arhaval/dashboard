@@ -94,6 +94,27 @@ export const socialMetricsService = {
   },
 
   /**
+   * Latest known follower/subscriber count per platform (most recent month
+   * that has a positive value). Used for the total-audience summary.
+   */
+  async getLatestFollowers(): Promise<Record<string, number>> {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('social_monthly_metrics')
+      .select('platform, month, followers_total, subscribers_total')
+      .order('month', { ascending: false });
+
+    const result: Record<string, number> = {};
+    for (const row of data ?? []) {
+      const key = row.platform as string;
+      if (result[key] !== undefined) continue; // already have the latest
+      const val = key === 'YOUTUBE' ? row.subscribers_total : row.followers_total;
+      if (val && val > 0) result[key] = val;
+    }
+    return result;
+  },
+
+  /**
    * Get all metrics for a specific platform (history)
    */
   async getByPlatform(platform: MetricsPlatform): Promise<SocialMonthlyMetrics[]> {

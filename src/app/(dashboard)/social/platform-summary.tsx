@@ -1,10 +1,8 @@
 /**
  * Platform Summary strip — the very top of the Social Media page.
- * Shows each platform with its ORIGINAL brand logo and the follower/subscriber
- * count as of the latest pulled data.
+ * Shows the TOTAL audience across platforms plus each platform with its
+ * ORIGINAL brand logo and its latest follower/subscriber total.
  */
-
-import type { SocialMonthlyMetrics } from '@/types';
 
 // Exact brand marks (simple-icons, 24x24 viewBox)
 const PATHS = {
@@ -46,28 +44,39 @@ function formatCount(n: number | undefined | null): string {
 }
 
 interface Props {
-  metrics: SocialMonthlyMetrics[];
-  month: string;
+  followers: Record<string, number>;
 }
 
-export function PlatformSummary({ metrics, month }: Props) {
-  const byPlatform = new Map(metrics.map((m) => [m.platform, m]));
+export function PlatformSummary({ followers }: Props) {
+  const total = PLATFORMS.reduce((sum, p) => sum + (followers[p.key] || 0), 0);
 
   return (
     <div>
-      <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-          Takipçi Sayıları
-        </h2>
-        <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-          {month} verisi
-        </span>
+      {/* Total audience hero */}
+      <div
+        className="mb-3 flex items-center justify-between rounded-[var(--radius-lg)] p-4"
+        style={{
+          backgroundColor: 'var(--color-bg-secondary)',
+          border: '1px solid var(--color-border)',
+          boxShadow: 'var(--shadow-card)',
+        }}
+      >
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+            Toplam Takipçi
+          </p>
+          <p className="text-3xl font-bold leading-tight" style={{ color: 'var(--color-text-primary)' }}>
+            {total > 0 ? total.toLocaleString('tr-TR') : '—'}
+          </p>
+        </div>
+        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          Tüm platformların toplamı
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {PLATFORMS.map((p) => {
-          const m = byPlatform.get(p.key);
-          const value = m ? (m[p.followerKey] as number | undefined) : undefined;
+          const value = followers[p.key];
           return (
             <div
               key={p.key}
