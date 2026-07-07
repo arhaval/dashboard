@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
 import { Pencil, Phone, CreditCard, Eye, Trash2, Mail, CalendarDays, AlertTriangle } from 'lucide-react';
-import { RoleControl, StatusControl } from './member-actions';
+import { StatusControl } from './member-actions';
 import { EditMemberModal } from './edit-member-modal';
 import { AddMemberButton } from './add-member-button';
 import { deleteTeamMember } from './actions';
@@ -26,6 +26,17 @@ function roleAccent(role: string): string {
     case 'VOICE':     return 'var(--color-warning)';
     case 'GRAFIKER':  return '#F97316';
     default:          return 'var(--color-text-muted)';
+  }
+}
+
+function roleBadgeClass(role: string): string {
+  switch (role) {
+    case 'ADMIN':     return 'bg-[var(--color-accent-muted)] text-[var(--color-accent)]';
+    case 'PUBLISHER': return 'bg-[var(--color-info-muted)] text-[var(--color-info)]';
+    case 'EDITOR':    return 'bg-[var(--color-success-muted)] text-[var(--color-success)]';
+    case 'VOICE':     return 'bg-[var(--color-warning-muted)] text-[var(--color-warning)]';
+    case 'GRAFIKER':  return 'bg-orange-500/15 text-orange-500';
+    default:          return 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]';
   }
 }
 
@@ -166,13 +177,14 @@ function MemberCard({ user, isCurrentUser, isAdmin, onEdit, onDelete }: MemberCa
         <div className="mt-4 grid grid-cols-2 gap-2">
           <div>
             <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">Rol</p>
-            {isAdmin ? (
-              <RoleControl userId={user.id} currentRole={user.role} isCurrentUser={isCurrentUser} />
-            ) : (
-              <span className="text-sm text-[var(--color-text-secondary)]">
-                {tr.roles[user.role as keyof typeof tr.roles] || user.role}
-              </span>
-            )}
+            <span
+              className={cn(
+                'inline-block rounded-full px-2.5 py-1 text-xs font-semibold',
+                roleBadgeClass(user.role)
+              )}
+            >
+              {tr.roles[user.role as keyof typeof tr.roles] || user.role}
+            </span>
           </div>
           <div>
             <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">Durum</p>
