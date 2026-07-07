@@ -12,6 +12,7 @@ import { youtubeAnalyticsService } from '@/services/youtube-analytics.service';
 import { tr } from '@/lib/i18n';
 import { MetricsForm } from './metrics-form';
 import { YouTubeConnect } from './youtube-connect';
+import { PlatformSummary } from './platform-summary';
 import { PlatformHistory } from './platform-history';
 import { TrendCharts } from './trend-charts';
 import { MonthlyNotes } from './monthly-notes';
@@ -70,6 +71,11 @@ export default async function SocialPage() {
       title={tr.pages.social.title}
       description={isAdmin ? tr.pages.social.subtitle : 'Sosyal medya performansını görüntüle'}
     >
+      {/* Platform follower summary — original logos, latest counts */}
+      <div className="mb-6">
+        <PlatformSummary metrics={currentMetrics} month={activeMonth} />
+      </div>
+
       {/* Monthly Growth Report */}
       <div className="mb-6">
         <GrowthReport report={growthReport} />
