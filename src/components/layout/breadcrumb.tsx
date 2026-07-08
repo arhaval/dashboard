@@ -20,6 +20,7 @@ const segmentLabels: Record<string, string> = {
   'social': 'Sosyal Medya',
   'icerik-plani': 'İçerik Planı',
   'icerik-performansi': 'İçerik Performansı',
+  'sponsorluklar': 'Sponsorluklar',
   'matches': 'Maçlar',
   'operations': 'Operasyon',
   'stats': 'İstatistikler',

@@ -19,6 +19,7 @@ import {
   Tv2,
   X,
   PlayCircle,
+  Handshake,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -52,6 +53,7 @@ const navSections: NavSection[] = [
       { label: tr.nav.workItems, href: '/work-items', icon: FileText },
       { label: tr.nav.payments, href: '/payments', icon: CreditCard, excludeRoles: ['ADMIN'] },
       { label: tr.nav.finance,  href: '/finance', icon: PiggyBank,   adminOnly: true },
+      { label: 'Sponsorluklar', href: '/sponsorluklar', icon: Handshake, adminOnly: true },
     ],
   },
   {
