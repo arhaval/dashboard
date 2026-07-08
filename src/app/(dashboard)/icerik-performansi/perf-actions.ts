@@ -16,7 +16,7 @@ import { userService } from '@/services';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { syncYouTubeVideos } from '@/services/youtube.service';
 import { videoPerformanceService } from '@/services/video-performance.service';
-import { CONTENT_TYPE_LABELS, LABEL_META } from './perf.constants';
+import { LABEL_META, VIDEO_GENRE_LABELS, VIDEO_GENRES, type VideoGenre } from './perf.constants';
 
 async function assertAdmin(): Promise<{ ok: boolean; error?: string }> {
   const user = await userService.getCurrentUser();
@@ -36,6 +36,26 @@ export async function syncVideosNow(): Promise<{ synced?: number; error?: string
   return { synced: result.synced };
 }
 
+/** Manually set a video's genre. Locks it so future syncs don't overwrite. */
+export async function setVideoGenre(
+  videoId: string,
+  genre: VideoGenre
+): Promise<{ error?: string }> {
+  const admin = await assertAdmin();
+  if (!admin.ok) return { error: admin.error };
+  if (!VIDEO_GENRES.includes(genre)) return { error: 'Geçersiz tür' };
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from('video_performance')
+    .update({ genre, genre_locked: true })
+    .eq('video_id', videoId);
+  if (error) return { error: error.message };
+
+  revalidatePath('/icerik-performansi');
+  return {};
+}
+
 export async function commentOnVideo(videoId: string): Promise<{ comment?: string; error?: string }> {
   const admin = await assertAdmin();
   if (!admin.ok) return { error: admin.error };
@@ -51,7 +71,7 @@ export async function commentOnVideo(videoId: string): Promise<{ comment?: strin
   // Already commented → return cached, do not call the API again
   if (video.claude_comment) return { comment: video.claude_comment };
 
-  const typeLabel = CONTENT_TYPE_LABELS[video.content_type];
+  const typeLabel = VIDEO_GENRE_LABELS[video.effective_genre];
   const scoreText =
     video.score != null
       ? `türü ortalamasının ${video.score.toFixed(2)} katı (${LABEL_META[video.label].text})`

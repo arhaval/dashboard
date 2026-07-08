@@ -10,7 +10,11 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { youtubeAnalyticsService } from '@/services/youtube-analytics.service';
-import type { ContentType } from '@/app/(dashboard)/icerik-performansi/perf.constants';
+import {
+  classifyVideoGenre,
+  type ContentType,
+  type VideoGenre,
+} from '@/app/(dashboard)/icerik-performansi/perf.constants';
 
 const YT = 'https://www.googleapis.com/youtube/v3';
 const MAX_VIDEOS = 5000; // safety backstop; in practice pulls the ENTIRE channel
@@ -171,6 +175,24 @@ export async function syncYouTubeVideos(): Promise<SyncResult> {
         .from('video_performance')
         .upsert(rows.slice(i, i + UPSERT_BATCH), { onConflict: 'video_id' });
       if (error) return { synced: i, error: error.message };
+    }
+
+    // 4b. Auto-assign genre for rows that are NOT manually locked. Group video
+    //     ids by their classified genre and update in one query per genre.
+    //     genre_locked=true rows (manual overrides) are preserved.
+    const idsByGenre = new Map<VideoGenre, string[]>();
+    for (const r of rows) {
+      const g = classifyVideoGenre(r.title, r.content_type as ContentType);
+      const arr = idsByGenre.get(g) ?? [];
+      arr.push(r.video_id);
+      idsByGenre.set(g, arr);
+    }
+    for (const [genre, ids] of idsByGenre) {
+      await admin
+        .from('video_performance')
+        .update({ genre })
+        .in('video_id', ids)
+        .eq('genre_locked', false);
     }
 
     // 5. roll up into the monthly Social Media metrics row (July 2026 onward).

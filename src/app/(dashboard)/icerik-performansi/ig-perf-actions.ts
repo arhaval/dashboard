@@ -5,12 +5,28 @@ import { userService } from '@/services';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { instagramService } from '@/services/instagram.service';
 import { instagramPerformanceService } from '@/services/instagram-performance.service';
-import { IG_TYPE_LABELS } from './ig-perf.constants';
+import { IG_GENRE_LABELS, IG_GENRES, type IgGenre } from './ig-perf.constants';
 import { LABEL_META } from './perf.constants';
 
 async function assertAdmin(): Promise<boolean> {
   const user = await userService.getCurrentUser();
   return Boolean(user && user.role === 'ADMIN');
+}
+
+/** Manually set a post's genre. Locks it so future syncs don't overwrite. */
+export async function setMediaGenre(mediaId: string, genre: IgGenre): Promise<{ error?: string }> {
+  if (!(await assertAdmin())) return { error: 'Yetki yok' };
+  if (!IG_GENRES.includes(genre)) return { error: 'Geçersiz tür' };
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from('instagram_media')
+    .update({ genre, genre_locked: true })
+    .eq('media_id', mediaId);
+  if (error) return { error: error.message };
+
+  revalidatePath('/icerik-performansi');
+  return {};
 }
 
 export async function syncInstagramNow(): Promise<{ synced?: number; error?: string }> {
@@ -43,7 +59,7 @@ export async function commentOnMedia(mediaId: string): Promise<{ comment?: strin
     '"Bu gönderi [türünün X katı] tuttu. Muhtemel sebep: [...]. Öneri: [...]"',
     'Sayıları ben hesapladım; sadece yorumla, yeniden hesaplama yapma.',
     '',
-    `Tür: ${IG_TYPE_LABELS[media.content_type]}`,
+    `Tür: ${IG_GENRE_LABELS[media.effective_genre]}`,
     `Açıklama: ${(media.caption ?? '').slice(0, 300)}`,
     `Beğeni: ${media.like_count}`,
     `Yorum: ${media.comment_count}`,

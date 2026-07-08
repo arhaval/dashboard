@@ -6,10 +6,11 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { MIN_SAMPLE_PER_TYPE, scoreToLabel } from '@/app/(dashboard)/icerik-performansi/perf.constants';
-import type {
-  InstagramMedia,
-  ScoredMedia,
-  IgContentType,
+import {
+  classifyIgGenre,
+  type InstagramMedia,
+  type ScoredMedia,
+  type IgGenre,
 } from '@/app/(dashboard)/icerik-performansi/ig-perf.constants';
 
 export const instagramPerformanceService = {
@@ -23,33 +24,39 @@ export const instagramPerformanceService = {
     if (error || !data) return [];
     const media = data as InstagramMedia[];
 
-    const byType = new Map<IgContentType, InstagramMedia[]>();
+    // Effective genre = stored genre (respects manual lock) or auto-classified.
+    const genreOf = (m: InstagramMedia): IgGenre =>
+      m.genre ?? classifyIgGenre(m.caption, m.content_type);
+
+    const byGenre = new Map<IgGenre, InstagramMedia[]>();
     for (const m of media) {
-      const arr = byType.get(m.content_type) ?? [];
+      const g = genreOf(m);
+      const arr = byGenre.get(g) ?? [];
       arr.push(m);
-      byType.set(m.content_type, arr);
+      byGenre.set(g, arr);
     }
 
-    const typeCount = new Map<IgContentType, number>();
-    const typeAvg = new Map<IgContentType, number>();
-    for (const [type, arr] of byType) {
-      typeCount.set(type, arr.length);
+    const genreCount = new Map<IgGenre, number>();
+    const genreAvg = new Map<IgGenre, number>();
+    for (const [genre, arr] of byGenre) {
+      genreCount.set(genre, arr.length);
       const withLikes = arr.filter((m) => Number(m.like_count) > 0);
       const avg =
         withLikes.length > 0
           ? withLikes.reduce((s, m) => s + Number(m.like_count), 0) / withLikes.length
           : 0;
-      typeAvg.set(type, avg);
+      genreAvg.set(genre, avg);
     }
 
     return media.map((m): ScoredMedia => {
-      const count = typeCount.get(m.content_type) ?? 0;
+      const g = genreOf(m);
+      const count = genreCount.get(g) ?? 0;
       if (count < MIN_SAMPLE_PER_TYPE) {
-        return { ...m, score: null, label: 'COLLECTING', type_avg_likes: null };
+        return { ...m, effective_genre: g, score: null, label: 'COLLECTING', type_avg_likes: null };
       }
-      const avg = typeAvg.get(m.content_type) ?? 0;
+      const avg = genreAvg.get(g) ?? 0;
       const score = avg > 0 ? Number(m.like_count) / avg : 0;
-      return { ...m, score, label: scoreToLabel(score), type_avg_likes: avg };
+      return { ...m, effective_genre: g, score, label: scoreToLabel(score), type_avg_likes: avg };
     });
   },
 };

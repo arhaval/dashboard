@@ -5,6 +5,9 @@
 
 export type ContentType = 'video' | 'short' | 'live';
 
+/** Content genre (what the video is about) — the scoring bucket. */
+export type VideoGenre = 'match' | 'interview' | 'analysis' | 'clip' | 'general';
+
 export type PerfLabel = 'HIT' | 'GOOD' | 'AVERAGE' | 'FLOP' | 'COLLECTING';
 
 export interface VideoPerformance {
@@ -18,16 +21,20 @@ export interface VideoPerformance {
   comment_count: number;
   content_type: ContentType;
   duration_seconds: number;
+  genre: VideoGenre | null;
+  genre_locked: boolean;
   claude_comment: string | null;
   commented_at: string | null;
   synced_at: string | null;
 }
 
 export interface ScoredVideo extends VideoPerformance {
-  /** views / average-views-of-same-type. null when the type is still collecting data. */
+  /** Effective genre (stored genre, or auto-classified when unset). Never null. */
+  effective_genre: VideoGenre;
+  /** views / average-views-of-same-genre. null while the genre is collecting data. */
   score: number | null;
   label: PerfLabel;
-  /** average views for this content type (null if collecting) */
+  /** average views for this genre (null if collecting) */
   type_avg_views: number | null;
 }
 
@@ -36,6 +43,54 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   short: 'Short',
   live: 'Canlı Yayın',
 };
+
+export const VIDEO_GENRE_LABELS: Record<VideoGenre, string> = {
+  match: 'Maç Yayını',
+  interview: 'Röportaj',
+  analysis: 'Analiz/Tartışma',
+  clip: 'Klip',
+  general: 'Genel',
+};
+
+export const VIDEO_GENRES: VideoGenre[] = ['match', 'interview', 'analysis', 'clip', 'general'];
+
+/** Normalize Turkish text for keyword matching (lowercase, ASCII-ish). */
+function norm(s: string): string {
+  return s
+    .toLocaleLowerCase('tr')
+    .replace(/ı/g, 'i').replace(/İ/g, 'i')
+    .replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ç/g, 'c')
+    .replace(/ö/g, 'o').replace(/ü/g, 'u');
+}
+
+/**
+ * Auto-assign a YouTube video's genre from its title + format.
+ * Format wins for shorts (→ clip). Otherwise keyword heuristics on the title.
+ */
+export function classifyVideoGenre(title: string, contentType: ContentType): VideoGenre {
+  if (contentType === 'short') return 'clip';
+  const t = norm(title);
+
+  // Maç yayını: "X vs Y", karşılaşma
+  if (/\bvs\b/.test(t) || /\bv[.\s]/.test(t) || t.includes('karsilasma') || t.includes(' maci') || /\bmac\b/.test(t)) {
+    return 'match';
+  }
+  // Röportaj
+  if (
+    t.includes('roportaj') || t.includes('konustu') || t.includes('konusuyor') ||
+    t.includes('anlatti') || t.includes('ozel') || t.includes('sorulari') || t.includes('itiraf')
+  ) {
+    return 'interview';
+  }
+  // Analiz / Tartışma (soru cümlesi dahil)
+  if (
+    t.includes('neden') || t.includes('nasil') || t.includes('analiz') ||
+    t.includes('tartisma') || t.includes('degerlendirme') || t.trim().endsWith('?')
+  ) {
+    return 'analysis';
+  }
+  return 'general';
+}
 
 export interface LabelMeta {
   text: string;

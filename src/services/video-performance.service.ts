@@ -10,9 +10,10 @@ import { createClient } from '@/lib/supabase/server';
 import {
   MIN_SAMPLE_PER_TYPE,
   scoreToLabel,
+  classifyVideoGenre,
   type VideoPerformance,
   type ScoredVideo,
-  type ContentType,
+  type VideoGenre,
 } from '@/app/(dashboard)/icerik-performansi/perf.constants';
 
 export const videoPerformanceService = {
@@ -27,34 +28,40 @@ export const videoPerformanceService = {
 
     const videos = data as VideoPerformance[];
 
-    // Group by content type; average excludes 0-view items (upcoming/unwatched)
-    const byType = new Map<ContentType, VideoPerformance[]>();
+    // Effective genre = stored genre (respects manual lock) or auto-classified.
+    const genreOf = (v: VideoPerformance): VideoGenre =>
+      v.genre ?? classifyVideoGenre(v.title, v.content_type);
+
+    // Group by genre; average excludes 0-view items (upcoming/unwatched)
+    const byGenre = new Map<VideoGenre, VideoPerformance[]>();
     for (const v of videos) {
-      const arr = byType.get(v.content_type) ?? [];
+      const g = genreOf(v);
+      const arr = byGenre.get(g) ?? [];
       arr.push(v);
-      byType.set(v.content_type, arr);
+      byGenre.set(g, arr);
     }
 
-    const typeCount = new Map<ContentType, number>();
-    const typeAvg = new Map<ContentType, number>();
-    for (const [type, arr] of byType) {
-      typeCount.set(type, arr.length);
+    const genreCount = new Map<VideoGenre, number>();
+    const genreAvg = new Map<VideoGenre, number>();
+    for (const [genre, arr] of byGenre) {
+      genreCount.set(genre, arr.length);
       const watched = arr.filter((v) => Number(v.view_count) > 0);
       const avg =
         watched.length > 0
           ? watched.reduce((s, v) => s + Number(v.view_count), 0) / watched.length
           : 0;
-      typeAvg.set(type, avg);
+      genreAvg.set(genre, avg);
     }
 
     return videos.map((v): ScoredVideo => {
-      const count = typeCount.get(v.content_type) ?? 0;
+      const g = genreOf(v);
+      const count = genreCount.get(g) ?? 0;
       if (count < MIN_SAMPLE_PER_TYPE) {
-        return { ...v, score: null, label: 'COLLECTING', type_avg_views: null };
+        return { ...v, effective_genre: g, score: null, label: 'COLLECTING', type_avg_views: null };
       }
-      const avg = typeAvg.get(v.content_type) ?? 0;
+      const avg = genreAvg.get(g) ?? 0;
       const score = avg > 0 ? Number(v.view_count) / avg : 0;
-      return { ...v, score, label: scoreToLabel(score), type_avg_views: avg };
+      return { ...v, effective_genre: g, score, label: scoreToLabel(score), type_avg_views: avg };
     });
   },
 

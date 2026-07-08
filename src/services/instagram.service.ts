@@ -9,6 +9,11 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  classifyIgGenre,
+  type IgContentType,
+  type IgGenre,
+} from '@/app/(dashboard)/icerik-performansi/ig-perf.constants';
 
 const AUTH_URL = 'https://www.instagram.com/oauth/authorize';
 const TOKEN_URL = 'https://api.instagram.com/oauth/access_token';
@@ -318,6 +323,26 @@ export const instagramService = {
         .upsert(rows.slice(i, i + 500), { onConflict: 'media_id' });
       if (error) return { synced: i, error: error.message };
     }
+
+    // Auto-assign genre for non-locked rows (manual overrides preserved).
+    const idsByGenre = new Map<IgGenre, string[]>();
+    for (const r of rows) {
+      const g = classifyIgGenre(
+        (r.caption as string | null) ?? null,
+        r.content_type as IgContentType
+      );
+      const arr = idsByGenre.get(g) ?? [];
+      arr.push(r.media_id as string);
+      idsByGenre.set(g, arr);
+    }
+    for (const [genre, ids] of idsByGenre) {
+      await admin
+        .from('instagram_media')
+        .update({ genre })
+        .in('media_id', ids)
+        .eq('genre_locked', false);
+    }
+
     return { synced: rows.length };
   },
 };

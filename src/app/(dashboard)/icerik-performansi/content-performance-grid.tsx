@@ -6,10 +6,13 @@ import { Button } from '@/components/ui/button';
 import {
   LABEL_META,
   CONTENT_TYPE_LABELS,
+  VIDEO_GENRE_LABELS,
+  VIDEO_GENRES,
   type ScoredVideo,
   type PerfLabel,
+  type VideoGenre,
 } from './perf.constants';
-import { syncVideosNow, commentOnVideo } from './perf-actions';
+import { syncVideosNow, commentOnVideo, setVideoGenre } from './perf-actions';
 
 function formatNumber(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -38,6 +41,9 @@ function VideoCard({ video, commentsEnabled }: { video: ScoredVideo; commentsEna
   const [comment, setComment] = useState<string | null>(video.claude_comment);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [genre, setGenre] = useState<VideoGenre>(video.effective_genre);
+  const [genreLocked, setGenreLocked] = useState<boolean>(video.genre_locked);
+  const [genreSaving, startGenre] = useTransition();
   const meta = LABEL_META[video.label];
 
   function handleComment() {
@@ -46,6 +52,16 @@ function VideoCard({ video, commentsEnabled }: { video: ScoredVideo; commentsEna
       const res = await commentOnVideo(video.video_id);
       if (res.error) setError(res.error);
       else if (res.comment) setComment(res.comment);
+    });
+  }
+
+  function handleGenreChange(next: VideoGenre) {
+    const prev = genre;
+    setGenre(next);
+    setGenreLocked(true);
+    startGenre(async () => {
+      const res = await setVideoGenre(video.video_id, next);
+      if (res.error) { setGenre(prev); setError(res.error); }
     });
   }
 
@@ -96,6 +112,23 @@ function VideoCard({ video, commentsEnabled }: { video: ScoredVideo; commentsEna
         <p className="mb-2 line-clamp-2 text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
           {video.title}
         </p>
+
+        {/* Genre (auto-assigned, manually overridable) */}
+        <div className="mb-2 flex items-center gap-1.5">
+          <select
+            value={genre}
+            onChange={(e) => handleGenreChange(e.target.value as VideoGenre)}
+            disabled={genreSaving}
+            title={genreLocked ? 'Tür elle atandı (senkronda korunur)' : 'Otomatik atanan tür — değiştirebilirsin'}
+            className="rounded-[var(--radius-sm)] px-2 py-1 text-[11px] font-medium outline-none disabled:opacity-50"
+            style={{ backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+          >
+            {VIDEO_GENRES.map((g) => (
+              <option key={g} value={g}>{VIDEO_GENRE_LABELS[g]}</option>
+            ))}
+          </select>
+          {genreLocked && <span title="Elle atandı" style={{ color: 'var(--color-accent)' }}>●</span>}
+        </div>
 
         {/* Metrics */}
         <div className="mb-2 flex items-center gap-3 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
@@ -152,6 +185,7 @@ interface GridProps {
 
 export function ContentPerformanceGrid({ videos, commentsEnabled }: GridProps) {
   const [filter, setFilter] = useState<'ALL' | PerfLabel>('ALL');
+  const [genreFilter, setGenreFilter] = useState<'ALL' | VideoGenre>('ALL');
   const [syncing, startSync] = useTransition();
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
@@ -161,7 +195,15 @@ export function ContentPerformanceGrid({ videos, commentsEnabled }: GridProps) {
     return c;
   }, [videos]);
 
-  const filtered = filter === 'ALL' ? videos : videos.filter((v) => v.label === filter);
+  const genreCounts = useMemo(() => {
+    const c = new Map<VideoGenre, number>();
+    for (const v of videos) c.set(v.effective_genre, (c.get(v.effective_genre) ?? 0) + 1);
+    return c;
+  }, [videos]);
+
+  const filtered = videos.filter(
+    (v) => (filter === 'ALL' || v.label === filter) && (genreFilter === 'ALL' || v.effective_genre === genreFilter)
+  );
 
   function handleSync() {
     setSyncMsg(null);
@@ -196,6 +238,17 @@ export function ContentPerformanceGrid({ videos, commentsEnabled }: GridProps) {
           })}
         </div>
         <div className="flex items-center gap-2">
+          <select
+            value={genreFilter}
+            onChange={(e) => setGenreFilter(e.target.value as 'ALL' | VideoGenre)}
+            className="rounded-[var(--radius-sm)] px-2.5 py-1.5 text-xs font-medium outline-none"
+            style={{ backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+          >
+            <option value="ALL">Tüm türler ({videos.length})</option>
+            {VIDEO_GENRES.map((g) => (
+              <option key={g} value={g}>{VIDEO_GENRE_LABELS[g]} ({genreCounts.get(g) ?? 0})</option>
+            ))}
+          </select>
           {syncMsg && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{syncMsg}</span>}
           <Button onClick={handleSync} size="sm" variant="secondary" disabled={syncing}>
             <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
