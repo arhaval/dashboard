@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { createSponsor, updateSponsor } from './actions';
-import type { Sponsor, SponsorStatus } from './sponsor.constants';
+import type { Sponsor, SponsorStatus, PaymentType } from './sponsor.constants';
 
 interface Props {
   open: boolean;
@@ -22,6 +22,7 @@ const STATUSES: { value: SponsorStatus; label: string }[] = [
 export function SponsorFormModal({ open, onClose, sponsor }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [paymentType, setPaymentType] = useState<PaymentType>(sponsor?.payment_type ?? 'LUMP');
 
   if (!open) return null;
 
@@ -73,10 +74,31 @@ export function SponsorFormModal({ open, onClose, sponsor }: Props) {
                 </Select>
               </div>
               <div>
-                <label className={labelCls} style={labelStyle}>Anlaşma Bedeli (₺)</label>
+                <label className={labelCls} style={labelStyle}>Toplam Bedel (₺)</label>
                 <Input name="deal_value" type="number" step="0.01" min="0" defaultValue={sponsor?.deal_value ?? ''} placeholder="0" />
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls} style={labelStyle}>Ödeme Tipi</label>
+                <Select name="payment_type" value={paymentType} onChange={(e) => setPaymentType(e.target.value as PaymentType)}>
+                  <option value="LUMP">Tek Seferlik</option>
+                  <option value="MONTHLY">Aylık Ödeme</option>
+                </Select>
+              </div>
+              {paymentType === 'MONTHLY' && (
+                <div>
+                  <label className={labelCls} style={labelStyle}>Aylık Tutar (₺)</label>
+                  <Input name="monthly_amount" type="number" step="0.01" min="0" defaultValue={sponsor?.monthly_amount ?? ''} placeholder="0" />
+                </div>
+              )}
+            </div>
+            {paymentType === 'MONTHLY' && (
+              <p className="-mt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                Kaydettikten sonra sponsor detayında, başlangıç–bitiş aralığına göre aylık ödeme planı oluşturabilirsiniz.
+              </p>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div>

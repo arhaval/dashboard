@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { userService } from '@/services';
-import { sponsorService, type SponsorFileCategory, type SponsorStatus } from '@/services/sponsor.service';
+import { sponsorService, type SponsorFileCategory, type SponsorStatus, type PaymentType } from '@/services/sponsor.service';
 
 async function assertAdmin(): Promise<boolean> {
   const user = await userService.getCurrentUser();
@@ -20,6 +20,8 @@ export async function createSponsor(formData: FormData): Promise<{ id?: string; 
   if (!name) return { error: 'İsim zorunlu' };
 
   const dealRaw = str(formData.get('deal_value'));
+  const paymentType = (str(formData.get('payment_type')) as PaymentType) ?? 'LUMP';
+  const monthlyRaw = str(formData.get('monthly_amount'));
   const result = await sponsorService.create({
     name,
     status: (str(formData.get('status')) as SponsorStatus) ?? 'ACTIVE',
@@ -29,6 +31,8 @@ export async function createSponsor(formData: FormData): Promise<{ id?: string; 
     notes: str(formData.get('notes')),
     contact: str(formData.get('contact')),
     deal_value: dealRaw ? Number(dealRaw) : null,
+    payment_type: paymentType,
+    monthly_amount: paymentType === 'MONTHLY' && monthlyRaw ? Number(monthlyRaw) : null,
   });
   if (result.error || !result.id) return { error: result.error ?? 'Oluşturulamadı' };
 
@@ -44,6 +48,8 @@ export async function createSponsor(formData: FormData): Promise<{ id?: string; 
 export async function updateSponsor(id: string, formData: FormData): Promise<{ error?: string }> {
   if (!(await assertAdmin())) return { error: 'Yetki yok' };
   const dealRaw = str(formData.get('deal_value'));
+  const paymentType = (str(formData.get('payment_type')) as PaymentType) ?? 'LUMP';
+  const monthlyRaw = str(formData.get('monthly_amount'));
   const result = await sponsorService.update(id, {
     name: str(formData.get('name')) ?? undefined,
     status: (str(formData.get('status')) as SponsorStatus) ?? undefined,
@@ -53,6 +59,8 @@ export async function updateSponsor(id: string, formData: FormData): Promise<{ e
     notes: str(formData.get('notes')),
     contact: str(formData.get('contact')),
     deal_value: dealRaw ? Number(dealRaw) : null,
+    payment_type: paymentType,
+    monthly_amount: paymentType === 'MONTHLY' && monthlyRaw ? Number(monthlyRaw) : null,
   });
   if (result.error) return result;
 
@@ -98,4 +106,54 @@ export async function getSignedUrl(path: string): Promise<{ url?: string; error?
   if (!(await assertAdmin())) return { error: 'Yetki yok' };
   const url = await sponsorService.signedUrl(path);
   return url ? { url } : { error: 'URL alınamadı' };
+}
+
+// ── Payment schedule actions ───────────────────────────────────────
+
+export async function generatePaymentSchedule(sponsorId: string): Promise<{ error?: string; count?: number }> {
+  if (!(await assertAdmin())) return { error: 'Yetki yok' };
+  const result = await sponsorService.generateSchedule(sponsorId);
+  revalidatePath(`/sponsorluklar/${sponsorId}`);
+  return result;
+}
+
+export async function addSponsorPayment(formData: FormData): Promise<{ error?: string }> {
+  if (!(await assertAdmin())) return { error: 'Yetki yok' };
+  const sponsorId = str(formData.get('sponsor_id'));
+  const label = str(formData.get('label'));
+  const amountRaw = str(formData.get('amount'));
+  if (!sponsorId) return { error: 'Sponsor yok' };
+  if (!label) return { error: 'Açıklama zorunlu' };
+  if (!amountRaw || Number(amountRaw) <= 0) return { error: 'Geçerli tutar girin' };
+
+  const result = await sponsorService.addPayment(sponsorId, {
+    label,
+    amount: Number(amountRaw),
+    due_date: str(formData.get('due_date')),
+  });
+  revalidatePath(`/sponsorluklar/${sponsorId}`);
+  return result;
+}
+
+/** Toggle an installment paid/unpaid. Paid → posts income; unpaid → removes it. */
+export async function toggleSponsorPayment(
+  paymentId: string,
+  sponsorId: string,
+  markPaid: boolean
+): Promise<{ error?: string }> {
+  if (!(await assertAdmin())) return { error: 'Yetki yok' };
+  const result = markPaid
+    ? await sponsorService.markPaid(paymentId, new Date().toISOString().slice(0, 10))
+    : await sponsorService.markUnpaid(paymentId);
+  revalidatePath(`/sponsorluklar/${sponsorId}`);
+  revalidatePath('/finance');
+  return result;
+}
+
+export async function deleteSponsorPayment(paymentId: string, sponsorId: string): Promise<{ error?: string }> {
+  if (!(await assertAdmin())) return { error: 'Yetki yok' };
+  const result = await sponsorService.deletePayment(paymentId);
+  revalidatePath(`/sponsorluklar/${sponsorId}`);
+  revalidatePath('/finance');
+  return result;
 }

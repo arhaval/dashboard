@@ -2,6 +2,8 @@
 
 export type SponsorStatus = 'ACTIVE' | 'NEGOTIATING' | 'ENDED';
 export type SponsorFileCategory = 'contract' | 'logo_pack' | 'other';
+/** LUMP = tek seferlik toplam, MONTHLY = aylık taksitli */
+export type PaymentType = 'LUMP' | 'MONTHLY';
 
 export interface Sponsor {
   id: string;
@@ -14,8 +16,23 @@ export interface Sponsor {
   notes: string | null;
   contact: string | null;
   deal_value: number | null;
+  payment_type: PaymentType;
+  monthly_amount: number | null;
   created_at: string;
   updated_at: string;
+}
+
+/** One installment/row in a sponsor's payment schedule. */
+export interface SponsorPayment {
+  id: string;
+  sponsor_id: string;
+  label: string;
+  amount: number;
+  due_date: string | null;
+  is_paid: boolean;
+  paid_date: string | null;
+  transaction_id: string | null;
+  created_at: string;
 }
 
 export interface SponsorFile {
@@ -39,3 +56,11 @@ export const CATEGORY_LABELS: Record<SponsorFileCategory, string> = {
   logo_pack: 'Logo Paketi',
   other: 'Diğer',
 };
+
+export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
+  LUMP: 'Tek Seferlik',
+  MONTHLY: 'Aylık Ödeme',
+};
+
+/** Finance category used when a paid installment posts income. */
+export const SPONSOR_INCOME_CATEGORY = 'SPONSORLUK';

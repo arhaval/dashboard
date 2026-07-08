@@ -7,6 +7,7 @@ import { userService } from '@/services';
 import { sponsorService } from '@/services/sponsor.service';
 import { STATUS_META } from '../sponsor.constants';
 import { FileManager } from '../file-manager';
+import { PaymentSchedule } from '../payment-schedule';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,9 +31,10 @@ export default async function SponsorDetailPage({ params }: PageProps) {
   const sponsor = await sponsorService.getById(id);
   if (!sponsor) notFound();
 
-  const [logoUrl, files] = await Promise.all([
+  const [logoUrl, files, payments] = await Promise.all([
     sponsorService.signedUrl(sponsor.logo_path),
     sponsorService.getFiles(id),
+    sponsorService.getPayments(id),
   ]);
   const filesWithUrls = await Promise.all(
     files.map(async (f) => ({ ...f, url: await sponsorService.signedUrl(f.file_path) }))
@@ -86,6 +88,9 @@ export default async function SponsorDetailPage({ params }: PageProps) {
           <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{sponsor.notes}</p>
         </div>
       )}
+
+      {/* Payment schedule */}
+      <PaymentSchedule sponsor={sponsor} payments={payments} />
 
       {/* Files */}
       <h3 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Dosyalar</h3>
