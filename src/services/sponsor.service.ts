@@ -216,6 +216,42 @@ export const sponsorService = {
   },
 
   /**
+   * Edit an installment's label / amount / due date. If it is already paid,
+   * the linked INCOME transaction is kept in sync (amount + description).
+   */
+  async updatePayment(
+    paymentId: string,
+    input: { label: string; amount: number; due_date: string | null }
+  ): Promise<{ error?: string }> {
+    const admin = createAdminClient();
+    const { data: p } = await admin
+      .from('sponsor_payments')
+      .select('id, sponsor_id, is_paid, transaction_id')
+      .eq('id', paymentId)
+      .maybeSingle();
+    if (!p) return { error: 'Ödeme bulunamadı' };
+
+    const { error } = await admin
+      .from('sponsor_payments')
+      .update({ label: input.label, amount: input.amount, due_date: input.due_date })
+      .eq('id', paymentId);
+    if (error) return { error: error.message };
+
+    // keep the finance income in sync when already paid
+    if (p.is_paid && p.transaction_id) {
+      const sponsor = await this.getById(p.sponsor_id);
+      await admin
+        .from('transactions')
+        .update({
+          amount: input.amount,
+          description: `Sponsorluk: ${sponsor?.name ?? ''} — ${input.label}`.trim(),
+        })
+        .eq('id', p.transaction_id);
+    }
+    return {};
+  },
+
+  /**
    * Mark an installment paid → create a linked INCOME transaction (SPONSORLUK).
    * Idempotent: if already paid, does nothing.
    */

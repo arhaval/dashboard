@@ -135,6 +135,26 @@ export async function addSponsorPayment(formData: FormData): Promise<{ error?: s
   return result;
 }
 
+export async function updateSponsorPayment(formData: FormData): Promise<{ error?: string }> {
+  if (!(await assertAdmin())) return { error: 'Yetki yok' };
+  const paymentId = str(formData.get('payment_id'));
+  const sponsorId = str(formData.get('sponsor_id'));
+  const label = str(formData.get('label'));
+  const amountRaw = str(formData.get('amount'));
+  if (!paymentId || !sponsorId) return { error: 'Kayıt yok' };
+  if (!label) return { error: 'Açıklama zorunlu' };
+  if (!amountRaw || Number(amountRaw) <= 0) return { error: 'Geçerli tutar girin' };
+
+  const result = await sponsorService.updatePayment(paymentId, {
+    label,
+    amount: Number(amountRaw),
+    due_date: str(formData.get('due_date')),
+  });
+  revalidatePath(`/sponsorluklar/${sponsorId}`);
+  revalidatePath('/finance');
+  return result;
+}
+
 /** Toggle an installment paid/unpaid. Paid → posts income; unpaid → removes it. */
 export async function toggleSponsorPayment(
   paymentId: string,
