@@ -82,12 +82,14 @@ export const instagramService = {
 
     const expiresAt = new Date(Date.now() + (Number(long.expires_in) || 5184000) * 1000).toISOString();
 
-    // fetch username for display
+    // fetch the Graph-queryable user_id (me.user_id) + username
     let username: string | null = null;
+    let graphUserId: string | null = igUserId || null;
     try {
       const me = await fetch(`${GRAPH}/me?fields=user_id,username&access_token=${long.access_token}`);
       const meData = await me.json();
       username = meData.username ?? null;
+      if (meData.user_id) graphUserId = String(meData.user_id);
     } catch {
       /* ignore */
     }
@@ -97,7 +99,7 @@ export const instagramService = {
       id: 1,
       access_token: long.access_token,
       token_expires_at: expiresAt,
-      ig_user_id: igUserId || null,
+      ig_user_id: graphUserId,
       username,
       updated_at: new Date().toISOString(),
     });
@@ -159,16 +161,29 @@ export const instagramService = {
   },
 
   /** One month of account-level engagement totals. */
+  /** Resolve the Graph-queryable IG user id (me.user_id), not the OAuth app-scoped id. */
+  async resolveUserId(token: string): Promise<string | null> {
+    try {
+      const res = await fetch(`${GRAPH}/me?fields=user_id&access_token=${token}`);
+      const data = await res.json();
+      return data.user_id ? String(data.user_id) : null;
+    } catch {
+      return null;
+    }
+  },
+
   async queryMonth(month: string): Promise<
     | { views: number; likes: number; comments: number; saves: number; shares: number }
     | null
   > {
     const auth = await this.getValidToken();
-    if (!auth || !auth.igUserId) return null;
+    if (!auth) return null;
+    const igId = await this.resolveUserId(auth.token);
+    if (!igId) return null;
     const { since, until } = monthRangeUnix(month);
 
     const url =
-      `${GRAPH}/${auth.igUserId}/insights?metric=views,likes,comments,saved,shares` +
+      `${GRAPH}/${igId}/insights?metric=views,likes,comments,saved,shares` +
       `&metric_type=total_value&period=day&since=${since}&until=${until}&access_token=${auth.token}`;
     const res = await fetch(url);
     const data = await res.json();

@@ -30,10 +30,11 @@ export async function GET(request: Request) {
 
   const graph = 'https://graph.instagram.com';
   const me = await (await fetch(`${graph}/me?fields=user_id,username,followers_count,media_count&access_token=${auth.token}`)).json();
+  const igId = me.user_id ? String(me.user_id) : auth.igUserId;
   const insightsUrl =
-    `${graph}/${auth.igUserId}/insights?metric=views,likes,comments,saved,shares` +
+    `${graph}/${igId}/insights?metric=views,likes,comments,saved,shares` +
     `&metric_type=total_value&period=day&since=${since}&until=${until}&access_token=${auth.token}`;
   const insights = await (await fetch(insightsUrl)).json();
 
-  return NextResponse.json({ month, igUserId: auth.igUserId, me, insights });
+  return NextResponse.json({ month, resolvedUserId: igId, me, insights });
 }
