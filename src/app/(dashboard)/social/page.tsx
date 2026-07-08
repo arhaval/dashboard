@@ -43,15 +43,21 @@ export default async function SocialPage() {
   const isAdmin = currentUser.role === 'ADMIN';
   const currentMonth = getCurrentMonth();
 
-  // Determine the active month (most recent with REAL data, skip empty months)
+  // Active month = most recent COMPLETE month. We skip the in-progress current
+  // calendar month on purpose: comparing a partial month (e.g. July, 8 days in)
+  // against a full previous month makes every metric look like a ~90% crash.
+  // Once the month ends it's included automatically. (The top follower strip
+  // still shows live current counts via getLatestFollowers.)
   const availableMonths = await socialMetricsService.getAvailableMonths();
-  let activeMonth = availableMonths.length > 0 ? availableMonths[0] : currentMonth;
+  const completeMonths = availableMonths.filter((m) => m < currentMonth);
+  const monthPool = completeMonths.length > 0 ? completeMonths : availableMonths;
+  let activeMonth = monthPool[0] ?? currentMonth;
   let currentMetrics = await socialMetricsService.getByMonth(activeMonth);
 
-  // If most recent month has all-zero data, fall back to the next month
+  // If the chosen month has all-zero data, fall back to the next one
   const hasRealData = currentMetrics.some((m) => (m.followers_total || 0) > 0);
-  if (!hasRealData && availableMonths.length > 1) {
-    activeMonth = availableMonths[1];
+  if (!hasRealData && monthPool.length > 1) {
+    activeMonth = monthPool[1];
     currentMetrics = await socialMetricsService.getByMonth(activeMonth);
   }
 
