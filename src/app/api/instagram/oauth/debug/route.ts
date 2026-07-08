@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   const me = await (await fetch(`${graph}/me?fields=user_id,username,followers_count,media_count&access_token=${auth.token}`)).json();
   const igId = me.user_id ? String(me.user_id) : auth.igUserId;
   const insightsUrl =
-    `${graph}/${igId}/insights?metric=views,likes,comments,saved,shares` +
+    `${graph}/${igId}/insights?metric=views,likes,comments,saves,shares` +
     `&metric_type=total_value&period=day&since=${since}&until=${until}&access_token=${auth.token}`;
   const insights = await (await fetch(insightsUrl)).json();
 

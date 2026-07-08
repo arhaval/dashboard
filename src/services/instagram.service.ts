@@ -183,7 +183,7 @@ export const instagramService = {
     const { since, until } = monthRangeUnix(month);
 
     const url =
-      `${GRAPH}/${igId}/insights?metric=views,likes,comments,saved,shares` +
+      `${GRAPH}/${igId}/insights?metric=views,likes,comments,saves,shares` +
       `&metric_type=total_value&period=day&since=${since}&until=${until}&access_token=${auth.token}`;
     const res = await fetch(url);
     const data = await res.json();
@@ -198,7 +198,7 @@ export const instagramService = {
       views: pick('views'),
       likes: pick('likes'),
       comments: pick('comments'),
-      saves: pick('saved'),
+      saves: pick('saves'),
       shares: pick('shares'),
     };
   },
