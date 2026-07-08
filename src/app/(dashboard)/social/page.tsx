@@ -9,9 +9,11 @@ import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { socialMetricsService, userService } from '@/services';
 import { youtubeAnalyticsService } from '@/services/youtube-analytics.service';
+import { instagramService } from '@/services/instagram.service';
 import { tr } from '@/lib/i18n';
 import { MetricsForm } from './metrics-form';
 import { YouTubeConnect } from './youtube-connect';
+import { InstagramConnect } from './instagram-connect';
 import { PlatformSummary } from './platform-summary';
 import { PlatformHistory } from './platform-history';
 import { TrendCharts } from './trend-charts';
@@ -65,6 +67,9 @@ export default async function SocialPage() {
   const ytStatus = isAdmin
     ? await youtubeAnalyticsService.getStatus()
     : { connected: false };
+  const igStatus = isAdmin
+    ? await instagramService.getStatus()
+    : { connected: false, username: null };
 
   const latestFollowers = await socialMetricsService.getLatestFollowers();
 
@@ -111,6 +116,7 @@ export default async function SocialPage() {
       {isAdmin && (
         <div className="mb-6">
           <YouTubeConnect connected={ytStatus.connected} />
+          <InstagramConnect connected={igStatus.connected} username={igStatus.username} />
           <MetricsForm />
         </div>
       )}

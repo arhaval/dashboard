@@ -6,6 +6,7 @@
 
 import { syncYouTubeVideos } from '@/services/youtube.service';
 import { youtubeAnalyticsService } from '@/services/youtube-analytics.service';
+import { instagramService } from '@/services/instagram.service';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -27,6 +28,9 @@ export async function GET(request: Request) {
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const analytics = await youtubeAnalyticsService.fillMonth(month).catch(() => ({ ok: false }));
 
+  // Instagram: refresh token (via getValidToken inside fillMonth) + current month
+  const instagram = await instagramService.fillMonth(month).catch(() => ({ ok: false }));
+
   const status = result.error ? 500 : 200;
-  return Response.json({ ...result, analytics, at: new Date().toISOString() }, { status });
+  return Response.json({ ...result, analytics, instagram, at: new Date().toISOString() }, { status });
 }
