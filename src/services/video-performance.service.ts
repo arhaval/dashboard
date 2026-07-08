@@ -30,7 +30,7 @@ export const videoPerformanceService = {
 
     // Effective genre = stored genre (respects manual lock) or auto-classified.
     const genreOf = (v: VideoPerformance): VideoGenre =>
-      v.genre ?? classifyVideoGenre(v.title, v.content_type);
+      v.genre ?? classifyVideoGenre(v.title, v.content_type, v.duration_seconds);
 
     // Group by genre; average excludes 0-view items (upcoming/unwatched)
     const byGenre = new Map<VideoGenre, VideoPerformance[]>();

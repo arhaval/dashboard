@@ -182,7 +182,7 @@ export async function syncYouTubeVideos(): Promise<SyncResult> {
     //     genre_locked=true rows (manual overrides) are preserved.
     const idsByGenre = new Map<VideoGenre, string[]>();
     for (const r of rows) {
-      const g = classifyVideoGenre(r.title, r.content_type as ContentType);
+      const g = classifyVideoGenre(r.title, r.content_type as ContentType, r.duration_seconds);
       const arr = idsByGenre.get(g) ?? [];
       arr.push(r.video_id);
       idsByGenre.set(g, arr);

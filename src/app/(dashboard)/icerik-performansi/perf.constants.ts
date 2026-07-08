@@ -6,7 +6,7 @@
 export type ContentType = 'video' | 'short' | 'live';
 
 /** Content genre (what the video is about) — the scoring bucket. */
-export type VideoGenre = 'match' | 'interview' | 'analysis' | 'clip' | 'general';
+export type VideoGenre = 'match' | 'interview' | 'analysis' | 'story' | 'clip' | 'general';
 
 export type PerfLabel = 'HIT' | 'GOOD' | 'AVERAGE' | 'FLOP' | 'COLLECTING';
 
@@ -48,11 +48,15 @@ export const VIDEO_GENRE_LABELS: Record<VideoGenre, string> = {
   match: 'Maç Yayını',
   interview: 'Röportaj',
   analysis: 'Analiz/Tartışma',
+  story: 'Oyuncu/Takım Hikayesi',
   clip: 'Klip',
   general: 'Genel',
 };
 
-export const VIDEO_GENRES: VideoGenre[] = ['match', 'interview', 'analysis', 'clip', 'general'];
+export const VIDEO_GENRES: VideoGenre[] = ['match', 'interview', 'analysis', 'story', 'clip', 'general'];
+
+/** A non-live upload at least this long is treated as a documentary/story. */
+const DOC_MIN_SECONDS = 1200; // 20 min
 
 /** Normalize Turkish text for keyword matching (lowercase, ASCII-ish). */
 function norm(s: string): string {
@@ -63,13 +67,30 @@ function norm(s: string): string {
     .replace(/ö/g, 'o').replace(/ü/g, 'u');
 }
 
+/** True when the title reads as a biography/documentary ("… Hikayesi"). */
+function isStoryTitle(t: string): boolean {
+  return (
+    t.includes('hikayesi') || t.includes('hikaye') || t.includes('yukselis') ||
+    t.includes('adanmislik') || t.includes('efsane') || t.includes('yolculug') ||
+    t.includes('yolculuk') || t.includes('belgesel') || t.includes('biyografi')
+  );
+}
+
 /**
- * Auto-assign a YouTube video's genre from its title + format.
- * Format wins for shorts (→ clip). Otherwise keyword heuristics on the title.
+ * Auto-assign a YouTube video's genre from its title + format (+ duration).
+ * Format wins for shorts (→ clip). "Story" (biography/documentary) is caught
+ * by keywords, or by documentary length for long non-live uploads.
  */
-export function classifyVideoGenre(title: string, contentType: ContentType): VideoGenre {
+export function classifyVideoGenre(
+  title: string,
+  contentType: ContentType,
+  durationSeconds = 0
+): VideoGenre {
   if (contentType === 'short') return 'clip';
   const t = norm(title);
+
+  // Oyuncu/Takım Hikayesi (en değerli tür — önce yakala)
+  if (isStoryTitle(t)) return 'story';
 
   // Maç yayını: "X vs Y", karşılaşma
   if (/\bvs\b/.test(t) || /\bv[.\s]/.test(t) || t.includes('karsilasma') || t.includes(' maci') || /\bmac\b/.test(t)) {
@@ -89,6 +110,9 @@ export function classifyVideoGenre(title: string, contentType: ContentType): Vid
   ) {
     return 'analysis';
   }
+  // Belgesel formatındaki uzun videolar (canlı yayın hariç)
+  if (contentType !== 'live' && durationSeconds >= DOC_MIN_SECONDS) return 'story';
+
   return 'general';
 }
 

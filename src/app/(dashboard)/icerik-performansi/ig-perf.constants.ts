@@ -11,7 +11,7 @@ export type IgContentType = 'reels' | 'post' | 'carousel' | 'video';
  * Instagram genre = the CONTENT/topic (the scoring bucket), NOT the format.
  * Format (Reels/Gönderi/Karusel) stays as `content_type`, shown as a separate badge.
  */
-export type IgGenre = 'news' | 'interview' | 'analysis' | 'match' | 'celebration' | 'general';
+export type IgGenre = 'news' | 'interview' | 'analysis' | 'match' | 'story' | 'celebration' | 'general';
 
 export interface InstagramMedia {
   id: string;
@@ -51,11 +51,12 @@ export const IG_GENRE_LABELS: Record<IgGenre, string> = {
   interview: 'Röportaj',
   analysis: 'Analiz/Tartışma',
   match: 'Maç/Turnuva',
+  story: 'Oyuncu/Takım Hikayesi',
   celebration: 'Kutlama/Motivasyon',
   general: 'Genel',
 };
 
-export const IG_GENRES: IgGenre[] = ['news', 'interview', 'analysis', 'match', 'celebration', 'general'];
+export const IG_GENRES: IgGenre[] = ['news', 'interview', 'analysis', 'match', 'story', 'celebration', 'general'];
 
 function norm(s: string): string {
   return s
@@ -73,6 +74,14 @@ function norm(s: string): string {
 export function classifyIgGenre(caption: string | null): IgGenre {
   const c = norm(caption ?? '');
 
+  // Oyuncu/Takım Hikayesi (biyografi/belgesel — önce yakala)
+  if (
+    c.includes('hikayesi') || c.includes('hikaye') || c.includes('yukselis') ||
+    c.includes('adanmislik') || c.includes('efsane') || c.includes('yolculug') ||
+    c.includes('yolculuk') || c.includes('belgesel') || c.includes('biyografi')
+  ) {
+    return 'story';
+  }
   // Haber/Duyuru
   if (
     c.includes('transfer') || c.includes('duyurdu') || c.includes('duyuru') ||
