@@ -53,11 +53,48 @@ export const sponsorService = {
     return (data as Sponsor) ?? null;
   },
 
-  async signedUrl(path: string | null): Promise<string | null> {
+  async signedUrl(path: string | null, downloadName?: string): Promise<string | null> {
     if (!path) return null;
     const admin = createAdminClient();
-    const { data } = await admin.storage.from(BUCKET).createSignedUrl(path, SIGNED_TTL);
+    const { data } = await admin.storage
+      .from(BUCKET)
+      .createSignedUrl(path, SIGNED_TTL, downloadName ? { download: downloadName } : undefined);
     return data?.signedUrl ?? null;
+  },
+
+  /**
+   * A short-lived signed URL the browser can PUT a file to directly,
+   * bypassing server-action / serverless body-size limits.
+   */
+  async createUploadUrl(
+    sponsorId: string,
+    category: SponsorFileCategory,
+    fileName: string
+  ): Promise<{ path?: string; token?: string; error?: string }> {
+    const admin = createAdminClient();
+    const path = `${sponsorId}/${category}/${Date.now()}-${slug(fileName)}`;
+    const { data, error } = await admin.storage.from(BUCKET).createSignedUploadUrl(path);
+    if (error || !data) return { error: error?.message ?? 'Yükleme adresi alınamadı' };
+    return { path: data.path, token: data.token };
+  },
+
+  /** Record a file row after a successful direct upload. */
+  async recordFile(
+    sponsorId: string,
+    category: SponsorFileCategory,
+    fileName: string,
+    path: string,
+    sizeBytes: number
+  ): Promise<{ error?: string }> {
+    const admin = createAdminClient();
+    const { error } = await admin.from('sponsor_files').insert({
+      sponsor_id: sponsorId,
+      category,
+      file_name: fileName,
+      file_path: path,
+      size_bytes: sizeBytes,
+    });
+    return error ? { error: error.message } : {};
   },
 
   async getFiles(sponsorId: string): Promise<SponsorFile[]> {
@@ -115,28 +152,6 @@ export const sponsorService = {
     if (error) return { error: error.message };
     await admin.from('sponsors').update({ logo_path: path }).eq('id', sponsorId);
     return {};
-  },
-
-  async uploadFile(
-    sponsorId: string,
-    category: SponsorFileCategory,
-    file: File
-  ): Promise<{ error?: string }> {
-    const admin = createAdminClient();
-    const path = `${sponsorId}/${category}/${Date.now()}-${slug(file.name)}`;
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const { error } = await admin.storage
-      .from(BUCKET)
-      .upload(path, bytes, { contentType: file.type || 'application/octet-stream' });
-    if (error) return { error: error.message };
-    const { error: dbError } = await admin.from('sponsor_files').insert({
-      sponsor_id: sponsorId,
-      category,
-      file_name: file.name,
-      file_path: path,
-      size_bytes: file.size,
-    });
-    return dbError ? { error: dbError.message } : {};
   },
 
   async deleteFile(fileId: string): Promise<{ error?: string }> {

@@ -36,9 +36,9 @@ export default async function SponsorDetailPage({ params }: PageProps) {
     sponsorService.getFiles(id),
     sponsorService.getPayments(id),
   ]);
-  const filesWithUrls = await Promise.all(
-    files.map(async (f) => ({ ...f, url: await sponsorService.signedUrl(f.file_path) }))
-  );
+  // File download URLs are fetched fresh on click (with attachment disposition),
+  // so no per-file signed URL is generated here.
+  const filesWithUrls = files.map((f) => ({ ...f, url: null }));
 
   const meta = STATUS_META[sponsor.status];
 

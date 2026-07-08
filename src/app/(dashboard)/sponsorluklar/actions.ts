@@ -81,19 +81,6 @@ export async function deleteSponsor(id: string): Promise<{ error?: string }> {
   return result;
 }
 
-export async function uploadSponsorFile(formData: FormData): Promise<{ error?: string }> {
-  if (!(await assertAdmin())) return { error: 'Yetki yok' };
-  const sponsorId = str(formData.get('sponsor_id'));
-  const category = (str(formData.get('category')) as SponsorFileCategory) ?? 'other';
-  const file = formData.get('file');
-  if (!sponsorId) return { error: 'Sponsor yok' };
-  if (!(file instanceof File) || file.size === 0) return { error: 'Dosya seçilmedi' };
-
-  const result = await sponsorService.uploadFile(sponsorId, category, file);
-  revalidatePath(`/sponsorluklar/${sponsorId}`);
-  return result;
-}
-
 export async function deleteSponsorFile(fileId: string, sponsorId: string): Promise<{ error?: string }> {
   if (!(await assertAdmin())) return { error: 'Yetki yok' };
   const result = await sponsorService.deleteFile(fileId);
@@ -101,10 +88,38 @@ export async function deleteSponsorFile(fileId: string, sponsorId: string): Prom
   return result;
 }
 
-/** Fresh signed URL for viewing/downloading a stored file. */
-export async function getSignedUrl(path: string): Promise<{ url?: string; error?: string }> {
+/** Step 1: get a signed URL for direct browser → Supabase Storage upload. */
+export async function createSponsorFileUploadUrl(
+  sponsorId: string,
+  category: SponsorFileCategory,
+  fileName: string
+): Promise<{ path?: string; token?: string; error?: string }> {
   if (!(await assertAdmin())) return { error: 'Yetki yok' };
-  const url = await sponsorService.signedUrl(path);
+  if (!sponsorId || !fileName) return { error: 'Eksik bilgi' };
+  return sponsorService.createUploadUrl(sponsorId, category, fileName);
+}
+
+/** Step 2: record the file row after the direct upload succeeds. */
+export async function recordSponsorFile(
+  sponsorId: string,
+  category: SponsorFileCategory,
+  fileName: string,
+  path: string,
+  sizeBytes: number
+): Promise<{ error?: string }> {
+  if (!(await assertAdmin())) return { error: 'Yetki yok' };
+  const result = await sponsorService.recordFile(sponsorId, category, fileName, path, sizeBytes);
+  revalidatePath(`/sponsorluklar/${sponsorId}`);
+  return result;
+}
+
+/**
+ * Fresh signed URL for a stored file. Pass downloadName to force a real
+ * download (Content-Disposition: attachment) on mobile and desktop.
+ */
+export async function getSignedUrl(path: string, downloadName?: string): Promise<{ url?: string; error?: string }> {
+  if (!(await assertAdmin())) return { error: 'Yetki yok' };
+  const url = await sponsorService.signedUrl(path, downloadName);
   return url ? { url } : { error: 'URL alınamadı' };
 }
 

@@ -3,10 +3,29 @@
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, Package, Paperclip, Upload, Download, Trash2 } from 'lucide-react';
-import { uploadSponsorFile, deleteSponsorFile } from './actions';
+import { createClient } from '@/lib/supabase/client';
+import {
+  createSponsorFileUploadUrl,
+  recordSponsorFile,
+  deleteSponsorFile,
+  getSignedUrl,
+} from './actions';
 import { CATEGORY_LABELS, type SponsorFile, type SponsorFileCategory } from './sponsor.constants';
 
 type FileWithUrl = SponsorFile & { url: string | null };
+
+const BUCKET = 'sponsors';
+
+/** Trigger a real file download from a fresh, attachment-dispositioned URL. */
+function triggerDownload(url: string, fileName: string) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 
 const SECTIONS: { category: SponsorFileCategory; icon: typeof FileText; accept: string }[] = [
   { category: 'contract', icon: FileText, accept: '.pdf,.doc,.docx,image/*' },
@@ -32,15 +51,40 @@ function Section({ sponsorId, category, icon: Icon, accept, files }: {
     const file = e.target.files?.[0];
     if (!file) return;
     setError(null);
-    const fd = new FormData();
-    fd.append('sponsor_id', sponsorId);
-    fd.append('category', category);
-    fd.append('file', file);
     startTransition(async () => {
-      const res = await uploadSponsorFile(fd);
-      if (res.error) setError(res.error);
+      // 1) get a direct-upload URL (bypasses server-action body limits)
+      const signed = await createSponsorFileUploadUrl(sponsorId, category, file.name);
+      if (signed.error || !signed.path || !signed.token) {
+        setError(signed.error ?? 'Yükleme adresi alınamadı');
+        if (inputRef.current) inputRef.current.value = '';
+        return;
+      }
+      // 2) upload the file straight to Supabase Storage from the browser
+      const supabase = createClient();
+      const { error: upErr } = await supabase.storage
+        .from(BUCKET)
+        .uploadToSignedUrl(signed.path, signed.token, file, {
+          contentType: file.type || 'application/octet-stream',
+        });
+      if (upErr) {
+        setError(upErr.message);
+        if (inputRef.current) inputRef.current.value = '';
+        return;
+      }
+      // 3) record the DB row
+      const rec = await recordSponsorFile(sponsorId, category, file.name, signed.path, file.size);
+      if (rec.error) setError(rec.error);
       else router.refresh();
       if (inputRef.current) inputRef.current.value = '';
+    });
+  }
+
+  function handleDownload(f: FileWithUrl) {
+    setError(null);
+    startTransition(async () => {
+      const res = await getSignedUrl(f.file_path, f.file_name);
+      if (res.error || !res.url) setError(res.error ?? 'İndirilemedi');
+      else triggerDownload(res.url, f.file_name);
     });
   }
 
@@ -75,12 +119,10 @@ function Section({ sponsorId, category, icon: Icon, accept, files }: {
             <li key={f.id} className="flex items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
               <span className="flex-1 truncate text-xs" style={{ color: 'var(--color-text-primary)' }}>{f.file_name}</span>
               <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{formatSize(f.size_bytes)}</span>
-              {f.url && (
-                <a href={f.url} target="_blank" rel="noopener noreferrer" className="rounded p-1 transition-colors hover:bg-black/5" title="İndir/Aç" style={{ color: 'var(--color-info)' }}>
-                  <Download className="h-3.5 w-3.5" />
-                </a>
-              )}
-              <button onClick={() => handleDelete(f.id)} className="rounded p-1 transition-colors hover:bg-red-500/10" title="Sil" style={{ color: 'var(--color-error)' }}>
+              <button onClick={() => handleDownload(f)} disabled={isPending} className="rounded p-1 transition-colors hover:bg-black/5 disabled:opacity-50" title="İndir" style={{ color: 'var(--color-info)' }}>
+                <Download className="h-3.5 w-3.5" />
+              </button>
+              <button onClick={() => handleDelete(f.id)} disabled={isPending} className="rounded p-1 transition-colors hover:bg-red-500/10 disabled:opacity-50" title="Sil" style={{ color: 'var(--color-error)' }}>
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             </li>
