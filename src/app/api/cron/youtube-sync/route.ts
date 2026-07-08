@@ -30,7 +30,12 @@ export async function GET(request: Request) {
 
   // Instagram: refresh token (via getValidToken inside fillMonth) + current month
   const instagram = await instagramService.fillMonth(month).catch(() => ({ ok: false }));
+  // Instagram posts/reels for the content-performance page
+  const instagramMedia = await instagramService.syncMedia().catch(() => ({ synced: 0 }));
 
   const status = result.error ? 500 : 200;
-  return Response.json({ ...result, analytics, instagram, at: new Date().toISOString() }, { status });
+  return Response.json(
+    { ...result, analytics, instagram, instagramMedia, at: new Date().toISOString() },
+    { status }
+  );
 }

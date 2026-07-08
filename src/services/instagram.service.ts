@@ -252,4 +252,72 @@ export const instagramService = {
     }
     return { filled };
   },
+
+  /** Pull all posts/reels into instagram_media (preserves claude_comment). */
+  async syncMedia(): Promise<{ synced: number; error?: string }> {
+    const auth = await this.getValidToken();
+    if (!auth) return { synced: 0, error: 'Instagram bağlı değil' };
+
+    const fields =
+      'id,caption,media_type,media_product_type,thumbnail_url,media_url,permalink,timestamp,like_count,comments_count';
+    let url: string | null = `${GRAPH}/me/media?fields=${fields}&limit=100&access_token=${auth.token}`;
+
+    interface IgMedia {
+      id: string;
+      caption?: string;
+      media_type?: string;
+      media_product_type?: string;
+      thumbnail_url?: string;
+      media_url?: string;
+      permalink?: string;
+      timestamp?: string;
+      like_count?: number;
+      comments_count?: number;
+    }
+
+    interface IgMediaResponse {
+      data?: IgMedia[];
+      paging?: { next?: string };
+      error?: { message: string };
+    }
+
+    const rows: Record<string, unknown>[] = [];
+    let pages = 0;
+    while (url && pages < 30) {
+      const res: Response = await fetch(url);
+      const data: IgMediaResponse = await res.json();
+      if (data.error) return { synced: rows.length, error: data.error.message };
+      for (const m of (data.data ?? []) as IgMedia[]) {
+        let content_type = 'post';
+        if (m.media_product_type === 'REELS') content_type = 'reels';
+        else if (m.media_type === 'CAROUSEL_ALBUM') content_type = 'carousel';
+        else if (m.media_type === 'VIDEO') content_type = 'video';
+        else content_type = 'post';
+        rows.push({
+          media_id: m.id,
+          caption: m.caption ?? null,
+          content_type,
+          permalink: m.permalink ?? null,
+          thumbnail_url: m.thumbnail_url || m.media_url || null,
+          published_at: m.timestamp ?? null,
+          like_count: Number(m.like_count ?? 0),
+          comment_count: Number(m.comments_count ?? 0),
+          synced_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
+      url = data.paging?.next ?? null;
+      pages += 1;
+    }
+    if (rows.length === 0) return { synced: 0 };
+
+    const admin = createAdminClient();
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error } = await admin
+        .from('instagram_media')
+        .upsert(rows.slice(i, i + 500), { onConflict: 'media_id' });
+      if (error) return { synced: i, error: error.message };
+    }
+    return { synced: rows.length };
+  },
 };
