@@ -26,7 +26,7 @@ export const instagramPerformanceService = {
 
     // Effective genre = stored genre (respects manual lock) or auto-classified.
     const genreOf = (m: InstagramMedia): IgGenre =>
-      m.genre ?? classifyIgGenre(m.caption, m.content_type);
+      m.genre ?? classifyIgGenre(m.caption);
 
     const byGenre = new Map<IgGenre, InstagramMedia[]>();
     for (const m of media) {

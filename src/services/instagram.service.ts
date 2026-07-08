@@ -11,7 +11,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   classifyIgGenre,
-  type IgContentType,
   type IgGenre,
 } from '@/app/(dashboard)/icerik-performansi/ig-perf.constants';
 
@@ -327,10 +326,7 @@ export const instagramService = {
     // Auto-assign genre for non-locked rows (manual overrides preserved).
     const idsByGenre = new Map<IgGenre, string[]>();
     for (const r of rows) {
-      const g = classifyIgGenre(
-        (r.caption as string | null) ?? null,
-        r.content_type as IgContentType
-      );
+      const g = classifyIgGenre((r.caption as string | null) ?? null);
       const arr = idsByGenre.get(g) ?? [];
       arr.push(r.media_id as string);
       idsByGenre.set(g, arr);

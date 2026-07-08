@@ -7,8 +7,11 @@ import type { PerfLabel } from './perf.constants';
 
 export type IgContentType = 'reels' | 'post' | 'carousel' | 'video';
 
-/** Instagram genre (what the post is) — the scoring bucket. */
-export type IgGenre = 'news' | 'reels' | 'visual' | 'post';
+/**
+ * Instagram genre = the CONTENT/topic (the scoring bucket), NOT the format.
+ * Format (Reels/Gönderi/Karusel) stays as `content_type`, shown as a separate badge.
+ */
+export type IgGenre = 'news' | 'interview' | 'analysis' | 'match' | 'celebration' | 'general';
 
 export interface InstagramMedia {
   id: string;
@@ -45,12 +48,14 @@ export const IG_TYPE_LABELS: Record<IgContentType, string> = {
 
 export const IG_GENRE_LABELS: Record<IgGenre, string> = {
   news: 'Haber/Duyuru',
-  reels: 'Reels',
-  visual: 'Görsel/Tanıtım',
-  post: 'Gönderi',
+  interview: 'Röportaj',
+  analysis: 'Analiz/Tartışma',
+  match: 'Maç/Turnuva',
+  celebration: 'Kutlama/Motivasyon',
+  general: 'Genel',
 };
 
-export const IG_GENRES: IgGenre[] = ['news', 'reels', 'visual', 'post'];
+export const IG_GENRES: IgGenre[] = ['news', 'interview', 'analysis', 'match', 'celebration', 'general'];
 
 function norm(s: string): string {
   return s
@@ -61,25 +66,53 @@ function norm(s: string): string {
 }
 
 /**
- * Auto-assign an Instagram post's genre from its caption + format.
- * Reels wins by format; otherwise keyword heuristics (news → visual → post).
+ * Auto-assign an Instagram post's genre from its caption (topic-based, like
+ * YouTube). Format (Reels/Gönderi) is NOT used here — it is kept separately
+ * as content_type. Keyword order mirrors the YouTube taxonomy.
  */
-export function classifyIgGenre(caption: string | null, contentType: IgContentType): IgGenre {
-  if (contentType === 'reels' || contentType === 'video') return 'reels';
+export function classifyIgGenre(caption: string | null): IgGenre {
   const c = norm(caption ?? '');
 
+  // Haber/Duyuru
   if (
     c.includes('transfer') || c.includes('duyurdu') || c.includes('duyuru') ||
-    c.includes('acikladi') || c.includes('aciklama') || c.includes('resmi') ||
-    c.includes('imzaladi') || c.includes('katildi') || c.includes('ayrildi') || c.includes('bomba')
+    c.includes('acikladi') || c.includes('kattidan') || c.includes('kadrosuna katti') ||
+    c.includes('katti') || c.includes('imzaladi') || c.includes('resmi') ||
+    c.includes('aramiza katildi') || c.includes('bomba')
   ) {
     return 'news';
   }
+  // Röportaj
   if (
-    contentType === 'carousel' || c.includes('tanitim') || c.includes('kadro') ||
-    c.includes('forma') || c.includes('sponsor') || c.includes('hos geldin') || c.includes('aramizda')
+    c.includes('roportaj') || c.includes('konustu') || c.includes('konusuyor') ||
+    c.includes('anlatti') || c.includes('ozel') || c.includes('sozleri') ||
+    c.includes('kaptan') || c.includes('mikrofon')
   ) {
-    return 'visual';
+    return 'interview';
   }
-  return 'post';
+  // Analiz/Tartışma (soru & tartışma)
+  if (
+    c.includes('bozulabilir') || c.includes('neden') || c.includes('nasil') ||
+    c.includes('sizce') || c.includes('analiz') || c.includes('tartisma') ||
+    c.includes('yorumla') || c.trim().endsWith('?')
+  ) {
+    return 'analysis';
+  }
+  // Maç/Turnuva
+  if (
+    /\bvs\b/.test(c) || /\bmac\b/.test(c) || c.includes(' maci') || c.includes('karsilasma') ||
+    c.includes('turnuva') || c.includes('final') || c.includes('galibiyet') ||
+    c.includes('maglubiyet') || c.includes('skor')
+  ) {
+    return 'match';
+  }
+  // Kutlama/Motivasyon
+  if (
+    c.includes('tesekkur') || c.includes('tebrik') || c.includes('kutlama') ||
+    c.includes('kutluyoruz') || c.includes('motivasyon') || c.includes('gurur') ||
+    c.includes('sampiyon') || c.includes('iyi ki')
+  ) {
+    return 'celebration';
+  }
+  return 'general';
 }
