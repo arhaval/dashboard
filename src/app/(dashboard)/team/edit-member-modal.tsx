@@ -139,7 +139,7 @@ export function EditMemberModal({ isOpen, onClose, user, isSelf = false }: EditM
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-lg rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-6">
+      <div className="relative my-8 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-6">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div>
