@@ -9,20 +9,18 @@ export const dynamic = 'force-dynamic';
 export default async function IcerikPlaniPage() {
   const currentUser = await userService.getCurrentUser();
   if (!currentUser) redirect('/login');
+  // Page access is enforced centrally (role → page matrix). Editing (add/
+  // advance/delete) stays limited to ADMIN + PUBLISHER; others view read-only.
+  const canEdit = ['ADMIN', 'PUBLISHER'].includes(currentUser.role);
 
-  if (!['ADMIN', 'PUBLISHER'].includes(currentUser.role)) {
-    redirect('/');
-  }
-
-  const isAdmin = currentUser.role === 'ADMIN';
   const items = await contentQueueService.getAll();
 
   return (
     <PageShell
       title="İçerik Planı"
-      description="Hazır içerikler ve yayın takvimi"
+      description={canEdit ? 'Hazır içerikler ve yayın takvimi' : 'Yayın planını görüntüle'}
     >
-      <ContentPlanner items={items} />
+      <ContentPlanner items={items} canEdit={canEdit} />
     </PageShell>
   );
 }

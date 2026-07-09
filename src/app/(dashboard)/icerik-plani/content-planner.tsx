@@ -10,15 +10,21 @@ type View = 'kanban' | 'calendar';
 
 interface ContentPlannerProps {
   items: ContentQueueItem[];
+  canEdit?: boolean;
 }
 
-export function ContentPlanner({ items }: ContentPlannerProps) {
+export function ContentPlanner({ items, canEdit = true }: ContentPlannerProps) {
   const [view, setView] = useState<View>('kanban');
 
-  const tabs: { id: View; label: string; icon: typeof LayoutGrid }[] = [
-    { id: 'kanban', label: 'Pano', icon: LayoutGrid },
-    { id: 'calendar', label: 'Takvim', icon: CalendarDays },
-  ];
+  // Viewers get a read-only board only; the calendar is an editing surface.
+  const tabs: { id: View; label: string; icon: typeof LayoutGrid }[] = canEdit
+    ? [
+        { id: 'kanban', label: 'Pano', icon: LayoutGrid },
+        { id: 'calendar', label: 'Takvim', icon: CalendarDays },
+      ]
+    : [{ id: 'kanban', label: 'Pano', icon: LayoutGrid }];
+
+  const activeView: View = canEdit ? view : 'kanban';
 
   return (
     <div>
@@ -28,7 +34,7 @@ export function ContentPlanner({ items }: ContentPlannerProps) {
         style={{ backgroundColor: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}
       >
         {tabs.map(({ id, label, icon: Icon }) => {
-          const active = view === id;
+          const active = activeView === id;
           return (
             <button
               key={id}
@@ -47,8 +53,8 @@ export function ContentPlanner({ items }: ContentPlannerProps) {
         })}
       </div>
 
-      {view === 'kanban' ? (
-        <ContentKanban items={items} />
+      {activeView === 'kanban' ? (
+        <ContentKanban items={items} canEdit={canEdit} />
       ) : (
         <ContentCalendar items={items} />
       )}

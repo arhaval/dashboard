@@ -93,6 +93,7 @@ interface CardProps {
   onDelete: () => void;
   isPending: boolean;
   onAdvance: (patch: UpdateContentQueueInput) => void;
+  canEdit: boolean;
 }
 
 function ProductionProgress({ item }: { item: ContentQueueItem }) {
@@ -121,7 +122,7 @@ function ProductionProgress({ item }: { item: ContentQueueItem }) {
   );
 }
 
-function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance }: CardProps) {
+function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, canEdit }: CardProps) {
   const [expanded, setExpanded] = useState(false);
   const [voiceLink, setVoiceLink] = useState(item.voice_url || '');
   const [videoLink, setVideoLink] = useState(item.video_url || '');
@@ -262,7 +263,7 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance }: Car
         )}
 
         {/* Stage handoff input */}
-        {stage.id === 'SES' && (
+        {canEdit && stage.id === 'SES' && (
           <div className="mb-2.5">
             <input
               value={voiceLink}
@@ -278,7 +279,7 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance }: Car
             />
           </div>
         )}
-        {stage.id === 'EDITOR' && (
+        {canEdit && stage.id === 'EDITOR' && (
           <div className="mb-2.5 space-y-1.5">
             {item.voice_url && (
               <a
@@ -306,35 +307,37 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance }: Car
           </div>
         )}
 
-        {/* Actions */}
-        <div className="flex items-center gap-1.5 border-t pt-2.5" style={{ borderColor: 'var(--color-border)' }}>
-          {base && (
+        {/* Actions — edit/advance/delete only for editors */}
+        {canEdit && (
+          <div className="flex items-center gap-1.5 border-t pt-2.5" style={{ borderColor: 'var(--color-border)' }}>
+            {base && (
+              <button
+                onClick={handleAdvanceClick}
+                disabled={isPending}
+                className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius-sm)] py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
+                style={{ backgroundColor: stage.color, color: '#fff' }}
+              >
+                {stage.advanceLabel}
+              </button>
+            )}
             <button
-              onClick={handleAdvanceClick}
-              disabled={isPending}
-              className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius-sm)] py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
-              style={{ backgroundColor: stage.color, color: '#fff' }}
+              onClick={onEdit}
+              className="rounded p-1.5 transition-colors hover:bg-black/5"
+              title="Düzenle"
+              style={{ color: 'var(--color-text-muted)' }}
             >
-              {stage.advanceLabel}
+              <Pencil className="h-3.5 w-3.5" />
             </button>
-          )}
-          <button
-            onClick={onEdit}
-            className="rounded p-1.5 transition-colors hover:bg-black/5"
-            title="Düzenle"
-            style={{ color: 'var(--color-text-muted)' }}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={onDelete}
-            className="rounded p-1.5 transition-colors hover:bg-red-500/10"
-            title="Sil"
-            style={{ color: 'var(--color-error)' }}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
+            <button
+              onClick={onDelete}
+              className="rounded p-1.5 transition-colors hover:bg-red-500/10"
+              title="Sil"
+              style={{ color: 'var(--color-error)' }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -349,9 +352,10 @@ interface ColumnProps {
   onDelete: (id: string) => void;
   onAdvance: (item: ContentQueueItem, patch: UpdateContentQueueInput) => void;
   isPending: boolean;
+  canEdit: boolean;
 }
 
-function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, isPending }: ColumnProps) {
+function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, isPending, canEdit }: ColumnProps) {
   return (
     <div className="flex min-w-[220px] flex-1 flex-col">
       {/* Column header */}
@@ -390,6 +394,7 @@ function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, isPending }: 
               onDelete={() => onDelete(item.id)}
               onAdvance={(patch) => onAdvance(item, patch)}
               isPending={isPending}
+              canEdit={canEdit}
             />
           );
         })}
@@ -408,9 +413,10 @@ function formatDate(d: string) {
 
 interface ContentKanbanProps {
   items: ContentQueueItem[];
+  canEdit?: boolean;
 }
 
-export function ContentKanban({ items }: ContentKanbanProps) {
+export function ContentKanban({ items, canEdit = true }: ContentKanbanProps) {
   const [isPending, startTransition] = useTransition();
   const [editItem,  setEditItem]  = useState<ContentQueueItem | null>(null);
   const [formOpen,  setFormOpen]  = useState(false);
@@ -436,11 +442,13 @@ export function ContentKanban({ items }: ContentKanbanProps) {
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-          {items.length} içerik · Aşamayı ilerletmek için kart butonuna bas
+          {items.length} içerik{canEdit ? ' · Aşamayı ilerletmek için kart butonuna bas' : ' · salt görüntüleme'}
         </p>
-        <Button onClick={openAdd} size="sm">
-          <Plus className="mr-1.5 h-3.5 w-3.5" /> Yeni İçerik
-        </Button>
+        {canEdit && (
+          <Button onClick={openAdd} size="sm">
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> Yeni İçerik
+          </Button>
+        )}
       </div>
 
       {/* Board */}
@@ -454,15 +462,18 @@ export function ContentKanban({ items }: ContentKanbanProps) {
             onDelete={handleDelete}
             onAdvance={handleAdvance}
             isPending={isPending}
+            canEdit={canEdit}
           />
         ))}
       </div>
 
-      <ContentForm
-        open={formOpen}
-        onClose={() => { setFormOpen(false); setEditItem(null); }}
-        item={editItem}
-      />
+      {canEdit && (
+        <ContentForm
+          open={formOpen}
+          onClose={() => { setFormOpen(false); setEditItem(null); }}
+          item={editItem}
+        />
+      )}
     </div>
   );
 }
