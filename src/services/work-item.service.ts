@@ -4,6 +4,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { WorkItem, WorkItemFilters, CreateWorkItemInput } from '@/types';
 
 const TR_MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
@@ -187,6 +188,28 @@ export const workItemService = {
   /**
    * Delete work item (only DRAFT status)
    */
+  /**
+   * Create a DRAFT work item for another user via the admin client (bypasses
+   * RLS). Used when publishing a content card auto-creates the voice/edit jobs.
+   */
+  async createDraft(input: {
+    user_id: string;
+    work_type: 'VOICE' | 'EDIT' | 'STREAM';
+    content_name: string;
+    work_date: string;
+    notes?: string | null;
+  }): Promise<void> {
+    const admin = createAdminClient();
+    await admin.from('work_items').insert({
+      user_id: input.user_id,
+      work_type: input.work_type,
+      content_name: input.content_name,
+      work_date: input.work_date,
+      notes: input.notes ?? null,
+      status: 'DRAFT',
+    });
+  },
+
   async delete(id: string): Promise<boolean> {
     const supabase = await createClient();
 

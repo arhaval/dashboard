@@ -20,6 +20,8 @@ export interface ContentQueueItem {
   notes: string | null;
   created_by: string | null;
   assigned_to: string | null;
+  voiced_by: string | null;
+  edited_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,6 +57,8 @@ export interface UpdateContentQueueInput {
   published_date?: string | null;
   notes?: string | null;
   assigned_to?: string | null;
+  voiced_by?: string | null;
+  edited_by?: string | null;
 }
 
 // Tüm platformlarda geçerli genel format tipleri

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { contentQueueService } from '@/services/content-queue.service';
-import { userService } from '@/services';
+import { userService, workItemService } from '@/services';
 import { notificationService } from '@/services/notification.service';
 import { deriveStage, ROLE_STAGES } from './content-queue.constants';
 import type {
@@ -102,9 +102,11 @@ export async function advanceContentStage(id: string, link?: string | null, assi
     if (!assigneeId) return { error: 'Seslendirecek kişiyi seç' };
     patch = { has_text: true, assigned_to: assigneeId };
   } else if (stage === 'SES') {
-    patch = { has_voice: true, voice_url: url ?? item.voice_url, assigned_to: null };
+    // Record who voiced it (the assigned person) for later billing.
+    patch = { has_voice: true, voice_url: url ?? item.voice_url, assigned_to: null, voiced_by: item.assigned_to ?? user.id };
   } else if (stage === 'EDITOR') {
-    patch = { has_video: true, status: 'HAZIR', video_url: url ?? item.video_url };
+    // Whoever handed off the edit is the editor.
+    patch = { has_video: true, status: 'HAZIR', video_url: url ?? item.video_url, edited_by: user.id };
   } else if (stage === 'HAZIR') {
     patch = { status: 'YAYINLANDI' };
   } else {
@@ -113,6 +115,25 @@ export async function advanceContentStage(id: string, link?: string | null, assi
 
   const result = await contentQueueService.updateAdmin(id, patch);
   if (result.error) return { error: result.error };
+
+  // Publishing → auto-create DRAFT work items for the voice person and editor,
+  // so they flow into İş Takibi (admin sets a price or deletes what won't be paid).
+  if (stage === 'HAZIR') {
+    const today = new Date().toISOString().slice(0, 10);
+    if (item.voiced_by) {
+      await workItemService.createDraft({
+        user_id: item.voiced_by, work_type: 'VOICE', content_name: item.title, work_date: today,
+        notes: `İçerik Planı — seslendirme: ${item.title}`,
+      });
+    }
+    if (item.edited_by) {
+      await workItemService.createDraft({
+        user_id: item.edited_by, work_type: 'EDIT', content_name: item.title, work_date: today,
+        notes: `İçerik Planı — kurgu: ${item.title}`,
+      });
+    }
+    revalidatePath('/work-items');
+  }
 
   // Notify whoever is now responsible for the new stage.
   const notifyBase = { body: item.title, url: '/icerik-plani', tag: `content-${id}`, excludeUserId: user.id };
