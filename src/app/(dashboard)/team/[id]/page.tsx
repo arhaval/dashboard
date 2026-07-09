@@ -35,12 +35,15 @@ export default async function TeamMemberProfilePage({ params }: PageProps) {
   const member = await userService.getById(id);
   if (!member) notFound();
 
+  // Members see their OWN work items on their profile; financial transactions
+  // stay admin-only.
+  const canSeeWork = isAdmin || isOwnProfile;
   const [transactions, stats, workItems] = await Promise.all([
     isAdmin ? financeService.getByUserId(id) : Promise.resolve([]),
     isAdmin
       ? financeService.getUserStats(id)
       : Promise.resolve({ totalIncome: 0, totalExpenses: 0, netBalance: 0, transactionCount: 0 }),
-    isAdmin ? workItemService.getAll({ user_id: id }) : Promise.resolve([]),
+    canSeeWork ? workItemService.getAll({ user_id: id }) : Promise.resolve([]),
   ]);
 
   return (
@@ -58,7 +61,7 @@ export default async function TeamMemberProfilePage({ params }: PageProps) {
     >
       <MemberProfileCard member={member} stats={stats} />
 
-      {isAdmin && (
+      {canSeeWork && (
         <div className="mt-6">
           <h3 className="mb-4 text-lg font-medium text-[var(--color-text-primary)]">
             İş Takibi
