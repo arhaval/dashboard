@@ -72,7 +72,7 @@ export const DEFAULT_PAGES: Record<UserRole, PageKey[]> = {
   EDITOR:    ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool', 'matches'],
   VOICE:     ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool', 'matches'],
   GRAFIKER:  ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool', 'matches'],
-  TEAM_MEMBER: ['dashboard', 'work-items', 'payments', 'idea-pool'],
+  TEAM_MEMBER: ['dashboard', 'work-items', 'payments', 'content-plan', 'idea-pool'],
 };
 
 /** Map a pathname to the page it belongs to (longest route prefix wins). */

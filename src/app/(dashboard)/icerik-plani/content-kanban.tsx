@@ -11,7 +11,7 @@ import {
   type ContentStatus,
   type UpdateContentQueueInput,
 } from './content-queue.constants';
-import { updateContentItem, deleteContentItem } from './queue-actions';
+import { advanceContentStage, deleteContentItem } from './queue-actions';
 import { ContentForm } from './content-form';
 
 // ── Pipeline stage derivation ──────────────────────────────────────────────────
@@ -92,8 +92,9 @@ interface CardProps {
   onEdit: () => void;
   onDelete: () => void;
   isPending: boolean;
-  onAdvance: (patch: UpdateContentQueueInput) => void;
+  onAdvance: (link?: string) => void;
   canEdit: boolean;
+  handoffStages: string[];
 }
 
 function ProductionProgress({ item }: { item: ContentQueueItem }) {
@@ -122,18 +123,20 @@ function ProductionProgress({ item }: { item: ContentQueueItem }) {
   );
 }
 
-function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, canEdit }: CardProps) {
+function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, canEdit, handoffStages }: CardProps) {
   const [expanded, setExpanded] = useState(false);
   const [voiceLink, setVoiceLink] = useState(item.voice_url || '');
   const [videoLink, setVideoLink] = useState(item.video_url || '');
   const hasDetails = Boolean(item.content_text || item.voice_url || item.video_url);
 
   const base = stage.advance(item);
+  // Full editors advance anything; stage owners advance only their own stage.
+  const canAdvanceThis = canEdit || handoffStages.includes(stage.id);
   function handleAdvanceClick() {
     if (!base) return;
-    if (stage.id === 'SES')    return onAdvance({ ...base, voice_url: voiceLink.trim() || null });
-    if (stage.id === 'EDITOR') return onAdvance({ ...base, video_url: videoLink.trim() || null });
-    onAdvance(base);
+    if (stage.id === 'SES')    return onAdvance(voiceLink.trim());
+    if (stage.id === 'EDITOR') return onAdvance(videoLink.trim());
+    onAdvance();
   }
 
   return (
@@ -263,7 +266,7 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, canEd
         )}
 
         {/* Stage handoff input */}
-        {canEdit && stage.id === 'SES' && (
+        {canAdvanceThis && stage.id === 'SES' && (
           <div className="mb-2.5">
             <input
               value={voiceLink}
@@ -279,7 +282,7 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, canEd
             />
           </div>
         )}
-        {canEdit && stage.id === 'EDITOR' && (
+        {canAdvanceThis && stage.id === 'EDITOR' && (
           <div className="mb-2.5 space-y-1.5">
             {item.voice_url && (
               <a
@@ -307,10 +310,10 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, canEd
           </div>
         )}
 
-        {/* Actions — edit/advance/delete only for editors */}
-        {canEdit && (
+        {/* Actions — advance for the stage owner; edit/delete for full editors */}
+        {(canEdit || (canAdvanceThis && base)) && (
           <div className="flex items-center gap-1.5 border-t pt-2.5" style={{ borderColor: 'var(--color-border)' }}>
-            {base && (
+            {base && canAdvanceThis && (
               <button
                 onClick={handleAdvanceClick}
                 disabled={isPending}
@@ -320,22 +323,26 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, canEd
                 {stage.advanceLabel}
               </button>
             )}
-            <button
-              onClick={onEdit}
-              className="rounded p-1.5 transition-colors hover:bg-black/5"
-              title="Düzenle"
-              style={{ color: 'var(--color-text-muted)' }}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={onDelete}
-              className="rounded p-1.5 transition-colors hover:bg-red-500/10"
-              title="Sil"
-              style={{ color: 'var(--color-error)' }}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            {canEdit && (
+              <>
+                <button
+                  onClick={onEdit}
+                  className="rounded p-1.5 transition-colors hover:bg-black/5"
+                  title="Düzenle"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={onDelete}
+                  className="rounded p-1.5 transition-colors hover:bg-red-500/10"
+                  title="Sil"
+                  style={{ color: 'var(--color-error)' }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -350,12 +357,13 @@ interface ColumnProps {
   items: ContentQueueItem[];
   onEdit: (item: ContentQueueItem) => void;
   onDelete: (id: string) => void;
-  onAdvance: (item: ContentQueueItem, patch: UpdateContentQueueInput) => void;
+  onAdvance: (item: ContentQueueItem, link?: string) => void;
   isPending: boolean;
   canEdit: boolean;
+  handoffStages: string[];
 }
 
-function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, isPending, canEdit }: ColumnProps) {
+function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, isPending, canEdit, handoffStages }: ColumnProps) {
   return (
     <div className="flex min-w-[220px] flex-1 flex-col">
       {/* Column header */}
@@ -392,9 +400,10 @@ function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, isPending, ca
               stage={stage}
               onEdit={() => onEdit(item)}
               onDelete={() => onDelete(item.id)}
-              onAdvance={(patch) => onAdvance(item, patch)}
+              onAdvance={(link) => onAdvance(item, link)}
               isPending={isPending}
               canEdit={canEdit}
+              handoffStages={handoffStages}
             />
           );
         })}
@@ -414,9 +423,11 @@ function formatDate(d: string) {
 interface ContentKanbanProps {
   items: ContentQueueItem[];
   canEdit?: boolean;
+  /** Pipeline stages this user may hand off (advance) even without full edit. */
+  handoffStages?: string[];
 }
 
-export function ContentKanban({ items, canEdit = true }: ContentKanbanProps) {
+export function ContentKanban({ items, canEdit = true, handoffStages = [] }: ContentKanbanProps) {
   const [isPending, startTransition] = useTransition();
   const [editItem,  setEditItem]  = useState<ContentQueueItem | null>(null);
   const [formOpen,  setFormOpen]  = useState(false);
@@ -424,8 +435,8 @@ export function ContentKanban({ items, canEdit = true }: ContentKanbanProps) {
   function openAdd() { setEditItem(null); setFormOpen(true); }
   function openEdit(item: ContentQueueItem) { setEditItem(item); setFormOpen(true); }
 
-  function handleAdvance(item: ContentQueueItem, patch: UpdateContentQueueInput) {
-    startTransition(async () => { await updateContentItem(item.id, patch); });
+  function handleAdvance(item: ContentQueueItem, link?: string) {
+    startTransition(async () => { await advanceContentStage(item.id, link ?? null); });
   }
 
   function handleDelete(id: string) {
@@ -463,6 +474,7 @@ export function ContentKanban({ items, canEdit = true }: ContentKanbanProps) {
             onAdvance={handleAdvance}
             isPending={isPending}
             canEdit={canEdit}
+            handoffStages={handoffStages}
           />
         ))}
       </div>

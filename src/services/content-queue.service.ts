@@ -67,6 +67,27 @@ export const contentQueueService = {
       .map((i) => ({ ...i, stage_label: STAGE_LABELS_MAP[i.stage] }));
   },
 
+  async getByIdAdmin(id: string): Promise<ContentQueueItem | null> {
+    const admin = createAdminClient();
+    const { data } = await admin.from('content_queue').select('*').eq('id', id).maybeSingle();
+    return (data as ContentQueueItem) ?? null;
+  },
+
+  /** Update via admin client (bypasses RLS) — used for role-based stage handoff. */
+  async updateAdmin(
+    id: string,
+    input: UpdateContentQueueInput
+  ): Promise<{ item: ContentQueueItem | null; error?: string }> {
+    const admin = createAdminClient();
+    const payload: Record<string, unknown> = { ...input, updated_at: new Date().toISOString() };
+    if (input.status === 'YAYINLANDI' && !input.published_date) {
+      payload.published_date = new Date().toISOString().split('T')[0];
+    }
+    const { data, error } = await admin.from('content_queue').update(payload).eq('id', id).select().single();
+    if (error) return { item: null, error: error.message };
+    return { item: data as ContentQueueItem };
+  },
+
   async create(
     input: CreateContentQueueInput
   ): Promise<{ item: ContentQueueItem | null; error?: string }> {
