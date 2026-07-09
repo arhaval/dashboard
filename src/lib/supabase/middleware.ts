@@ -7,6 +7,10 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function updateSession(request: NextRequest) {
+  // Expose the current path to Server Components (dashboard layout uses it to
+  // enforce role → page access centrally).
+  request.headers.set('x-pathname', request.nextUrl.pathname);
+
   let supabaseResponse = NextResponse.next({
     request,
   });

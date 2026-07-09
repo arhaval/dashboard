@@ -21,18 +21,21 @@ import {
   PlayCircle,
   Handshake,
   Lightbulb,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
+import type { PageKey } from '@/constants/permissions';
 
 interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  /** Page-access key checked against the role's allowed pages. */
+  perm?: PageKey;
+  /** Admin-only items (not part of the editable matrix, e.g. settings). */
   adminOnly?: boolean;
-  /** Bu roller için menü öğesi gizlenir */
-  excludeRoles?: string[];
 }
 
 interface NavSection {
@@ -44,53 +47,60 @@ const navSections: NavSection[] = [
   {
     label: 'ANA MENÜ',
     items: [
-      { label: tr.nav.dashboard, href: '/', icon: LayoutDashboard },
+      { label: tr.nav.dashboard, href: '/', icon: LayoutDashboard, perm: 'dashboard' },
     ],
   },
   {
     label: 'YÖNETİM',
     items: [
-      { label: tr.nav.team, href: '/team', icon: Users, adminOnly: true },
-      { label: tr.nav.workItems, href: '/work-items', icon: FileText },
-      { label: tr.nav.payments, href: '/payments', icon: CreditCard, excludeRoles: ['ADMIN'] },
-      { label: tr.nav.finance,  href: '/finance', icon: PiggyBank,   adminOnly: true },
-      { label: 'Sponsorluklar', href: '/sponsorluklar', icon: Handshake, adminOnly: true },
+      { label: tr.nav.team, href: '/team', icon: Users, perm: 'team' },
+      { label: tr.nav.workItems, href: '/work-items', icon: FileText, perm: 'work-items' },
+      { label: tr.nav.payments, href: '/payments', icon: CreditCard, perm: 'payments' },
+      { label: tr.nav.finance,  href: '/finance', icon: PiggyBank,   perm: 'finance' },
+      { label: 'Sponsorluklar', href: '/sponsorluklar', icon: Handshake, perm: 'sponsors' },
     ],
   },
   {
     label: 'ANALİTİK',
     items: [
-      { label: 'Haftalık Program', href: '/content/schedule',icon: CalendarDays, excludeRoles: ['TEAM_MEMBER'] },
-      { label: tr.nav.social,     href: '/social',           icon: BarChart3,    excludeRoles: ['TEAM_MEMBER', 'PUBLISHER'] },
-      { label: 'İçerik Planı',    href: '/icerik-plani',     icon: Users,        excludeRoles: ['TEAM_MEMBER'] },
-      { label: 'Fikir Havuzu',    href: '/fikir-havuzu',     icon: Lightbulb },
-      { label: 'İçerik Performansı', href: '/icerik-performansi', icon: PlayCircle, adminOnly: true },
-      { label: tr.cs2.nav, href: '/matches', icon: Crosshair, excludeRoles: ['TEAM_MEMBER', 'PUBLISHER'] },
-      { label: tr.cs2.dathost.operations, href: '/matches/operations', icon: Radio, adminOnly: true },
+      { label: 'Haftalık Program', href: '/content/schedule',icon: CalendarDays, perm: 'schedule' },
+      { label: tr.nav.social,     href: '/social',           icon: BarChart3,    perm: 'social' },
+      { label: 'İçerik Planı',    href: '/icerik-plani',     icon: Users,        perm: 'content-plan' },
+      { label: 'Fikir Havuzu',    href: '/fikir-havuzu',     icon: Lightbulb,    perm: 'idea-pool' },
+      { label: 'İçerik Performansı', href: '/icerik-performansi', icon: PlayCircle, perm: 'content-performance' },
+      { label: tr.cs2.nav, href: '/matches', icon: Crosshair, perm: 'matches' },
+      { label: tr.cs2.dathost.operations, href: '/matches/operations', icon: Radio, perm: 'operations' },
     ],
   },
   {
     label: 'YAYIN',
     items: [
-      { label: 'OBS Overlay', href: '/obs', icon: Tv2, adminOnly: true },
+      { label: 'OBS Overlay', href: '/obs', icon: Tv2, perm: 'obs' },
     ],
   },
   {
     label: 'DİĞER',
     items: [
-      { label: 'Aylık Rapor', href: '/reports', icon: FileOutput, adminOnly: true },
-      { label: 'Haftalık Rapor', href: '/reports/weekly', icon: ClipboardList, adminOnly: true },
+      { label: 'Aylık Rapor', href: '/reports', icon: FileOutput, perm: 'reports' },
+      { label: 'Haftalık Rapor', href: '/reports/weekly', icon: ClipboardList, perm: 'reports' },
+    ],
+  },
+  {
+    label: 'AYARLAR',
+    items: [
+      { label: 'Roller & Yetkiler', href: '/ayarlar/yetkiler', icon: ShieldCheck, adminOnly: true },
     ],
   },
 ];
 
 interface SidebarProps {
   userRole?: string;
+  allowedPages?: string[];
   isOpen?: boolean;
   onClose?: () => void;
 }
 
-export function Sidebar({ userRole = 'ADMIN', isOpen = false, onClose }: SidebarProps) {
+export function Sidebar({ userRole = 'ADMIN', allowedPages = [], isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -137,11 +147,11 @@ export function Sidebar({ userRole = 'ADMIN', isOpen = false, onClose }: Sidebar
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-4 py-4">
           {navSections.map((section) => {
-            const visibleItems = section.items.filter(
-              (item) =>
-                (!item.adminOnly || userRole === 'ADMIN') &&
-                (!item.excludeRoles || !item.excludeRoles.includes(userRole))
-            );
+            const visibleItems = section.items.filter((item) => {
+              if (item.adminOnly) return userRole === 'ADMIN';
+              if (item.perm) return userRole === 'ADMIN' || allowedPages.includes(item.perm);
+              return true;
+            });
 
             if (visibleItems.length === 0) return null;
 

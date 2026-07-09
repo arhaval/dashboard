@@ -9,10 +9,11 @@ import type { User } from '@/types';
 
 interface DashboardShellProps {
   user: User;
+  allowedPages: string[];
   children: React.ReactNode;
 }
 
-export function DashboardShell({ user, children }: DashboardShellProps) {
+export function DashboardShell({ user, allowedPages, children }: DashboardShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
@@ -47,6 +48,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       {/* Sidebar */}
       <Sidebar
         userRole={user.role}
+        allowedPages={allowedPages}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

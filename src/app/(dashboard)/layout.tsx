@@ -5,7 +5,10 @@
  */
 
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { permissionService } from '@/services/permission.service';
+import { pageKeyForPath } from '@/constants/permissions';
 import { DashboardShell } from './dashboard-shell';
 import type { User } from '@/types';
 
@@ -63,5 +66,19 @@ export default async function DashboardLayout({
     notes: dbUser.notes,
   };
 
-  return <DashboardShell user={user}>{children}</DashboardShell>;
+  // Central role → page access (matrix, editable from /ayarlar/yetkiler).
+  const allowedPages = await permissionService.getAllowedPages(user.role);
+
+  // URL-level guard: block direct navigation to a page the role can't access.
+  const pathname = (await headers()).get('x-pathname') ?? '';
+  const pageKey = pageKeyForPath(pathname);
+  if (pageKey && !allowedPages.includes(pageKey)) {
+    redirect('/');
+  }
+
+  return (
+    <DashboardShell user={user} allowedPages={allowedPages}>
+      {children}
+    </DashboardShell>
+  );
 }
