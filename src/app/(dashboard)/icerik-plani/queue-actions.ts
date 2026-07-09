@@ -42,6 +42,34 @@ export async function updateContentStatus(id: string, status: ContentStatus) {
 }
 
 /**
+ * Assign (or reassign) who voices a card. Admin/Yayıncı only. Notifies the
+ * chosen person. Also fixes older cards that reached "Ses" before assignees.
+ */
+export async function assignContentPerson(id: string, assigneeId: string | null) {
+  const user = await userService.getCurrentUser();
+  if (!user || !['ADMIN', 'PUBLISHER'].includes(user.role)) return { error: 'Yetki yok' };
+
+  const item = await contentQueueService.getByIdAdmin(id);
+  if (!item) return { error: 'İçerik bulunamadı' };
+
+  const result = await contentQueueService.updateAdmin(id, { assigned_to: assigneeId });
+  if (result.error) return { error: result.error };
+
+  if (assigneeId) {
+    await notificationService.notify({
+      userIds: [assigneeId],
+      title: '🎙 Ses işin var',
+      body: item.title,
+      url: '/icerik-plani',
+      tag: `content-${id}`,
+      excludeUserId: user.id,
+    });
+  }
+  revalidatePath('/icerik-plani');
+  return { success: true };
+}
+
+/**
  * Advance an item to the next pipeline stage (hand off). Rules:
  * - Metin → Ses: Admin/Yayıncı completes the text AND picks who voices it
  *   (assigneeId, a Seslendirmen or Yayıncı). Card is assigned to that person;

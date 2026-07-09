@@ -11,7 +11,7 @@ import {
   type ContentStatus,
   type UpdateContentQueueInput,
 } from './content-queue.constants';
-import { advanceContentStage, deleteContentItem } from './queue-actions';
+import { advanceContentStage, deleteContentItem, assignContentPerson } from './queue-actions';
 import { ContentForm } from './content-form';
 
 // ── Pipeline stage derivation ──────────────────────────────────────────────────
@@ -93,6 +93,7 @@ interface CardProps {
   onDelete: () => void;
   isPending: boolean;
   onAdvance: (link?: string, assigneeId?: string) => void;
+  onAssign: (personId: string | null) => void;
   canEdit: boolean;
   handoffStages: string[];
   voicePeople: Person[];
@@ -124,7 +125,7 @@ function ProductionProgress({ item }: { item: ContentQueueItem }) {
   );
 }
 
-function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, canEdit, handoffStages, voicePeople }: CardProps) {
+function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, onAssign, canEdit, handoffStages, voicePeople }: CardProps) {
   const [expanded, setExpanded] = useState(false);
   const [voiceLink, setVoiceLink] = useState(item.voice_url || '');
   const [videoLink, setVideoLink] = useState(item.video_url || '');
@@ -287,13 +288,32 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, canEd
           </div>
         )}
 
-        {/* Assigned voice person badge */}
-        {stage.id === 'SES' && assigneeName && (
-          <div className="mb-2.5">
-            <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>
-              👤 {assigneeName}
-            </span>
-          </div>
+        {/* Assigned voice person — editable by Admin/Yayıncı, badge for others */}
+        {stage.id === 'SES' && (
+          canEdit ? (
+            <div className="mb-2.5">
+              <select
+                value={item.assigned_to ?? ''}
+                onChange={(e) => onAssign(e.target.value || null)}
+                disabled={isPending}
+                className="w-full rounded-[var(--radius-sm)] px-2 py-1.5 text-[11px] font-medium outline-none disabled:opacity-60"
+                style={{
+                  backgroundColor: item.assigned_to ? 'var(--color-accent-muted)' : 'var(--color-surface-sunken)',
+                  border: `1px solid ${item.assigned_to ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                  color: item.assigned_to ? 'var(--color-accent)' : 'var(--color-text-primary)',
+                }}
+              >
+                <option value="">👤 Seslendiren ata…</option>
+                {voicePeople.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+          ) : assigneeName ? (
+            <div className="mb-2.5">
+              <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>
+                👤 {assigneeName}
+              </span>
+            </div>
+          ) : null
         )}
 
         {/* Stage handoff input */}
@@ -389,13 +409,14 @@ interface ColumnProps {
   onEdit: (item: ContentQueueItem) => void;
   onDelete: (id: string) => void;
   onAdvance: (item: ContentQueueItem, link?: string, assigneeId?: string) => void;
+  onAssign: (item: ContentQueueItem, personId: string | null) => void;
   isPending: boolean;
   canEdit: boolean;
   handoffStages: string[];
   voicePeople: Person[];
 }
 
-function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, isPending, canEdit, handoffStages, voicePeople }: ColumnProps) {
+function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, onAssign, isPending, canEdit, handoffStages, voicePeople }: ColumnProps) {
   return (
     <div className="flex min-w-[220px] flex-1 flex-col">
       {/* Column header */}
@@ -433,6 +454,7 @@ function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, isPending, ca
               onEdit={() => onEdit(item)}
               onDelete={() => onDelete(item.id)}
               onAdvance={(link, assigneeId) => onAdvance(item, link, assigneeId)}
+              onAssign={(personId) => onAssign(item, personId)}
               isPending={isPending}
               canEdit={canEdit}
               handoffStages={handoffStages}
@@ -476,6 +498,10 @@ export function ContentKanban({ items, canEdit = true, handoffStages = [], voice
     startTransition(async () => { await advanceContentStage(item.id, link ?? null, assigneeId ?? null); });
   }
 
+  function handleAssign(item: ContentQueueItem, personId: string | null) {
+    startTransition(async () => { await assignContentPerson(item.id, personId); });
+  }
+
   function handleDelete(id: string) {
     if (!confirm('Bu içeriği silmek istediğine emin misin?')) return;
     startTransition(async () => { await deleteContentItem(id); });
@@ -509,6 +535,7 @@ export function ContentKanban({ items, canEdit = true, handoffStages = [], voice
             onEdit={openEdit}
             onDelete={handleDelete}
             onAdvance={handleAdvance}
+            onAssign={handleAssign}
             isPending={isPending}
             canEdit={canEdit}
             handoffStages={handoffStages}
