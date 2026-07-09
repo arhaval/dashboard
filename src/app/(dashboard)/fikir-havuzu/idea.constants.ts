@@ -3,6 +3,7 @@
 export type IdeaCategory = 'CONTENT' | 'BUSINESS' | 'STRATEGY';
 export type IdeaStatus = 'OPEN' | 'APPROVED' | 'REJECTED';
 export type VoteType = 'UP' | 'DOWN' | 'UNSURE';
+export type SuggestPlatform = 'YOUTUBE' | 'INSTAGRAM' | 'TIKTOK' | 'X';
 
 export interface VoteCounts {
   up: number;
@@ -27,6 +28,8 @@ export interface IdeaDTO {
   ai_score: number | null;
   ai_genre: string | null;
   content_queue_id: string | null;
+  suggested_platforms: SuggestPlatform[];
+  suggested_format: string | null;
   created_at: string;
   counts: VoteCounts;
   my_vote: VoteType | null;
@@ -51,6 +54,19 @@ export const VOTE_META: Record<VoteType, { label: string; color: string; bg: str
   DOWN:   { label: 'Olumsuz',   color: 'var(--color-error)',   bg: 'var(--color-error-muted)' },
   UNSURE: { label: 'Kararsızım', color: 'var(--color-warning)', bg: 'var(--color-warning-muted)' },
 };
+
+export const SUGGEST_PLATFORM_OPTIONS: { value: SuggestPlatform; label: string }[] = [
+  { value: 'YOUTUBE', label: 'YouTube' },
+  { value: 'INSTAGRAM', label: 'Instagram' },
+  { value: 'TIKTOK', label: 'TikTok' },
+  { value: 'X', label: 'X' },
+];
+
+export const SUGGEST_PLATFORM_LABELS: Record<SuggestPlatform, string> = {
+  YOUTUBE: 'YouTube', INSTAGRAM: 'Instagram', TIKTOK: 'TikTok', X: 'X',
+};
+
+export const SUGGEST_FORMATS = ['Uzun Video', 'Short', 'Reels', 'Gönderi', 'Canlı'] as const;
 
 export const STATUS_META: Record<IdeaStatus, { label: string; bg: string; color: string }> = {
   OPEN:     { label: 'Havuzda',   bg: 'var(--color-bg-tertiary)',   color: 'var(--color-text-secondary)' },

@@ -3,7 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { userService } from '@/services';
 import { ideaService } from '@/services/idea.service';
-import type { IdeaCategory, VoteType } from './idea.constants';
+import type { IdeaCategory, VoteType, SuggestPlatform } from './idea.constants';
+
+const VALID_PLATFORMS: SuggestPlatform[] = ['YOUTUBE', 'INSTAGRAM', 'TIKTOK', 'X'];
 
 async function currentUser() {
   const user = await userService.getCurrentUser();
@@ -23,7 +25,18 @@ export async function createIdea(formData: FormData): Promise<{ error?: string }
   const category = (str(formData.get('category')) as IdeaCategory) ?? 'CONTENT';
   if (!title) return { error: 'Başlık zorunlu' };
 
-  const res = await ideaService.create({ title, summary: str(formData.get('summary')), category, authorId: user.id });
+  const suggestedPlatforms = formData.getAll('suggested_platforms')
+    .map((p) => String(p))
+    .filter((p): p is SuggestPlatform => (VALID_PLATFORMS as string[]).includes(p));
+
+  const res = await ideaService.create({
+    title,
+    summary: str(formData.get('summary')),
+    category,
+    authorId: user.id,
+    suggestedPlatforms,
+    suggestedFormat: str(formData.get('suggested_format')),
+  });
   revalidatePath('/fikir-havuzu');
   return res;
 }

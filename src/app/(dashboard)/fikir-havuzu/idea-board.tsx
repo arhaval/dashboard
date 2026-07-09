@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import {
   CATEGORY_META, CATEGORY_OPTIONS, VOTE_META, STATUS_META,
+  SUGGEST_PLATFORM_OPTIONS, SUGGEST_PLATFORM_LABELS, SUGGEST_FORMATS,
   type IdeaDTO, type IdeaCategory, type VoteType,
 } from './idea.constants';
 import { CONTENT_FORMATS, PLATFORM_LABELS, type ContentPlatform } from '../icerik-plani/content-queue.constants';
@@ -44,7 +45,7 @@ function AddIdeaModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-[#0B1437]/50 backdrop-blur-sm" onClick={() => !isPending && onClose()} />
-      <div className="relative z-10 w-full max-w-lg rounded-[var(--radius-lg)] p-6" style={card}>
+      <div className="relative z-10 max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[var(--radius-lg)] p-6" style={card}>
         <h3 className="mb-4 text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>Yeni Fikir</h3>
         <form onSubmit={submit} className="space-y-3">
           <div>
@@ -52,10 +53,11 @@ function AddIdeaModal({ onClose }: { onClose: () => void }) {
             <Input name="title" placeholder="örn. MAJ3R belgeseli 2. bölüm" required />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Özet</label>
-            <textarea name="summary" rows={4} placeholder="Fikri birkaç cümleyle anlat…"
-              className="w-full resize-y rounded-[var(--radius-sm)] px-3 py-2.5 text-sm outline-none"
-              style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }} />
+            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Özet / Metin</label>
+            <textarea name="summary" rows={10} placeholder="Fikri özetle ya da tam metni yaz..."
+              className="max-h-[50vh] w-full resize-y rounded-[var(--radius-sm)] px-3 py-2.5 text-sm leading-relaxed outline-none"
+              style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', minHeight: 160 }} />
+            <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Tek cümle de olur, detaylı senaryo/script de — sınır yok.</p>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Kategori</label>
@@ -63,6 +65,25 @@ function AddIdeaModal({ onClose }: { onClose: () => void }) {
               {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </Select>
           </div>
+
+          {/* Optional suggestion (hint only — final choice at Aktar) */}
+          <div className="rounded-[var(--radius-sm)] p-3" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
+            <p className="mb-2 text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>Önerilen Format / Platform <span style={{ color: 'var(--color-text-muted)' }}>(opsiyonel)</span></p>
+            <div className="mb-2 flex flex-wrap gap-2">
+              {SUGGEST_PLATFORM_OPTIONS.map((p) => (
+                <label key={p.value} className="flex cursor-pointer items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-1.5 text-xs"
+                  style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}>
+                  <input type="checkbox" name="suggested_platforms" value={p.value} className="accent-[var(--color-accent)]" /> {p.label}
+                </label>
+              ))}
+            </div>
+            <Select name="suggested_format" defaultValue="">
+              <option value="">Format önerme</option>
+              {SUGGEST_FORMATS.map((f) => <option key={f} value={f}>{f}</option>)}
+            </Select>
+            <p className="mt-1.5 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Emin değilsen boş bırak — kesin karar &quot;Onayla → Aktar&quot;da verilir.</p>
+          </div>
+
           <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Fikri kimin yazdığını yalnızca admin görür.</p>
           {error && <p className="text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
@@ -77,18 +98,32 @@ function AddIdeaModal({ onClose }: { onClose: () => void }) {
 
 // ── Transfer (approve) modal ─────────────────────────────────────────────────
 
-function TransferModal({ ideaId, onClose }: { ideaId: string; onClose: () => void }) {
+// Map an idea's suggested format to a content_queue format value (prefill).
+const SUGGEST_TO_FORMAT: Record<string, string> = {
+  'Uzun Video': 'Video', 'Short': 'Short / Reels', 'Reels': 'Short / Reels',
+  'Gönderi': 'Gönderi / Post', 'Canlı': 'Canlı Yayın',
+};
+
+function TransferModal({ idea, onClose }: { idea: IdeaDTO; onClose: () => void }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, start] = useTransition();
   const platforms = Object.keys(PLATFORM_LABELS) as ContentPlatform[];
+
+  // Prefill from the idea's suggestion where it maps to a content platform;
+  // if nothing overlaps, default to YouTube. Admin can change freely.
+  const suggested = idea.suggested_platforms as string[];
+  const overlap = platforms.filter((p) => suggested.includes(p));
+  const isChecked = (p: ContentPlatform) => (overlap.length > 0 ? overlap.includes(p) : p === 'YOUTUBE');
+  const defaultFormat = (idea.suggested_format && SUGGEST_TO_FORMAT[idea.suggested_format]) || 'Video';
+  const hasSuggestion = idea.suggested_platforms.length > 0 || Boolean(idea.suggested_format);
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     setError(null);
     start(async () => {
-      const res = await approveIdea(ideaId, fd);
+      const res = await approveIdea(idea.id, fd);
       if (res.error) setError(res.error);
       else { onClose(); router.refresh(); }
     });
@@ -99,7 +134,16 @@ function TransferModal({ ideaId, onClose }: { ideaId: string; onClose: () => voi
       <div className="absolute inset-0 bg-[#0B1437]/50 backdrop-blur-sm" onClick={() => !isPending && onClose()} />
       <div className="relative z-10 w-full max-w-md rounded-[var(--radius-lg)] p-6" style={card}>
         <h3 className="mb-1 text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>İçerik Planı&apos;na Aktar</h3>
-        <p className="mb-4 text-xs" style={{ color: 'var(--color-text-muted)' }}>Kart &quot;Metin Yazılıyor&quot; aşamasında açılır.</p>
+        <p className="mb-3 text-xs" style={{ color: 'var(--color-text-muted)' }}>Kart &quot;Metin Yazılıyor&quot; aşamasında açılır.</p>
+        {hasSuggestion && (
+          <div className="mb-4 flex flex-wrap items-center gap-1.5 rounded-[var(--radius-sm)] p-2.5" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
+            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Fikir önerisi</span>
+            {idea.suggested_platforms.map((p) => (
+              <span key={p} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)' }}>{SUGGEST_PLATFORM_LABELS[p]}</span>
+            ))}
+            {idea.suggested_format && <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>{idea.suggested_format}</span>}
+          </div>
+        )}
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Platform(lar) <span style={{ color: 'var(--color-error)' }}>*</span></label>
@@ -107,7 +151,7 @@ function TransferModal({ ideaId, onClose }: { ideaId: string; onClose: () => voi
               {platforms.map((p) => (
                 <label key={p} className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] px-2.5 py-2 text-sm"
                   style={{ backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}>
-                  <input type="checkbox" name="platforms" value={p} defaultChecked={p === 'YOUTUBE'} className="accent-[var(--color-accent)]" />
+                  <input type="checkbox" name="platforms" value={p} defaultChecked={isChecked(p)} className="accent-[var(--color-accent)]" />
                   {PLATFORM_LABELS[p]}
                 </label>
               ))}
@@ -115,7 +159,7 @@ function TransferModal({ ideaId, onClose }: { ideaId: string; onClose: () => voi
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Format</label>
-            <Select name="content_type" defaultValue="Video">
+            <Select name="content_type" defaultValue={defaultFormat}>
               {CONTENT_FORMATS.map((f) => <option key={f} value={f}>{f}</option>)}
             </Select>
           </div>
@@ -133,7 +177,7 @@ function TransferModal({ ideaId, onClose }: { ideaId: string; onClose: () => voi
 // ── Idea card ────────────────────────────────────────────────────────────────
 
 function IdeaCard({ idea, isAdmin, commentsEnabled, onTransfer }: {
-  idea: IdeaDTO; isAdmin: boolean; commentsEnabled: boolean; onTransfer: (id: string) => void;
+  idea: IdeaDTO; isAdmin: boolean; commentsEnabled: boolean; onTransfer: (idea: IdeaDTO) => void;
 }) {
   const router = useRouter();
   const [isPending, start] = useTransition();
@@ -180,6 +224,17 @@ function IdeaCard({ idea, isAdmin, commentsEnabled, onTransfer }: {
       <div>
         <h3 className="text-sm font-semibold leading-snug" style={{ color: 'var(--color-text-primary)' }}>{idea.title}</h3>
         {idea.summary && <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{idea.summary}</p>}
+        {(idea.suggested_platforms.length > 0 || idea.suggested_format) && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Öneri</span>
+            {idea.suggested_platforms.map((p) => (
+              <span key={p} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' }}>{SUGGEST_PLATFORM_LABELS[p]}</span>
+            ))}
+            {idea.suggested_format && (
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>{idea.suggested_format}</span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* votes */}
@@ -236,7 +291,7 @@ function IdeaCard({ idea, isAdmin, commentsEnabled, onTransfer }: {
       {/* admin decision */}
       {isAdmin && idea.status === 'OPEN' && (
         <div className="flex gap-2 border-t pt-3" style={{ borderColor: 'var(--color-border)' }}>
-          <Button size="sm" onClick={() => onTransfer(idea.id)} disabled={isPending} className="flex-1">
+          <Button size="sm" onClick={() => onTransfer(idea)} disabled={isPending} className="flex-1">
             <ArrowRight className="mr-1.5 h-3.5 w-3.5" /> Onayla → Aktar
           </Button>
           <Button size="sm" variant="secondary" onClick={() => run(() => rejectIdea(idea.id))} disabled={isPending}>
@@ -256,7 +311,7 @@ function IdeaCard({ idea, isAdmin, commentsEnabled, onTransfer }: {
 export function IdeaBoard({ ideas, isAdmin, commentsEnabled }: { ideas: IdeaDTO[]; isAdmin: boolean; commentsEnabled: boolean }) {
   const [filter, setFilter] = useState<'ALL' | IdeaCategory>('ALL');
   const [adding, setAdding] = useState(false);
-  const [transferId, setTransferId] = useState<string | null>(null);
+  const [transferIdea, setTransferIdea] = useState<IdeaDTO | null>(null);
 
   const visible = ideas.filter((i) => filter === 'ALL' || i.category === filter);
   const counts: Record<string, number> = { ALL: ideas.length };
@@ -289,13 +344,13 @@ export function IdeaBoard({ ideas, isAdmin, commentsEnabled }: { ideas: IdeaDTO[
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((idea) => (
-            <IdeaCard key={idea.id} idea={idea} isAdmin={isAdmin} commentsEnabled={commentsEnabled} onTransfer={setTransferId} />
+            <IdeaCard key={idea.id} idea={idea} isAdmin={isAdmin} commentsEnabled={commentsEnabled} onTransfer={setTransferIdea} />
           ))}
         </div>
       )}
 
       {adding && <AddIdeaModal onClose={() => setAdding(false)} />}
-      {transferId && <TransferModal ideaId={transferId} onClose={() => setTransferId(null)} />}
+      {transferIdea && <TransferModal idea={transferIdea} onClose={() => setTransferIdea(null)} />}
     </div>
   );
 }

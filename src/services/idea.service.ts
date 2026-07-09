@@ -7,7 +7,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { classifyVideoGenre, VIDEO_GENRE_LABELS, type VideoGenre } from '@/app/(dashboard)/icerik-performansi/perf.constants';
 import type {
-  IdeaDTO, IdeaCategory, VoteType, VoteCounts, VoterDetail,
+  IdeaDTO, IdeaCategory, VoteType, VoteCounts, VoterDetail, SuggestPlatform,
 } from '@/app/(dashboard)/fikir-havuzu/idea.constants';
 
 export type { IdeaDTO, IdeaCategory, VoteType };
@@ -18,6 +18,7 @@ interface IdeaRow {
   id: string; title: string; summary: string | null; category: IdeaCategory; status: IdeaDTO['status'];
   author_id: string | null; ai_comment: string | null; ai_score: number | null; ai_genre: string | null;
   content_queue_id: string | null; created_at: string;
+  suggested_platforms: SuggestPlatform[] | null; suggested_format: string | null;
 }
 interface VoteRow { idea_id: string; voter_id: string; vote: VoteType }
 
@@ -64,6 +65,8 @@ export const ideaService = {
       ai_score: i.ai_score,
       ai_genre: i.ai_genre,
       content_queue_id: i.content_queue_id,
+      suggested_platforms: i.suggested_platforms ?? [],
+      suggested_format: i.suggested_format,
       created_at: i.created_at,
       counts: countsByIdea.get(i.id) ?? emptyCounts(),
       my_vote: myVoteByIdea.get(i.id) ?? null,
@@ -80,10 +83,14 @@ export const ideaService = {
     });
   },
 
-  async create(input: { title: string; summary: string | null; category: IdeaCategory; authorId: string }): Promise<{ error?: string }> {
+  async create(input: {
+    title: string; summary: string | null; category: IdeaCategory; authorId: string;
+    suggestedPlatforms: SuggestPlatform[]; suggestedFormat: string | null;
+  }): Promise<{ error?: string }> {
     const admin = createAdminClient();
     const { error } = await admin.from('ideas').insert({
       title: input.title, summary: input.summary, category: input.category, author_id: input.authorId, status: 'OPEN',
+      suggested_platforms: input.suggestedPlatforms, suggested_format: input.suggestedFormat,
     });
     return error ? { error: error.message } : {};
   },
