@@ -174,6 +174,34 @@ export const userService = {
   },
 
   /**
+   * Instantly change a user's login email and/or password (admin only).
+   * Uses the Supabase admin API; email is set confirmed so it works right away.
+   * The public.users.email is kept in sync when the email changes.
+   */
+  async updateCredentials(
+    id: string,
+    input: { email?: string; password?: string }
+  ): Promise<{ error?: string }> {
+    const adminClient = createAdminClient();
+
+    const payload: { email?: string; password?: string; email_confirm?: boolean } = {};
+    if (input.email) { payload.email = input.email; payload.email_confirm = true; }
+    if (input.password) payload.password = input.password;
+    if (!payload.email && !payload.password) return { error: 'Değişiklik yok' };
+
+    const { error } = await adminClient.auth.admin.updateUserById(id, payload);
+    if (error) return { error: error.message };
+
+    if (input.email) {
+      await adminClient
+        .from('users')
+        .update({ email: input.email, updated_at: new Date().toISOString() })
+        .eq('id', id);
+    }
+    return {};
+  },
+
+  /**
    * Toggle user active status (soft disable)
    */
   async toggleStatus(id: string): Promise<{ user: User | null; error?: string }> {

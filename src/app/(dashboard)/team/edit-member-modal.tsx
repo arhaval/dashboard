@@ -9,9 +9,9 @@ import { useState, useTransition, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { X, Phone, CreditCard, MapPin, FileText, Shield } from 'lucide-react';
+import { X, Phone, CreditCard, MapPin, FileText, Shield, KeyRound } from 'lucide-react';
 import { tr } from '@/lib/i18n';
-import { updateTeamMember } from './actions';
+import { updateTeamMember, updateTeamMemberCredentials } from './actions';
 import type { User, UserRole } from '@/types';
 
 interface EditMemberModalProps {
@@ -44,10 +44,21 @@ export function EditMemberModal({ isOpen, onClose, user, isSelf = false }: EditM
     notes: '',
   });
 
+  // Login credentials (email + new password) — instant change via admin API
+  const [credPending, startCred] = useTransition();
+  const [credEmail, setCredEmail] = useState('');
+  const [credPassword, setCredPassword] = useState('');
+  const [credError, setCredError] = useState<string | null>(null);
+  const [credSuccess, setCredSuccess] = useState<string | null>(null);
+
   // Update form when user changes
   useEffect(() => {
     if (user) {
       setRole(user.role as UserRole);
+      setCredEmail(user.email || '');
+      setCredPassword('');
+      setCredError(null);
+      setCredSuccess(null);
       setFormData({
         phone: user.phone || '',
         iban: user.iban || '',
@@ -91,6 +102,31 @@ export function EditMemberModal({ isOpen, onClose, user, isSelf = false }: EditM
 
   const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCredentials = () => {
+    setCredError(null);
+    setCredSuccess(null);
+
+    const input: { email?: string; password?: string } = {};
+    const trimmedEmail = credEmail.trim();
+    if (trimmedEmail && trimmedEmail !== user.email) input.email = trimmedEmail;
+    if (credPassword) input.password = credPassword;
+
+    if (!input.email && !input.password) {
+      setCredError('Yeni bir e-posta veya şifre gir');
+      return;
+    }
+
+    startCred(async () => {
+      const result = await updateTeamMemberCredentials(user.id, input);
+      if (!result.success) {
+        setCredError(result.error || tr.messages.error.failedToSave);
+        return;
+      }
+      setCredSuccess('Giriş bilgileri anında güncellendi.');
+      setCredPassword('');
+    });
   };
 
   return (
@@ -159,6 +195,60 @@ export function EditMemberModal({ isOpen, onClose, user, isSelf = false }: EditM
                 ))}
               </Select>
             )}
+          </div>
+
+          {/* Login Credentials Section */}
+          <div>
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-[var(--color-text-primary)]">
+              <KeyRound className="h-4 w-4" />
+              Giriş Bilgileri
+            </h3>
+            {credError && (
+              <div className="mb-3 rounded-[var(--radius-sm)] bg-[var(--color-error-muted)] p-2.5 text-xs text-[var(--color-error)]">
+                {credError}
+              </div>
+            )}
+            {credSuccess && (
+              <div className="mb-3 rounded-[var(--radius-sm)] bg-[var(--color-success-muted)] p-2.5 text-xs text-[var(--color-success)]">
+                {credSuccess}
+              </div>
+            )}
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">
+                  E-posta
+                </label>
+                <Input
+                  type="email"
+                  value={credEmail}
+                  onChange={(e) => setCredEmail(e.target.value)}
+                  placeholder="kullanici@arhaval.com"
+                  disabled={credPending}
+                  autoComplete="off"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">
+                  Yeni Şifre
+                </label>
+                <Input
+                  type="text"
+                  value={credPassword}
+                  onChange={(e) => setCredPassword(e.target.value)}
+                  placeholder="Boş bırakılırsa değişmez · en az 8 karakter"
+                  disabled={credPending}
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Button type="button" variant="secondary" onClick={handleCredentials} disabled={credPending}>
+                  {credPending ? 'Değiştiriliyor…' : 'Anında Değiştir'}
+                </Button>
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  Anında geçerli olur; e-posta onayı gerekmez.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Contact Info Section */}

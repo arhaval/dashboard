@@ -200,6 +200,43 @@ export async function deleteTeamMember(userId: string): Promise<ActionResult> {
 }
 
 /**
+ * Instantly change a member's login email and/or password (admin only).
+ */
+export async function updateTeamMemberCredentials(
+  userId: string,
+  input: { email?: string; password?: string }
+): Promise<ActionResult> {
+  const { isAdmin, error: adminError } = await verifyAdmin();
+  if (!isAdmin) {
+    return { success: false, error: adminError };
+  }
+
+  const email = input.email?.trim();
+  const password = input.password;
+
+  if (!email && !password) {
+    return { success: false, error: 'E-posta veya yeni şifre girin' };
+  }
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { success: false, error: 'Geçersiz e-posta adresi' };
+  }
+  if (password && password.length < 8) {
+    return { success: false, error: 'Şifre en az 8 karakter olmalı' };
+  }
+
+  const result = await userService.updateCredentials(userId, {
+    email: email || undefined,
+    password: password || undefined,
+  });
+  if (result.error) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath('/team');
+  return { success: true };
+}
+
+/**
  * Update team member profile (admin only)
  */
 export async function updateTeamMember(
