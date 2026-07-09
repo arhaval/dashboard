@@ -64,6 +64,21 @@ export const userService = {
   },
 
   /**
+   * Active users of the given roles (id + name), via admin client. Used to
+   * populate assignee pickers (e.g. choosing who voices a content card).
+   */
+  async getByRoles(roles: string[]): Promise<{ id: string; full_name: string }[]> {
+    const adminClient = createAdminClient();
+    const { data } = await adminClient
+      .from('users')
+      .select('id, full_name')
+      .in('role', roles)
+      .eq('is_active', true)
+      .order('full_name');
+    return (data as { id: string; full_name: string }[]) ?? [];
+  },
+
+  /**
    * Get user by ID
    */
   async getById(id: string): Promise<User | null> {

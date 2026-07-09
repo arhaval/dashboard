@@ -12,9 +12,10 @@ interface ContentPlannerProps {
   items: ContentQueueItem[];
   canEdit?: boolean;
   handoffStages?: string[];
+  voicePeople?: { id: string; name: string }[];
 }
 
-export function ContentPlanner({ items, canEdit = true, handoffStages = [] }: ContentPlannerProps) {
+export function ContentPlanner({ items, canEdit = true, handoffStages = [], voicePeople = [] }: ContentPlannerProps) {
   const [view, setView] = useState<View>('kanban');
 
   // Viewers get a read-only board only; the calendar is an editing surface.
@@ -55,7 +56,7 @@ export function ContentPlanner({ items, canEdit = true, handoffStages = [] }: Co
       </div>
 
       {activeView === 'kanban' ? (
-        <ContentKanban items={items} canEdit={canEdit} handoffStages={handoffStages} />
+        <ContentKanban items={items} canEdit={canEdit} handoffStages={handoffStages} voicePeople={voicePeople} />
       ) : (
         <ContentCalendar items={items} />
       )}

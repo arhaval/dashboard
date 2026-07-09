@@ -17,7 +17,11 @@ export default async function IcerikPlaniPage() {
   // Kurgu→Editör. Lets each person drop their deliverable link + advance.
   const handoffStages = ROLE_STAGES[currentUser.role] ?? [];
 
-  const items = await contentQueueService.getAll();
+  const [items, voiceRows] = await Promise.all([
+    contentQueueService.getAll(),
+    userService.getByRoles(['VOICE', 'PUBLISHER']),
+  ]);
+  const voicePeople = voiceRows.map((u) => ({ id: u.id, name: u.full_name }));
 
   const desc = canEdit
     ? 'Hazır içerikler ve yayın takvimi'
@@ -27,7 +31,7 @@ export default async function IcerikPlaniPage() {
 
   return (
     <PageShell title="İçerik Planı" description={desc}>
-      <ContentPlanner items={items} canEdit={canEdit} handoffStages={handoffStages} />
+      <ContentPlanner items={items} canEdit={canEdit} handoffStages={handoffStages} voicePeople={voicePeople} />
     </PageShell>
   );
 }

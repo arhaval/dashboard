@@ -19,6 +19,7 @@ export interface ContentQueueItem {
   published_date: string | null;
   notes: string | null;
   created_by: string | null;
+  assigned_to: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -53,6 +54,7 @@ export interface UpdateContentQueueInput {
   planned_date?: string | null;
   published_date?: string | null;
   notes?: string | null;
+  assigned_to?: string | null;
 }
 
 // Tüm platformlarda geçerli genel format tipleri

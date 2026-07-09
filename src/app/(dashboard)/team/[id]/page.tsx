@@ -49,7 +49,7 @@ export default async function TeamMemberProfilePage({ params }: PageProps) {
       ? financeService.getUserStats(id)
       : Promise.resolve({ totalIncome: 0, totalExpenses: 0, netBalance: 0, transactionCount: 0 }),
     canSeeWork ? workItemService.getAll({ user_id: id }) : Promise.resolve([]),
-    showAssignedContent ? contentQueueService.getAssignedForRole(member.role) : Promise.resolve([]),
+    showAssignedContent ? contentQueueService.getAssignedForUser(id, member.role) : Promise.resolve([]),
   ]);
 
   return (

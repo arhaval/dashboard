@@ -67,6 +67,27 @@ export const contentQueueService = {
       .map((i) => ({ ...i, stage_label: STAGE_LABELS_MAP[i.stage] }));
   },
 
+  /**
+   * Content on a member's plate = cards assigned directly to them, PLUS the
+   * role-owned stages EXCEPT "Ses" (which is assignment-only now). So a voice
+   * person sees only the Ses cards assigned to them, not every Ses card.
+   */
+  async getAssignedForUser(userId: string, role: string): Promise<AssignedContent[]> {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from('content_queue')
+      .select('*')
+      .neq('status', 'YAYINLANDI')
+      .order('planned_date', { ascending: true, nullsFirst: false });
+    if (!data) return [];
+
+    const stages = ROLE_STAGES[role] ?? [];
+    return (data as ContentQueueItem[])
+      .map((i) => ({ ...i, stage: deriveStage(i) }))
+      .filter((i) => i.assigned_to === userId || (stages.includes(i.stage) && i.stage !== 'SES'))
+      .map((i) => ({ ...i, stage_label: STAGE_LABELS_MAP[i.stage] }));
+  },
+
   async getByIdAdmin(id: string): Promise<ContentQueueItem | null> {
     const admin = createAdminClient();
     const { data } = await admin.from('content_queue').select('*').eq('id', id).maybeSingle();

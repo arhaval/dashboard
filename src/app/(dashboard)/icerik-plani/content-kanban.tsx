@@ -92,9 +92,10 @@ interface CardProps {
   onEdit: () => void;
   onDelete: () => void;
   isPending: boolean;
-  onAdvance: (link?: string) => void;
+  onAdvance: (link?: string, assigneeId?: string) => void;
   canEdit: boolean;
   handoffStages: string[];
+  voicePeople: Person[];
 }
 
 function ProductionProgress({ item }: { item: ContentQueueItem }) {
@@ -123,17 +124,23 @@ function ProductionProgress({ item }: { item: ContentQueueItem }) {
   );
 }
 
-function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, canEdit, handoffStages }: CardProps) {
+function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, canEdit, handoffStages, voicePeople }: CardProps) {
   const [expanded, setExpanded] = useState(false);
   const [voiceLink, setVoiceLink] = useState(item.voice_url || '');
   const [videoLink, setVideoLink] = useState(item.video_url || '');
+  const [assignee, setAssignee] = useState('');
   const hasDetails = Boolean(item.content_text || item.voice_url || item.video_url);
+  const assigneeName = voicePeople.find((p) => p.id === item.assigned_to)?.name;
 
   const base = stage.advance(item);
   // Full editors advance anything; stage owners advance only their own stage.
   const canAdvanceThis = canEdit || handoffStages.includes(stage.id);
+  // Advancing "Metin Tamam" requires choosing who voices it.
+  const needsAssignee = stage.id === 'METIN';
+  const advanceDisabled = isPending || (needsAssignee && !assignee);
   function handleAdvanceClick() {
     if (!base) return;
+    if (stage.id === 'METIN')  return onAdvance(undefined, assignee);
     if (stage.id === 'SES')    return onAdvance(voiceLink.trim());
     if (stage.id === 'EDITOR') return onAdvance(videoLink.trim());
     onAdvance();
@@ -265,6 +272,30 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, canEd
           </div>
         )}
 
+        {/* Metin → Ses: pick who voices it */}
+        {canAdvanceThis && stage.id === 'METIN' && (
+          <div className="mb-2.5">
+            <select
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+              className="w-full rounded-[var(--radius-sm)] px-2 py-1.5 text-[11px] outline-none"
+              style={{ backgroundColor: 'var(--color-surface-sunken)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+            >
+              <option value="">🎙 Seslendirecek kişiyi seç…</option>
+              {voicePeople.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+        )}
+
+        {/* Assigned voice person badge */}
+        {stage.id === 'SES' && assigneeName && (
+          <div className="mb-2.5">
+            <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>
+              👤 {assigneeName}
+            </span>
+          </div>
+        )}
+
         {/* Stage handoff input */}
         {canAdvanceThis && stage.id === 'SES' && (
           <div className="mb-2.5">
@@ -316,7 +347,7 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, canEd
             {base && canAdvanceThis && (
               <button
                 onClick={handleAdvanceClick}
-                disabled={isPending}
+                disabled={advanceDisabled}
                 className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius-sm)] py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
                 style={{ backgroundColor: stage.color, color: '#fff' }}
               >
@@ -357,13 +388,14 @@ interface ColumnProps {
   items: ContentQueueItem[];
   onEdit: (item: ContentQueueItem) => void;
   onDelete: (id: string) => void;
-  onAdvance: (item: ContentQueueItem, link?: string) => void;
+  onAdvance: (item: ContentQueueItem, link?: string, assigneeId?: string) => void;
   isPending: boolean;
   canEdit: boolean;
   handoffStages: string[];
+  voicePeople: Person[];
 }
 
-function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, isPending, canEdit, handoffStages }: ColumnProps) {
+function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, isPending, canEdit, handoffStages, voicePeople }: ColumnProps) {
   return (
     <div className="flex min-w-[220px] flex-1 flex-col">
       {/* Column header */}
@@ -400,10 +432,11 @@ function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, isPending, ca
               stage={stage}
               onEdit={() => onEdit(item)}
               onDelete={() => onDelete(item.id)}
-              onAdvance={(link) => onAdvance(item, link)}
+              onAdvance={(link, assigneeId) => onAdvance(item, link, assigneeId)}
               isPending={isPending}
               canEdit={canEdit}
               handoffStages={handoffStages}
+              voicePeople={voicePeople}
             />
           );
         })}
@@ -420,14 +453,18 @@ function formatDate(d: string) {
   return `${parseInt(day)} ${months[parseInt(m) - 1]}`;
 }
 
+interface Person { id: string; name: string }
+
 interface ContentKanbanProps {
   items: ContentQueueItem[];
   canEdit?: boolean;
   /** Pipeline stages this user may hand off (advance) even without full edit. */
   handoffStages?: string[];
+  /** People who can be assigned to voice a card (Seslendirmen + Yayıncı). */
+  voicePeople?: Person[];
 }
 
-export function ContentKanban({ items, canEdit = true, handoffStages = [] }: ContentKanbanProps) {
+export function ContentKanban({ items, canEdit = true, handoffStages = [], voicePeople = [] }: ContentKanbanProps) {
   const [isPending, startTransition] = useTransition();
   const [editItem,  setEditItem]  = useState<ContentQueueItem | null>(null);
   const [formOpen,  setFormOpen]  = useState(false);
@@ -435,8 +472,8 @@ export function ContentKanban({ items, canEdit = true, handoffStages = [] }: Con
   function openAdd() { setEditItem(null); setFormOpen(true); }
   function openEdit(item: ContentQueueItem) { setEditItem(item); setFormOpen(true); }
 
-  function handleAdvance(item: ContentQueueItem, link?: string) {
-    startTransition(async () => { await advanceContentStage(item.id, link ?? null); });
+  function handleAdvance(item: ContentQueueItem, link?: string, assigneeId?: string) {
+    startTransition(async () => { await advanceContentStage(item.id, link ?? null, assigneeId ?? null); });
   }
 
   function handleDelete(id: string) {
@@ -475,6 +512,7 @@ export function ContentKanban({ items, canEdit = true, handoffStages = [] }: Con
             isPending={isPending}
             canEdit={canEdit}
             handoffStages={handoffStages}
+            voicePeople={voicePeople}
           />
         ))}
       </div>
