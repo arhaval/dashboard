@@ -1,13 +1,24 @@
 import { createClient } from '@/lib/supabase/server';
-import type {
-  ContentPlatform,
-  ContentStatus,
-  ContentQueueItem,
-  CreateContentQueueInput,
-  UpdateContentQueueInput,
+import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  deriveStage,
+  ROLE_STAGES,
+  STAGE_LABELS_MAP,
+  type ContentPlatform,
+  type ContentStatus,
+  type ContentQueueItem,
+  type ContentStage,
+  type CreateContentQueueInput,
+  type UpdateContentQueueInput,
 } from '@/app/(dashboard)/icerik-plani/content-queue.constants';
 
 export type { ContentPlatform, ContentStatus, ContentQueueItem, CreateContentQueueInput, UpdateContentQueueInput };
+
+/** A content item surfaced on a member's profile, with its current stage. */
+export interface AssignedContent extends ContentQueueItem {
+  stage: ContentStage;
+  stage_label: string;
+}
 
 export const contentQueueService = {
   async getAll(filters?: {
@@ -30,6 +41,30 @@ export const contentQueueService = {
       return [];
     }
     return (data || []) as ContentQueueItem[];
+  },
+
+  /**
+   * Content items whose CURRENT pipeline stage is the responsibility of `role`
+   * (Metin→PUBLISHER, Ses→VOICE, Editörde→EDITOR). Surfaced on member profiles.
+   * Uses the admin client so non-admin roles (VOICE/EDITOR) can be shown their
+   * queue on a page that already gates access to admin-or-self.
+   */
+  async getAssignedForRole(role: string): Promise<AssignedContent[]> {
+    const stages = ROLE_STAGES[role];
+    if (!stages) return [];
+
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from('content_queue')
+      .select('*')
+      .neq('status', 'YAYINLANDI')
+      .order('planned_date', { ascending: true, nullsFirst: false });
+    if (error || !data) return [];
+
+    return (data as ContentQueueItem[])
+      .map((i) => ({ ...i, stage: deriveStage(i) }))
+      .filter((i) => stages.includes(i.stage))
+      .map((i) => ({ ...i, stage_label: STAGE_LABELS_MAP[i.stage] }));
   },
 
   async create(
