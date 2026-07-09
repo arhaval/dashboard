@@ -3,9 +3,25 @@
  * Handles all user-related data operations
  */
 
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { User, UserRole } from '@/types';
+
+/**
+ * Request-scoped memoized current user. React cache() dedupes this across the
+ * layout, the page, and any server action within a single request — turning
+ * 3-4 auth round-trips per navigation into one.
+ */
+const getCurrentUserCached = cache(async (): Promise<User | null> => {
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  if (!authUser) return null;
+  const { data } = await supabase.from('users').select('*').eq('id', authUser.id).single();
+  return (data as User) ?? null;
+});
 
 export interface CreateUserInput {
   email: string;
@@ -90,17 +106,7 @@ export const userService = {
    * Get current authenticated user's profile
    */
   async getCurrentUser(): Promise<User | null> {
-    const supabase = await createClient();
-
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-
-    if (!authUser) {
-      return null;
-    }
-
-    return this.getById(authUser.id);
+    return getCurrentUserCached();
   },
 
   /**
