@@ -26,28 +26,22 @@ export default async function DashboardPage() {
     const currentMonth = getCurrentMonth();
 
     const [
-      allWorkItems,
+      dash,
       allUsers,
       paymentStats,
       monthlyFinanceStats,
-      unpaidTotal,
-      contentStats,
-      contentTrend,
-      teamContentStats,
       weeklyGoalProgress,
       weeklySchedule,
     ] = await Promise.all([
-      workItemService.getAll(),
+      workItemService.getDashboardData(currentMonth, 6),
       userService.getAll(),
       paymentService.getStats(),
       financeService.getStatsByMonth(currentMonth),
-      workItemService.getUnpaidTotal(),
-      workItemService.getContentStats(currentMonth),
-      workItemService.getContentTrend(6),
-      workItemService.getTeamContentStats(currentMonth),
       contentGoalService.getWeeklyProgress(),
       weeklyScheduleService.getAll(),
     ]);
+
+    const { allWorkItems, unpaidTotal, contentStats, contentTrend, teamContentStats } = dash;
 
     return (
       <DashboardAdmin

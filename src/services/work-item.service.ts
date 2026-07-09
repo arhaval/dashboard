@@ -6,6 +6,67 @@
 import { createClient } from '@/lib/supabase/server';
 import type { WorkItem, WorkItemFilters, CreateWorkItemInput } from '@/types';
 
+const TR_MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+type WorkItemWithUser = WorkItem & { user?: { full_name?: string } | null };
+
+// ── Pure dashboard aggregations (computed from a single work_items fetch) ─────
+
+function computeUnpaidTotal(items: WorkItem[]): number {
+  return items
+    .filter((i) => i.status === 'APPROVED' && i.cost != null)
+    .reduce((s, i) => s + Number(i.cost ?? 0), 0);
+}
+
+function contentBucket(items: WorkItem[], month: string) {
+  const inMonth = items.filter(
+    (i) => (i.work_type === 'VOICE' || i.work_type === 'EDIT') && String(i.work_date).startsWith(month)
+  );
+  return {
+    voice: inMonth.filter((i) => i.work_type === 'VOICE').length,
+    edit: inMonth.filter((i) => i.work_type === 'EDIT').length,
+    total: inMonth.length,
+  };
+}
+
+function computeContentStats(items: WorkItem[], month: string) {
+  const [year, m] = month.split('-').map(Number);
+  const last = new Date(year, m - 2, 1);
+  const lastMonth = `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}`;
+  const thisMonth = contentBucket(items, month);
+  const lastMonthStats = contentBucket(items, lastMonth);
+  const change =
+    lastMonthStats.total === 0
+      ? thisMonth.total > 0 ? 100 : 0
+      : Math.round(((thisMonth.total - lastMonthStats.total) / lastMonthStats.total) * 100);
+  return { thisMonth, lastMonth: lastMonthStats, change };
+}
+
+function computeContentTrend(items: WorkItem[], months: number) {
+  const now = new Date();
+  const result: Array<{ month: string; label: string; voice: number; edit: number; total: number }> = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    result.push({ month: monthStr, label: `${TR_MONTHS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`, ...contentBucket(items, monthStr) });
+  }
+  return result;
+}
+
+function computeTeamContentStats(items: WorkItem[], month: string) {
+  const inMonth = (items as WorkItemWithUser[]).filter(
+    (i) => (i.work_type === 'VOICE' || i.work_type === 'EDIT') && String(i.work_date).startsWith(month)
+  );
+  const map = new Map<string, { userId: string; name: string; voice: number; edit: number; total: number }>();
+  for (const i of inMonth) {
+    const existing = map.get(i.user_id) ?? { userId: i.user_id, name: i.user?.full_name ?? 'Bilinmiyor', voice: 0, edit: 0, total: 0 };
+    if (i.work_type === 'VOICE') existing.voice += 1;
+    if (i.work_type === 'EDIT') existing.edit += 1;
+    existing.total += 1;
+    map.set(i.user_id, existing);
+  }
+  return Array.from(map.values()).sort((a, b) => b.total - a.total);
+}
+
 export const workItemService = {
   /**
    * Get all work items with optional filters
@@ -323,5 +384,20 @@ export const workItemService = {
     }
 
     return Array.from(userMap.values()).sort((a, b) => b.total - a.total);
+  },
+
+  /**
+   * All dashboard work stats from a SINGLE work_items fetch (was 5 separate
+   * queries). Collapses round-trips on the admin home page.
+   */
+  async getDashboardData(month: string, trendMonths = 6) {
+    const allWorkItems = await this.getAll();
+    return {
+      allWorkItems,
+      unpaidTotal: computeUnpaidTotal(allWorkItems),
+      contentStats: computeContentStats(allWorkItems, month),
+      contentTrend: computeContentTrend(allWorkItems, trendMonths),
+      teamContentStats: computeTeamContentStats(allWorkItems, month),
+    };
   },
 };
