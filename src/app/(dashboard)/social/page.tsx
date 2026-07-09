@@ -94,41 +94,45 @@ export default async function SocialPage() {
         <GrowthReport report={growthReport} />
       </div>
 
-      {/* Platform Detail Cards - All metrics per platform */}
-      <div className="mb-6">
-        <PlatformDetailCards
-          currentMetrics={currentMetrics}
-          previousMetrics={previousMetrics}
-          activeMonth={activeMonth}
-        />
-      </div>
-
-      {/* Trend Charts */}
-      <div className="mb-6">
-        <TrendCharts trendData={trendData} />
-      </div>
-
-      {/* Goals + Notes - Side by side */}
-      <div className="mb-6 grid gap-4 lg:grid-cols-2">
-        <GoalProgress month={activeMonth} goals={goalProgress} isAdmin={isAdmin} />
-        <MonthlyNotes
-          month={activeMonth}
-          initialNotes={monthNote?.notes || ''}
-          isAdmin={isAdmin}
-        />
-      </div>
-
-      {/* Manual Entry - Admin only */}
+      {/* Everything below the growth report is ADMIN-only.
+          Team members see just the follower summary + growth report. */}
       {isAdmin && (
-        <div className="mb-6">
-          <YouTubeConnect connected={ytStatus.connected} />
-          <InstagramConnect connected={igStatus.connected} username={igStatus.username} />
-          <MetricsForm />
-        </div>
-      )}
+        <>
+          {/* Platform Detail Cards - All metrics per platform */}
+          <div className="mb-6">
+            <PlatformDetailCards
+              currentMetrics={currentMetrics}
+              previousMetrics={previousMetrics}
+              activeMonth={activeMonth}
+            />
+          </div>
 
-      {/* Platform History */}
-      <PlatformHistory isReadOnly={!isAdmin} />
+          {/* Trend Charts */}
+          <div className="mb-6">
+            <TrendCharts trendData={trendData} />
+          </div>
+
+          {/* Goals + Notes - Side by side */}
+          <div className="mb-6 grid gap-4 lg:grid-cols-2">
+            <GoalProgress month={activeMonth} goals={goalProgress} isAdmin={isAdmin} />
+            <MonthlyNotes
+              month={activeMonth}
+              initialNotes={monthNote?.notes || ''}
+              isAdmin={isAdmin}
+            />
+          </div>
+
+          {/* Manual Entry */}
+          <div className="mb-6">
+            <YouTubeConnect connected={ytStatus.connected} />
+            <InstagramConnect connected={igStatus.connected} username={igStatus.username} />
+            <MetricsForm />
+          </div>
+
+          {/* Platform History */}
+          <PlatformHistory isReadOnly={false} />
+        </>
+      )}
     </PageShell>
   );
 }
