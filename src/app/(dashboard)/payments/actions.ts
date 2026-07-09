@@ -8,10 +8,24 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { paymentService } from '@/services';
+import { notificationService } from '@/services/notification.service';
 
 interface ActionResult {
   success: boolean;
   error?: string;
+}
+
+/** Notify the paid team member that their payment went through. */
+async function notifyPaymentPaid(paymentId: string): Promise<void> {
+  const payment = await paymentService.getById(paymentId);
+  if (!payment) return;
+  await notificationService.notify({
+    userIds: [payment.user_id],
+    title: '💰 Ödemen yapıldı',
+    body: `₺${Number(payment.amount).toLocaleString('tr-TR')} hesabına işlendi.`,
+    url: '/payments',
+    tag: `payment-${paymentId}`,
+  });
 }
 
 /**
@@ -99,6 +113,8 @@ export async function markPaymentAsPaid(paymentId: string): Promise<ActionResult
     return { success: false, error: result.error };
   }
 
+  await notifyPaymentPaid(paymentId);
+
   // Revalidate all related pages
   revalidatePath('/payments');
   revalidatePath('/work-items');
@@ -132,6 +148,7 @@ export async function bulkMarkPaymentsAsPaid(
     const result = await paymentService.markAsPaid(paymentId, adminCheck.userId);
     if (result.success) {
       paidCount++;
+      await notifyPaymentPaid(paymentId);
     } else {
       errors.push(result.error || `Ödeme ${paymentId} başarısız`);
     }

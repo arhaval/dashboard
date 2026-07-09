@@ -3,7 +3,15 @@
 import { revalidatePath } from 'next/cache';
 import { contentQueueService } from '@/services/content-queue.service';
 import { userService } from '@/services';
+import { notificationService } from '@/services/notification.service';
 import { deriveStage, ROLE_STAGES } from './content-queue.constants';
+
+// When a card moves INTO a stage, notify the role responsible for it.
+const STAGE_ARRIVAL_NOTIFY: Record<string, { roles: string[]; title: string }> = {
+  SES:    { roles: ['VOICE'],     title: '🎙 Ses işin var' },
+  EDITOR: { roles: ['EDITOR'],    title: '🎬 Kurgu işin var' },
+  HAZIR:  { roles: ['PUBLISHER'], title: '✅ Yayına hazır' },
+};
 import type {
   ContentPlatform,
   ContentStatus,
@@ -72,6 +80,21 @@ export async function advanceContentStage(id: string, link?: string | null) {
 
   const result = await contentQueueService.updateAdmin(id, patch);
   if (result.error) return { error: result.error };
+
+  // Notify the role now responsible for the item's NEW stage.
+  const arrival: Record<string, string> = { METIN: 'SES', SES: 'EDITOR', EDITOR: 'HAZIR' };
+  const nextStage = arrival[stage];
+  const notify = nextStage ? STAGE_ARRIVAL_NOTIFY[nextStage] : undefined;
+  if (notify) {
+    await notificationService.notify({
+      roles: notify.roles,
+      title: notify.title,
+      body: item.title,
+      url: '/icerik-plani',
+      tag: `content-${id}`,
+      excludeUserId: user.id,
+    });
+  }
 
   revalidatePath('/icerik-plani');
   return { success: true };

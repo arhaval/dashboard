@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { userService } from '@/services';
 import { ideaService } from '@/services/idea.service';
+import { notificationService } from '@/services/notification.service';
 import type { IdeaCategory, VoteType, SuggestPlatform } from './idea.constants';
 
 const VALID_PLATFORMS: SuggestPlatform[] = ['YOUTUBE', 'INSTAGRAM', 'TIKTOK', 'X'];
@@ -37,6 +38,15 @@ export async function createIdea(formData: FormData): Promise<{ error?: string }
     suggestedPlatforms,
     suggestedFormat: str(formData.get('suggested_format')),
   });
+  if (!res.error) {
+    await notificationService.notify({
+      roles: ['ADMIN'],
+      title: '💡 Yeni fikir',
+      body: title,
+      url: '/fikir-havuzu',
+      excludeUserId: user.id,
+    });
+  }
   revalidatePath('/fikir-havuzu');
   return res;
 }
@@ -78,7 +88,17 @@ export async function approveIdea(ideaId: string, formData: FormData): Promise<{
   const content_type = str(formData.get('content_type')) ?? 'Video';
   if (platforms.length === 0) return { error: 'En az bir platform seçin' };
 
+  const idea = await ideaService.getRaw(ideaId);
   const res = await ideaService.approve(ideaId, user.id, { platforms, content_type });
+  if (!res.error && idea?.author_id) {
+    await notificationService.notify({
+      userIds: [idea.author_id],
+      title: '🎉 Fikrin onaylandı',
+      body: `"${idea.title}" İçerik Planı'na aktarıldı.`,
+      url: '/fikir-havuzu',
+      excludeUserId: user.id,
+    });
+  }
   revalidatePath('/fikir-havuzu');
   revalidatePath('/icerik-plani');
   return res;

@@ -8,12 +8,17 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { workItemService } from '@/services';
+import { notificationService } from '@/services/notification.service';
 import { WORK_STATUS_TRANSITIONS } from '@/constants';
-import type { WorkStatus } from '@/types';
+import type { WorkItem, WorkStatus } from '@/types';
 
 interface UpdateStatusResult {
   success: boolean;
   error?: string;
+}
+
+function workLabel(item: WorkItem): string {
+  return item.content_name || item.match_name || 'İş kaydın';
 }
 
 /**
@@ -85,6 +90,17 @@ export async function updateWorkItemStatus(
 
   if (!updated) {
     return { success: false, error: 'Failed to update status' };
+  }
+
+  // 7.5. Notify the owner when their work is approved.
+  if (newStatus === 'APPROVED') {
+    await notificationService.notify({
+      userIds: [workItem.user_id],
+      title: '✅ İşin onaylandı',
+      body: `${workLabel(workItem)}${workItem.cost ? ` · ₺${Number(workItem.cost).toLocaleString('tr-TR')}` : ''}`,
+      url: '/work-items',
+      tag: `work-${workItemId}`,
+    });
   }
 
   // 8. Revalidate the page
@@ -160,6 +176,15 @@ export async function updateWorkItemCost(
   if (!updated) {
     return { success: false, error: 'Failed to update cost' };
   }
+
+  // Setting a cost approves the item — notify the owner.
+  await notificationService.notify({
+    userIds: [workItem.user_id],
+    title: '✅ İşin onaylandı',
+    body: `${workLabel(workItem)} · ₺${Number(cost).toLocaleString('tr-TR')}`,
+    url: '/work-items',
+    tag: `work-${workItemId}`,
+  });
 
   // 9. Revalidate the page
   revalidatePath('/work-items');
