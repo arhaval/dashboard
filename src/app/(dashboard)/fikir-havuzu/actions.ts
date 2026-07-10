@@ -44,6 +44,8 @@ export async function createIdea(formData: FormData): Promise<{ error?: string }
       title: '💡 Yeni fikir',
       body: title,
       url: '/fikir-havuzu',
+      // unique tag so multiple new ideas don't replace each other
+      tag: `idea-new-${Date.now()}`,
       excludeUserId: user.id,
     });
   }
@@ -96,6 +98,7 @@ export async function approveIdea(ideaId: string, formData: FormData): Promise<{
       title: '🎉 Fikrin onaylandı',
       body: `"${idea.title}" İçerik Planı'na aktarıldı.`,
       url: '/fikir-havuzu',
+      tag: `idea-${ideaId}`,
       excludeUserId: user.id,
     });
   }
