@@ -117,6 +117,27 @@ export const contentQueueService = {
     return (data as (PublicationInput & { content_queue_id: string })[]) ?? [];
   },
 
+  /**
+   * When a pipeline card is published, copy its script onto the matching
+   * video_performance / instagram_media row so it enters the content library
+   * automatically (no manual re-paste).
+   */
+  async linkScriptToContent(publications: PublicationInput[], script: string | null): Promise<void> {
+    if (!script || !script.trim()) return;
+    const admin = createAdminClient();
+
+    for (const p of publications) {
+      if (p.platform === 'YOUTUBE' && p.external_id) {
+        await admin.from('video_performance').update({ script }).eq('video_id', p.external_id);
+      } else if (p.platform === 'INSTAGRAM' && p.external_id) {
+        const { data } = await admin.from('instagram_media').select('media_id, permalink');
+        const target = ((data ?? []) as { media_id: string; permalink: string | null }[])
+          .find((m) => m.permalink?.includes(p.external_id as string));
+        if (target) await admin.from('instagram_media').update({ script }).eq('media_id', target.media_id);
+      }
+    }
+  },
+
   async getByIdAdmin(id: string): Promise<ContentQueueItem | null> {
     const admin = createAdminClient();
     const { data } = await admin.from('content_queue').select('*').eq('id', id).maybeSingle();

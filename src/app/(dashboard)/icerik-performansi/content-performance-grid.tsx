@@ -6,7 +6,7 @@ import { syncVideosNow, commentOnVideo, setVideoGenre, setVideoScript } from './
 
 const GENRE_OPTIONS = VIDEO_GENRES.map((g) => ({ value: g, label: VIDEO_GENRE_LABELS[g] }));
 
-export function ContentPerformanceGrid({ videos, commentsEnabled }: { videos: ScoredVideo[]; commentsEnabled: boolean }) {
+export function ContentPerformanceGrid({ videos, commentsEnabled, authorsByExternalId }: { videos: ScoredVideo[]; commentsEnabled: boolean; authorsByExternalId: Record<string, string> }) {
   const rows: PerfRow[] = videos.map((v) => ({
     key: v.id,
     actionId: v.video_id,
@@ -23,6 +23,7 @@ export function ContentPerformanceGrid({ videos, commentsEnabled }: { videos: Sc
     label: v.label,
     hasComment: Boolean(v.claude_comment),
     script: v.script,
+    author: authorsByExternalId[v.video_id] ?? null,
   }));
 
   return (

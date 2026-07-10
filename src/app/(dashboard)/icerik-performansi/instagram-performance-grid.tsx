@@ -3,10 +3,11 @@
 import { PerfView, type PerfRow } from './perf-view';
 import { IG_GENRE_LABELS, IG_GENRES, type ScoredMedia, type IgGenre } from './ig-perf.constants';
 import { syncInstagramNow, commentOnMedia, setMediaGenre, setMediaScript } from './ig-perf-actions';
+import { extractInstagramShortcode } from '../icerik-plani/content-queue.constants';
 
 const GENRE_OPTIONS = IG_GENRES.map((g) => ({ value: g, label: IG_GENRE_LABELS[g] }));
 
-export function InstagramPerformanceGrid({ media, commentsEnabled }: { media: ScoredMedia[]; commentsEnabled: boolean }) {
+export function InstagramPerformanceGrid({ media, commentsEnabled, authorsByExternalId }: { media: ScoredMedia[]; commentsEnabled: boolean; authorsByExternalId: Record<string, string> }) {
   const rows: PerfRow[] = media.map((m) => ({
     key: m.id,
     actionId: m.media_id,
@@ -23,6 +24,7 @@ export function InstagramPerformanceGrid({ media, commentsEnabled }: { media: Sc
     label: m.label,
     hasComment: Boolean(m.claude_comment),
     script: m.script,
+    author: (() => { const c = m.permalink ? extractInstagramShortcode(m.permalink) : null; return c ? authorsByExternalId[c] ?? null : null; })(),
   }));
 
   return (

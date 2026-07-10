@@ -107,6 +107,42 @@ export interface AuthorIdeaStat {
 
 export const ideaService = {
   /**
+   * Map every published external id (YouTube video id / Instagram shortcode)
+   * that traces back to an idea → the idea author's name. Admin-only surface
+   * (İçerik Performansı), so exposing identity here is fine.
+   */
+  async getAuthorsByPublication(): Promise<Record<string, string>> {
+    const admin = createAdminClient();
+    const { data: ideaRows } = await admin
+      .from('ideas')
+      .select('content_queue_id, author_id')
+      .not('content_queue_id', 'is', null)
+      .not('author_id', 'is', null);
+
+    const cardToAuthor = new Map<string, string>();
+    for (const i of (ideaRows ?? []) as { content_queue_id: string; author_id: string }[]) {
+      cardToAuthor.set(i.content_queue_id, i.author_id);
+    }
+    if (cardToAuthor.size === 0) return {};
+
+    const { data: pubs } = await admin
+      .from('content_publications')
+      .select('external_id, content_queue_id')
+      .not('external_id', 'is', null);
+
+    const authorIds = [...new Set(cardToAuthor.values())];
+    const { data: users } = await admin.from('users').select('id, full_name').in('id', authorIds);
+    const nameById = new Map(((users ?? []) as { id: string; full_name: string }[]).map((u) => [u.id, u.full_name]));
+
+    const out: Record<string, string> = {};
+    for (const p of (pubs ?? []) as { external_id: string; content_queue_id: string }[]) {
+      const authorId = cardToAuthor.get(p.content_queue_id);
+      if (authorId) out[p.external_id] = nameById.get(authorId) ?? '—';
+    }
+    return out;
+  },
+
+  /**
    * Ideas this person contributed that were approved into content, together
    * with how that content actually performed. Shown on their profile.
    */

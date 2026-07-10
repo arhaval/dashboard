@@ -11,9 +11,10 @@ interface Props {
   videos: ScoredVideo[];
   media: ScoredMedia[];
   commentsEnabled: boolean;
+  authorsByExternalId: Record<string, string>;
 }
 
-export function PerformanceTabs({ videos, media, commentsEnabled }: Props) {
+export function PerformanceTabs({ videos, media, commentsEnabled, authorsByExternalId }: Props) {
   const [tab, setTab] = useState<'youtube' | 'instagram'>('youtube');
 
   const tabs = [
@@ -44,9 +45,9 @@ export function PerformanceTabs({ videos, media, commentsEnabled }: Props) {
       </div>
 
       {tab === 'youtube' ? (
-        <ContentPerformanceGrid videos={videos} commentsEnabled={commentsEnabled} />
+        <ContentPerformanceGrid videos={videos} commentsEnabled={commentsEnabled} authorsByExternalId={authorsByExternalId} />
       ) : (
-        <InstagramPerformanceGrid media={media} commentsEnabled={commentsEnabled} />
+        <InstagramPerformanceGrid media={media} commentsEnabled={commentsEnabled} authorsByExternalId={authorsByExternalId} />
       )}
     </div>
   );

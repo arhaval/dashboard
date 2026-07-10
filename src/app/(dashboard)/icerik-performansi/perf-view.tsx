@@ -32,6 +32,8 @@ export interface PerfRow {
   hasComment: boolean;
   /** Our own script for this content. Having one puts it in the library. */
   script: string | null;
+  /** Idea author when this content came from Fikir Havuzu (admin surface). */
+  author: string | null;
 }
 
 interface GenreOption { value: string; label: string }
@@ -437,6 +439,11 @@ function ListView(props: SharedRowProps & {
                 </td>
                 <td className="px-3.5 py-2">
                   <a href={r.url} target="_blank" rel="noopener noreferrer" className="block max-w-[360px] truncate text-[13px] font-semibold hover:underline" style={{ color: 'var(--color-text-primary)' }}>{r.title}</a>
+                  {r.author && (
+                    <span className="mt-0.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>
+                      💡 {r.author}
+                    </span>
+                  )}
                 </td>
                 <td className="px-3.5 py-2"><GenreSelect value={genreOf(r)} locked={lockedOf(r)} options={genreOptions} onChange={(v) => changeGenre(r, v)} /></td>
                 {showViews && <td className="px-3.5 py-2 text-right font-mono text-[12.5px]" style={{ color: 'var(--color-text-primary)' }}>{r.views != null ? fmtFull(r.views) : '—'}</td>}
@@ -482,6 +489,11 @@ function CardView(props: SharedRowProps) {
           </a>
           <div className="flex flex-1 flex-col gap-1.5 p-2.5">
             <a href={r.url} target="_blank" rel="noopener noreferrer" className="line-clamp-2 text-[12px] font-semibold leading-snug" style={{ color: 'var(--color-text-primary)' }}>{r.title}</a>
+            {r.author && (
+              <span className="inline-flex w-fit items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>
+                💡 {r.author}
+              </span>
+            )}
             <GenreSelect value={genreOf(r)} locked={lockedOf(r)} options={genreOptions} onChange={(v) => changeGenre(r, v)} />
             <div className="flex items-center gap-2.5 text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
               {r.views != null && <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {fmt(r.views)}</span>}

@@ -87,6 +87,10 @@ export async function publishContent(id: string, publications: PublicationInput[
   const saved = await contentQueueService.savePublications(id, publications);
   if (saved.error) return { error: saved.error };
 
+  // Auto-add to the content library: put the card's script on the published
+  // video/post so it shows in İçerik Performansı without a manual re-paste.
+  await contentQueueService.linkScriptToContent(publications, item.content_text);
+
   const result = await contentQueueService.updateAdmin(id, { status: 'YAYINLANDI' });
   if (result.error) return { error: result.error };
 
@@ -125,6 +129,9 @@ export async function updatePublications(id: string, publications: PublicationIn
 
   const saved = await contentQueueService.savePublications(id, publications);
   if (saved.error) return { error: saved.error };
+
+  // Keep the library link current if a platform link was fixed/added.
+  await contentQueueService.linkScriptToContent(publications, item.content_text);
 
   revalidatePath('/icerik-plani');
   revalidatePath('/fikir-havuzu');
