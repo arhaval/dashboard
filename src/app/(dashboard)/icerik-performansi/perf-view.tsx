@@ -7,7 +7,7 @@
  * single source of truth for the whole content-performance UI.
  */
 
-import { useMemo, useState, useTransition, type Dispatch, type SetStateAction, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, useTransition, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import {
   RefreshCw, List, LayoutGrid, Sparkles, ChevronUp, ChevronDown,
   Eye, ThumbsUp, MessageSquare,
@@ -74,6 +74,12 @@ export function PerfView(props: Props) {
   const { rows, genreOptions, thumbAspect, emptyText, syncLabel, onSetGenre, onComment, onSync, commentsEnabled } = props;
 
   const [view, setView] = useState<'list' | 'card'>('list');
+
+  // The list is a wide table — start phones on the card grid instead. Runs
+  // after mount so the server and first client render still agree.
+  useEffect(() => {
+    if (window.matchMedia('(max-width: 767px)').matches) setView('card');
+  }, []);
   const [genreFilter, setGenreFilter] = useState<'ALL' | string>('ALL');
   const [scoreFilter, setScoreFilter] = useState<'ALL' | PerfLabel>('ALL');
   const [sortKey, setSortKey] = useState<SortKey>('date');

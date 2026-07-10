@@ -36,7 +36,48 @@ function TransactionsTable({ transactions }: { transactions: Transaction[] }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)]" style={{ boxShadow: 'var(--shadow-card)' }}>
+    <>
+      {/* Mobile: one card per transaction */}
+      <div className="space-y-3 md:hidden">
+        {transactions.map((transaction) => (
+          <div
+            key={transaction.id}
+            className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-[var(--color-text-primary)]">
+                  {transaction.category}
+                </p>
+                {transaction.description && (
+                  <p className="mt-0.5 truncate text-xs text-[var(--color-text-secondary)]">
+                    {transaction.description}
+                  </p>
+                )}
+                <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                  {formatDate(transaction.transaction_date)}
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', getTransactionTypeBadgeClass(transaction.type))}>
+                  {getTransactionTypeLabel(transaction.type)}
+                </span>
+                <span className={cn('font-mono text-sm font-semibold', transaction.type === 'INCOME' ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]')}>
+                  {transaction.type === 'INCOME' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                </span>
+              </div>
+            </div>
+            {!transaction.payment_id && (
+              <div className="mt-2 flex justify-end border-t border-[var(--color-border)] pt-2">
+                <TransactionDeleteButton transactionId={transaction.id} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] md:block" style={{ boxShadow: 'var(--shadow-card)' }}>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[520px]">
           <thead>
@@ -99,7 +140,8 @@ function TransactionsTable({ transactions }: { transactions: Transaction[] }) {
           </tbody>
         </table>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

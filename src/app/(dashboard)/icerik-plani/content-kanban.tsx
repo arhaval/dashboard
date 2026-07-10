@@ -418,7 +418,7 @@ interface ColumnProps {
 
 function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, onAssign, isPending, canEdit, handoffStages, voicePeople }: ColumnProps) {
   return (
-    <div className="flex min-w-[220px] flex-1 flex-col">
+    <div className="flex w-full flex-col md:min-w-[220px] md:flex-1">
       {/* Column header */}
       <div
         className="mb-3 flex items-center justify-between rounded-[var(--radius-sm)] px-3 py-2"
@@ -525,8 +525,8 @@ export function ContentKanban({ items, canEdit = true, handoffStages = [], voice
         )}
       </div>
 
-      {/* Board */}
-      <div className="flex gap-3 overflow-x-auto pb-4">
+      {/* Board — stacked stages on phones, side-by-side columns from md up */}
+      <div className="flex flex-col gap-5 pb-4 md:flex-row md:gap-3 md:overflow-x-auto">
         {STAGES.map((stage) => (
           <KanbanColumn
             key={stage.id}

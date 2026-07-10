@@ -58,7 +58,39 @@ function CompletedPaymentsTable({ payments }: PaymentsTableProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
+    <>
+      {/* Mobile: one card per payment */}
+      <div className="space-y-3 md:hidden">
+        {payments.map((payment) => (
+          <div
+            key={payment.id}
+            className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-[var(--color-text-primary)]">
+                  {payment.user?.full_name || '—'}
+                </p>
+                <p className="mt-0.5 truncate text-xs text-[var(--color-text-secondary)]">
+                  {getWorkItemsSummary(payment)}
+                </p>
+                <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                  {formatDate(payment.payment_date)}
+                </p>
+              </div>
+              <span className="shrink-0 font-mono text-sm font-semibold text-[var(--color-text-primary)]">
+                {formatCurrency(payment.amount)}
+              </span>
+            </div>
+            <div className="mt-2 flex justify-end border-t border-[var(--color-border)] pt-2">
+              <PaymentDeleteButton paymentId={payment.id} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] md:block">
       <div className="overflow-x-auto">
       <table className="w-full min-w-[460px]">
         <thead>
@@ -111,7 +143,8 @@ function CompletedPaymentsTable({ payments }: PaymentsTableProps) {
         </tbody>
       </table>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
