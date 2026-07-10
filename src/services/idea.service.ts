@@ -46,24 +46,24 @@ async function resolveOutcomes(ideas: IdeaRow[]): Promise<Map<string, IdeaOutcom
 
   // YouTube: scored videos by id
   const ytIds = pubs.filter((p) => p.platform === 'YOUTUBE' && p.external_id).map((p) => p.external_id!);
-  const scoredByVideo = new Map<string, { view_count: number; score: number | null; label: PerfLabelLike }>();
+  const scoredByVideo = new Map<string, { view_count: number; comment_count: number; score: number | null; label: PerfLabelLike }>();
   if (ytIds.length > 0) {
     const scored = await videoPerformanceService.getAllScored();
     for (const v of scored) {
       if (ytIds.includes(v.video_id)) {
-        scoredByVideo.set(v.video_id, { view_count: Number(v.view_count), score: v.score, label: v.label });
+        scoredByVideo.set(v.video_id, { view_count: Number(v.view_count), comment_count: Number(v.comment_count), score: v.score, label: v.label });
       }
     }
   }
 
   // Instagram: match stored permalink against the shortcode we captured
   const igCodes = pubs.filter((p) => p.platform === 'INSTAGRAM' && p.external_id).map((p) => p.external_id!);
-  const igByCode = new Map<string, { views: number; likes: number }>();
+  const igByCode = new Map<string, { views: number; likes: number; comments: number }>();
   if (igCodes.length > 0) {
-    const { data } = await admin.from('instagram_media').select('permalink, view_count, like_count');
-    for (const m of (data ?? []) as { permalink: string | null; view_count: number | null; like_count: number }[]) {
+    const { data } = await admin.from('instagram_media').select('permalink, view_count, like_count, comment_count');
+    for (const m of (data ?? []) as { permalink: string | null; view_count: number | null; like_count: number; comment_count: number }[]) {
       const code = igCodes.find((c) => m.permalink?.includes(c));
-      if (code) igByCode.set(code, { views: Number(m.view_count ?? 0), likes: Number(m.like_count) });
+      if (code) igByCode.set(code, { views: Number(m.view_count ?? 0), likes: Number(m.like_count), comments: Number(m.comment_count) });
     }
   }
 
@@ -72,12 +72,12 @@ async function resolveOutcomes(ideas: IdeaRow[]): Promise<Map<string, IdeaOutcom
     const list = byCard.get(p.content_queue_id) ?? [];
     if (p.platform === 'YOUTUBE') {
       const v = p.external_id ? scoredByVideo.get(p.external_id) : undefined;
-      list.push({ platform: p.platform, url: p.url, views: v ? v.view_count : null, likes: null, score: v?.score ?? null, label: v?.label ?? null });
+      list.push({ platform: p.platform, url: p.url, views: v ? v.view_count : null, likes: null, comments: v ? v.comment_count : null, score: v?.score ?? null, label: v?.label ?? null });
     } else if (p.platform === 'INSTAGRAM') {
       const m = p.external_id ? igByCode.get(p.external_id) : undefined;
-      list.push({ platform: p.platform, url: p.url, views: m && m.views > 0 ? m.views : null, likes: m ? m.likes : null, score: null, label: null });
+      list.push({ platform: p.platform, url: p.url, views: m && m.views > 0 ? m.views : null, likes: m ? m.likes : null, comments: m ? m.comments : null, score: null, label: null });
     } else {
-      list.push({ platform: p.platform, url: p.url, views: p.views ?? null, likes: p.likes ?? null, score: null, label: null });
+      list.push({ platform: p.platform, url: p.url, views: p.views ?? null, likes: p.likes ?? null, comments: p.comments ?? null, score: null, label: null });
     }
     byCard.set(p.content_queue_id, list);
   }

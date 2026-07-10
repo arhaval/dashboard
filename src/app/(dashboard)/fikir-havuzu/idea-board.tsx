@@ -376,6 +376,7 @@ function IdeaDetail({ idea, isAdmin, commentsEnabled, onClose, onTransfer, onEdi
               const bits = [
                 pl.views != null ? `${fmtViews(pl.views)} izlenme` : null,
                 pl.likes != null ? `${fmtViews(pl.likes)} beğeni` : null,
+                pl.comments != null ? `${fmtViews(pl.comments)} yorum` : null,
               ].filter(Boolean).join(' · ');
               const body = (
                 <>

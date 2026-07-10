@@ -65,6 +65,7 @@ export function MemberIdeaStats({ stats }: { stats: AuthorIdeaStat[] }) {
                 const bits = [
                   pl.views != null ? `${fmt(pl.views)} izlenme` : null,
                   pl.likes != null ? `${fmt(pl.likes)} beğeni` : null,
+                  pl.comments != null ? `${fmt(pl.comments)} yorum` : null,
                 ].filter(Boolean).join(' · ');
                 const inner = (
                   <>

@@ -30,7 +30,7 @@ export default async function IcerikPlaniPage() {
   const publicationsByCard: Record<string, PublicationInput[]> = {};
   for (const r of pubRows) {
     (publicationsByCard[r.content_queue_id] ??= []).push({
-      platform: r.platform, url: r.url, external_id: r.external_id, views: r.views, likes: r.likes,
+      platform: r.platform, url: r.url, external_id: r.external_id, views: r.views, likes: r.likes, comments: r.comments,
     });
   }
 

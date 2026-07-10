@@ -102,6 +102,7 @@ export const contentQueueService = {
         external_id: r.external_id,
         views: r.views,
         likes: r.likes,
+        comments: r.comments,
       }))
     );
     return error ? { error: error.message } : {};
@@ -112,7 +113,7 @@ export const contentQueueService = {
     const admin = createAdminClient();
     const { data } = await admin
       .from('content_publications')
-      .select('content_queue_id, platform, url, external_id, views, likes')
+      .select('content_queue_id, platform, url, external_id, views, likes, comments')
       .in('content_queue_id', cardIds);
     return (data as (PublicationInput & { content_queue_id: string })[]) ?? [];
   },

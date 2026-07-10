@@ -13,6 +13,7 @@ export interface PlatformOutcome {
   url: string | null;
   views: number | null;           // Instagram has no per-post views
   likes: number | null;
+  comments: number | null;
   /** YouTube only: views / genre average, and the resulting label. */
   score: number | null;
   label: PerfLabel | null;

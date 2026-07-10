@@ -99,6 +99,7 @@ export interface PublicationInput {
   /** Only for platforms without an API integration (TikTok / X / Twitch). */
   views: number | null;
   likes: number | null;
+  comments: number | null;
 }
 
 /** Instagram permalinks are /p/{shortcode}/ or /reel/{shortcode}/. */

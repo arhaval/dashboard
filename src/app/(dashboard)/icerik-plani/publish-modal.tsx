@@ -15,9 +15,9 @@ import {
 } from './content-queue.constants';
 import { publishContent, updatePublications } from './queue-actions';
 
-interface Row { checked: boolean; url: string; views: string; likes: string }
+interface Row { checked: boolean; url: string; views: string; likes: string; comments: string }
 
-const emptyRow: Row = { checked: false, url: '', views: '', likes: '' };
+const emptyRow: Row = { checked: false, url: '', views: '', likes: '', comments: '' };
 
 export function PublishModal({ item, existing, onClose }: {
   item: ContentQueueItem;
@@ -40,6 +40,7 @@ export function PublishModal({ item, existing, onClose }: {
             url: prev.url ?? '',
             views: prev.views != null ? String(prev.views) : '',
             likes: prev.likes != null ? String(prev.likes) : '',
+            comments: prev.comments != null ? String(prev.comments) : '',
           }
         // Pre-tick the platforms the card was planned for.
         : { ...emptyRow, checked: !editing && item.platforms.includes(p.value) };
@@ -76,6 +77,7 @@ export function PublishModal({ item, existing, onClose }: {
         external_id: externalId,
         views: p.auto ? null : (r.views.trim() ? Number(r.views) : null),
         likes: p.auto ? null : (r.likes.trim() ? Number(r.likes) : null),
+        comments: p.auto ? null : (r.comments.trim() ? Number(r.comments) : null),
       });
     }
 
@@ -132,11 +134,13 @@ export function PublishModal({ item, existing, onClose }: {
                       style={fieldStyle}
                     />
                     {!p.auto && (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-3 gap-2">
                         <input value={r.views} onChange={(e) => patch(p.value, { views: e.target.value })}
                           placeholder="İzlenme" type="number" min="0" className={numCls} style={fieldStyle} />
                         <input value={r.likes} onChange={(e) => patch(p.value, { likes: e.target.value })}
                           placeholder="Beğeni" type="number" min="0" className={numCls} style={fieldStyle} />
+                        <input value={r.comments} onChange={(e) => patch(p.value, { comments: e.target.value })}
+                          placeholder="Yorum" type="number" min="0" className={numCls} style={fieldStyle} />
                       </div>
                     )}
                   </div>
