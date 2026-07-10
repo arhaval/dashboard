@@ -5,10 +5,14 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { classifyVideoGenre, VIDEO_GENRE_LABELS, type VideoGenre } from '@/app/(dashboard)/icerik-performansi/perf.constants';
+import { classifyVideoGenre, VIDEO_GENRE_LABELS, type VideoGenre, type PerfLabel } from '@/app/(dashboard)/icerik-performansi/perf.constants';
+
+type PerfLabelLike = PerfLabel;
 import { videoPerformanceService } from '@/services/video-performance.service';
+import { contentQueueService } from '@/services/content-queue.service';
 import type {
-  IdeaDTO, IdeaCategory, VoteType, VoteCounts, VoterDetail, SuggestPlatform, IdeaOutcome,
+  IdeaDTO, IdeaCategory, VoteType, VoteCounts, VoterDetail, SuggestPlatform,
+  IdeaOutcome, PlatformOutcome,
 } from '@/app/(dashboard)/fikir-havuzu/idea.constants';
 
 export type { IdeaDTO, IdeaCategory, VoteType };
@@ -26,35 +30,68 @@ interface VoteRow { idea_id: string; voter_id: string; vote: VoteType }
 function emptyCounts(): VoteCounts { return { up: 0, down: 0, unsure: 0 }; }
 
 /**
- * For ideas that became content and were published with a linked YouTube video,
- * fetch that video's real performance (views + genre score).
+ * For ideas whose content was published, resolve real performance per platform.
+ * YouTube comes from video_performance, Instagram from instagram_media (matched
+ * by permalink shortcode); TikTok / X / Twitch carry hand-entered numbers.
  */
 async function resolveOutcomes(ideas: IdeaRow[]): Promise<Map<string, IdeaOutcome>> {
   const out = new Map<string, IdeaOutcome>();
   const cardIds = ideas.map((i) => i.content_queue_id).filter((v): v is string => Boolean(v));
   if (cardIds.length === 0) return out;
 
+  const pubs = await contentQueueService.getPublicationsForCards(cardIds);
+  if (pubs.length === 0) return out;
+
   const admin = createAdminClient();
-  const { data: cards } = await admin
-    .from('content_queue')
-    .select('id, published_video_id')
-    .in('id', cardIds);
 
-  const videoByCard = new Map<string, string>();
-  for (const c of (cards ?? []) as { id: string; published_video_id: string | null }[]) {
-    if (c.published_video_id) videoByCard.set(c.id, c.published_video_id);
+  // YouTube: scored videos by id
+  const ytIds = pubs.filter((p) => p.platform === 'YOUTUBE' && p.external_id).map((p) => p.external_id!);
+  const scoredByVideo = new Map<string, { view_count: number; score: number | null; label: PerfLabelLike }>();
+  if (ytIds.length > 0) {
+    const scored = await videoPerformanceService.getAllScored();
+    for (const v of scored) {
+      if (ytIds.includes(v.video_id)) {
+        scoredByVideo.set(v.video_id, { view_count: Number(v.view_count), score: v.score, label: v.label });
+      }
+    }
   }
-  if (videoByCard.size === 0) return out;
 
-  const scored = await videoPerformanceService.getAllScored();
-  const byVideo = new Map(scored.map((v) => [v.video_id, v]));
+  // Instagram: match stored permalink against the shortcode we captured
+  const igCodes = pubs.filter((p) => p.platform === 'INSTAGRAM' && p.external_id).map((p) => p.external_id!);
+  const igByCode = new Map<string, { likes: number }>();
+  if (igCodes.length > 0) {
+    const { data } = await admin.from('instagram_media').select('permalink, like_count');
+    for (const m of (data ?? []) as { permalink: string | null; like_count: number }[]) {
+      const code = igCodes.find((c) => m.permalink?.includes(c));
+      if (code) igByCode.set(code, { likes: Number(m.like_count) });
+    }
+  }
+
+  const byCard = new Map<string, PlatformOutcome[]>();
+  for (const p of pubs) {
+    const list = byCard.get(p.content_queue_id) ?? [];
+    if (p.platform === 'YOUTUBE') {
+      const v = p.external_id ? scoredByVideo.get(p.external_id) : undefined;
+      list.push({ platform: p.platform, url: p.url, views: v ? v.view_count : null, likes: null, score: v?.score ?? null, label: v?.label ?? null });
+    } else if (p.platform === 'INSTAGRAM') {
+      const m = p.external_id ? igByCode.get(p.external_id) : undefined;
+      list.push({ platform: p.platform, url: p.url, views: null, likes: m ? m.likes : null, score: null, label: null });
+    } else {
+      list.push({ platform: p.platform, url: p.url, views: p.views ?? null, likes: p.likes ?? null, score: null, label: null });
+    }
+    byCard.set(p.content_queue_id, list);
+  }
 
   for (const i of ideas) {
-    const videoId = i.content_queue_id ? videoByCard.get(i.content_queue_id) : undefined;
-    const v = videoId ? byVideo.get(videoId) : undefined;
-    if (v) {
-      out.set(i.id, { video_id: v.video_id, views: Number(v.view_count), score: v.score, label: v.label });
-    }
+    const platforms = i.content_queue_id ? byCard.get(i.content_queue_id) : undefined;
+    if (!platforms || platforms.length === 0) continue;
+    const yt = platforms.find((p) => p.platform === 'YOUTUBE');
+    out.set(i.id, {
+      total_views: platforms.reduce((sum, p) => sum + (p.views ?? 0), 0),
+      platforms,
+      label: yt?.label ?? null,
+      score: yt?.score ?? null,
+    });
   }
   return out;
 }

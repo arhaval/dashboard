@@ -10,6 +10,7 @@ import {
   type ContentStage,
   type CreateContentQueueInput,
   type UpdateContentQueueInput,
+  type PublicationInput,
 } from '@/app/(dashboard)/icerik-plani/content-queue.constants';
 
 export type { ContentPlatform, ContentStatus, ContentQueueItem, CreateContentQueueInput, UpdateContentQueueInput };
@@ -86,6 +87,34 @@ export const contentQueueService = {
       .map((i) => ({ ...i, stage: deriveStage(i) }))
       .filter((i) => i.assigned_to === userId || (stages.includes(i.stage) && i.stage !== 'SES'))
       .map((i) => ({ ...i, stage_label: STAGE_LABELS_MAP[i.stage] }));
+  },
+
+  /** Replace a card's publication rows (one per platform it went out on). */
+  async savePublications(cardId: string, rows: PublicationInput[]): Promise<{ error?: string }> {
+    const admin = createAdminClient();
+    await admin.from('content_publications').delete().eq('content_queue_id', cardId);
+    if (rows.length === 0) return {};
+    const { error } = await admin.from('content_publications').insert(
+      rows.map((r) => ({
+        content_queue_id: cardId,
+        platform: r.platform,
+        url: r.url,
+        external_id: r.external_id,
+        views: r.views,
+        likes: r.likes,
+      }))
+    );
+    return error ? { error: error.message } : {};
+  },
+
+  async getPublicationsForCards(cardIds: string[]): Promise<(PublicationInput & { content_queue_id: string })[]> {
+    if (cardIds.length === 0) return [];
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from('content_publications')
+      .select('content_queue_id, platform, url, external_id, views, likes')
+      .in('content_queue_id', cardIds);
+    return (data as (PublicationInput & { content_queue_id: string })[]) ?? [];
   },
 
   async getByIdAdmin(id: string): Promise<ContentQueueItem | null> {

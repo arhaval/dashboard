@@ -13,6 +13,7 @@ import {
 } from './content-queue.constants';
 import { advanceContentStage, deleteContentItem, assignContentPerson } from './queue-actions';
 import { ContentForm } from './content-form';
+import { PublishModal } from './publish-modal';
 
 // ── Pipeline stage derivation ──────────────────────────────────────────────────
 
@@ -129,7 +130,7 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, onAss
   const [expanded, setExpanded] = useState(false);
   const [voiceLink, setVoiceLink] = useState(item.voice_url || '');
   const [videoLink, setVideoLink] = useState(item.video_url || '');
-  const [publishLink, setPublishLink] = useState('');
+  const [publishOpen, setPublishOpen] = useState(false);
   const [assignee, setAssignee] = useState('');
   const hasDetails = Boolean(item.content_text || item.voice_url || item.video_url);
   const assigneeName = voicePeople.find((p) => p.id === item.assigned_to)?.name;
@@ -145,7 +146,6 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, onAss
     if (stage.id === 'METIN')  return onAdvance(undefined, assignee);
     if (stage.id === 'SES')    return onAdvance(voiceLink.trim());
     if (stage.id === 'EDITOR') return onAdvance(videoLink.trim());
-    if (stage.id === 'HAZIR')  return onAdvance(publishLink.trim());
     onAdvance();
   }
 
@@ -318,23 +318,6 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, onAss
           ) : null
         )}
 
-        {/* Publishing: link the real video so performance can be tracked */}
-        {canAdvanceThis && stage.id === 'HAZIR' && (
-          <div className="mb-2.5">
-            <input
-              value={publishLink}
-              onChange={(e) => setPublishLink(e.target.value)}
-              placeholder="▶️ YouTube linki (opsiyonel)"
-              type="url"
-              className="w-full rounded-[var(--radius-sm)] px-2 py-1.5 text-[11px] outline-none"
-              style={{ backgroundColor: 'var(--color-surface-sunken)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
-            />
-            <p className="mt-1 text-[9px]" style={{ color: 'var(--color-text-muted)' }}>
-              Eklersen bu içeriğin izlenme ve skoru fikrine bağlanır.
-            </p>
-          </div>
-        )}
-
         {/* Stage handoff input */}
         {canAdvanceThis && stage.id === 'SES' && (
           <div className="mb-2.5">
@@ -385,7 +368,7 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, onAss
           <div className="flex items-center gap-1.5 border-t pt-2.5" style={{ borderColor: 'var(--color-border)' }}>
             {base && canAdvanceThis && (
               <button
-                onClick={handleAdvanceClick}
+                onClick={() => (stage.id === 'HAZIR' ? setPublishOpen(true) : handleAdvanceClick())}
                 disabled={advanceDisabled}
                 className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius-sm)] py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
                 style={{ backgroundColor: stage.color, color: '#fff' }}
@@ -416,6 +399,8 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, onAss
           </div>
         )}
       </div>
+
+      {publishOpen && <PublishModal item={item} onClose={() => setPublishOpen(false)} />}
     </div>
   );
 }

@@ -7,13 +7,24 @@ export type IdeaStatus = 'OPEN' | 'APPROVED' | 'REJECTED';
 export type VoteType = 'UP' | 'DOWN' | 'UNSURE';
 export type SuggestPlatform = 'YOUTUBE' | 'INSTAGRAM' | 'TIKTOK' | 'X';
 
+/** One platform the idea's content was published on. */
+export interface PlatformOutcome {
+  platform: string;               // YOUTUBE | INSTAGRAM | TIKTOK | X | TWITCH
+  url: string | null;
+  views: number | null;           // Instagram has no per-post views
+  likes: number | null;
+  /** YouTube only: views / genre average, and the resulting label. */
+  score: number | null;
+  label: PerfLabel | null;
+}
+
 /** Real published performance of the content this idea became. */
 export interface IdeaOutcome {
-  video_id: string;
-  views: number;
-  /** views / genre average; null while the genre is still collecting data. */
+  total_views: number;
+  platforms: PlatformOutcome[];
+  /** YouTube label/score when the content went to YouTube. */
+  label: PerfLabel | null;
   score: number | null;
-  label: PerfLabel;
 }
 
 export interface VoteCounts {

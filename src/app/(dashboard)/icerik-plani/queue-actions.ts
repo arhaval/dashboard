@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { contentQueueService } from '@/services/content-queue.service';
 import { userService, workItemService } from '@/services';
 import { notificationService } from '@/services/notification.service';
-import { deriveStage, ROLE_STAGES, CONTENT_EDITOR_ROLES, extractYouTubeId } from './content-queue.constants';
+import { deriveStage, ROLE_STAGES, CONTENT_EDITOR_ROLES } from './content-queue.constants';
+import type { PublicationInput } from './content-queue.constants';
 import type {
   ContentPlatform,
   ContentStatus,
@@ -70,6 +71,47 @@ export async function assignContentPerson(id: string, assigneeId: string | null)
 }
 
 /**
+ * Publishing a card: record which platforms it went out on (YouTube/Instagram
+ * resolve their metrics live; TikTok/X/Twitch carry hand-typed numbers), flip
+ * it to YAYINLANDI, and open the voice/edit work items for billing.
+ */
+export async function publishContent(id: string, publications: PublicationInput[]) {
+  const user = await userService.getCurrentUser();
+  if (!user) return { error: 'Oturum gerekli' };
+  if (!(CONTENT_EDITOR_ROLES as readonly string[]).includes(user.role)) return { error: 'Yetki yok' };
+
+  const item = await contentQueueService.getByIdAdmin(id);
+  if (!item) return { error: 'İçerik bulunamadı' };
+  if (deriveStage(item) !== 'HAZIR') return { error: 'Yalnızca "Hazır" içerik yayınlanabilir' };
+
+  const saved = await contentQueueService.savePublications(id, publications);
+  if (saved.error) return { error: saved.error };
+
+  const result = await contentQueueService.updateAdmin(id, { status: 'YAYINLANDI' });
+  if (result.error) return { error: result.error };
+
+  // Voice + edit jobs land in İş Takibi as DRAFT (admin prices or deletes them).
+  const today = new Date().toISOString().slice(0, 10);
+  if (item.voiced_by) {
+    await workItemService.createDraft({
+      user_id: item.voiced_by, work_type: 'VOICE', content_name: item.title, work_date: today,
+      notes: `İçerik Planı — seslendirme: ${item.title}`,
+    });
+  }
+  if (item.edited_by) {
+    await workItemService.createDraft({
+      user_id: item.edited_by, work_type: 'EDIT', content_name: item.title, work_date: today,
+      notes: `İçerik Planı — kurgu: ${item.title}`,
+    });
+  }
+
+  revalidatePath('/icerik-plani');
+  revalidatePath('/work-items');
+  revalidatePath('/fikir-havuzu');
+  return { success: true };
+}
+
+/**
  * Advance an item to the next pipeline stage (hand off). Rules:
  * - Metin → Ses: Admin/Yayıncı/Youtuber completes the text AND picks who voices it
  *   (assigneeId, a Seslendirmen or Yayıncı). Card is assigned to that person;
@@ -108,34 +150,13 @@ export async function advanceContentStage(id: string, link?: string | null, assi
     // Whoever handed off the edit is the editor.
     patch = { has_video: true, status: 'HAZIR', video_url: url ?? item.video_url, edited_by: user.id };
   } else if (stage === 'HAZIR') {
-    // Publishing: optionally capture the real YouTube video so the idea →
-    // card → performance chain closes. Instagram-only content leaves it null.
-    patch = { status: 'YAYINLANDI', published_video_id: url ? extractYouTubeId(url) : null };
+    return { error: 'Yayınlamak için "Yayınla" butonunu kullan' };
   } else {
     return { error: 'İlerletilecek aşama yok' };
   }
 
   const result = await contentQueueService.updateAdmin(id, patch);
   if (result.error) return { error: result.error };
-
-  // Publishing → auto-create DRAFT work items for the voice person and editor,
-  // so they flow into İş Takibi (admin sets a price or deletes what won't be paid).
-  if (stage === 'HAZIR') {
-    const today = new Date().toISOString().slice(0, 10);
-    if (item.voiced_by) {
-      await workItemService.createDraft({
-        user_id: item.voiced_by, work_type: 'VOICE', content_name: item.title, work_date: today,
-        notes: `İçerik Planı — seslendirme: ${item.title}`,
-      });
-    }
-    if (item.edited_by) {
-      await workItemService.createDraft({
-        user_id: item.edited_by, work_type: 'EDIT', content_name: item.title, work_date: today,
-        notes: `İçerik Planı — kurgu: ${item.title}`,
-      });
-    }
-    revalidatePath('/work-items');
-  }
 
   // Notify whoever is now responsible for the new stage — say what to do next.
   const notifyBase = { url: '/icerik-plani', tag: `content-${id}`, excludeUserId: user.id };
