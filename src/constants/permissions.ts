@@ -20,8 +20,6 @@ export type PageKey =
   | 'content-plan'
   | 'idea-pool'
   | 'content-performance'
-  | 'matches'
-  | 'operations'
   | 'obs'
   | 'reports';
 
@@ -45,8 +43,6 @@ export const PAGE_DEFS: PageDef[] = [
   { key: 'content-plan',        label: 'İçerik Planı',       route: '/icerik-plani',      group: 'Analitik' },
   { key: 'idea-pool',           label: 'Fikir Havuzu',       route: '/fikir-havuzu',      group: 'Analitik' },
   { key: 'content-performance', label: 'İçerik Performansı', route: '/icerik-performansi',group: 'Analitik' },
-  { key: 'matches',             label: 'Maçlar / Turnuva',   route: '/matches',           group: 'Analitik' },
-  { key: 'operations',          label: 'Operasyonlar',       route: '/matches/operations',group: 'Analitik' },
   { key: 'obs',                 label: 'OBS Overlay',        route: '/obs',               group: 'Yayın' },
   { key: 'reports',             label: 'Raporlar',           route: '/reports',           group: 'Diğer' },
 ];
@@ -71,9 +67,9 @@ export const DEFAULT_PAGES: Record<UserRole, PageKey[]> = {
   ADMIN: ALL_PAGE_KEYS,
   PUBLISHER: ['dashboard', 'work-items', 'payments', 'schedule', 'content-plan', 'idea-pool'],
   YOUTUBER:  ['dashboard', 'work-items', 'payments', 'schedule', 'content-plan', 'idea-pool', 'social'],
-  EDITOR:    ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool', 'matches'],
-  VOICE:     ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool', 'matches'],
-  GRAFIKER:  ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool', 'matches'],
+  EDITOR:    ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool'],
+  VOICE:     ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool'],
+  GRAFIKER:  ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool'],
   TEAM_MEMBER: ['dashboard', 'work-items', 'payments', 'content-plan', 'idea-pool'],
 };
 

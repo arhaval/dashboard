@@ -377,4 +377,47 @@ export const instagramService = {
 
     return { synced: rows.length };
   },
+
+  /**
+   * Lightweight daily refresh: instead of re-pulling every post, only refresh
+   * the view counts of Instagram posts LINKED to a published content card
+   * (content_publications). Keeps idea outcomes current without the rate-limit
+   * cost of scanning 60 posts a day.
+   */
+  async syncLinkedMedia(): Promise<{ refreshed: number; error?: string }> {
+    const auth = await this.getValidToken();
+    if (!auth) return { refreshed: 0, error: 'Instagram bağlı değil' };
+    const admin = createAdminClient();
+
+    const { data: pubs } = await admin
+      .from('content_publications')
+      .select('external_id')
+      .eq('platform', 'INSTAGRAM')
+      .not('external_id', 'is', null);
+    const codes = [...new Set(((pubs ?? []) as { external_id: string }[]).map((p) => p.external_id))];
+    if (codes.length === 0) return { refreshed: 0 };
+
+    // Map the linked shortcodes to media ids via the stored permalink.
+    const { data: media } = await admin.from('instagram_media').select('media_id, permalink');
+    const targets = ((media ?? []) as { media_id: string; permalink: string | null }[])
+      .filter((m) => codes.some((c) => m.permalink?.includes(c)))
+      .map((m) => m.media_id);
+
+    let refreshed = 0;
+    for (const mediaId of targets) {
+      try {
+        const res = await fetch(`${GRAPH}/${mediaId}/insights?metric=views&access_token=${auth.token}`);
+        const j = await res.json();
+        const entry = j?.data?.[0];
+        const value = entry?.values?.[0]?.value ?? entry?.total_value?.value;
+        if (typeof value === 'number') {
+          await admin.from('instagram_media').update({ view_count: value }).eq('media_id', mediaId);
+          refreshed += 1;
+        }
+      } catch {
+        /* skip this one */
+      }
+    }
+    return { refreshed };
+  },
 };

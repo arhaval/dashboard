@@ -12,8 +12,6 @@ import {
   PiggyBank,
   BarChart3,
   FileOutput,
-  Crosshair,
-  Radio,
   CalendarDays,
   ClipboardList,
   Tv2,
@@ -68,8 +66,6 @@ const navSections: NavSection[] = [
       { label: 'İçerik Planı',    href: '/icerik-plani',     icon: Users,        perm: 'content-plan' },
       { label: 'Fikir Havuzu',    href: '/fikir-havuzu',     icon: Lightbulb,    perm: 'idea-pool' },
       { label: 'İçerik Performansı', href: '/icerik-performansi', icon: PlayCircle, perm: 'content-performance' },
-      { label: tr.cs2.nav, href: '/matches', icon: Crosshair, perm: 'matches' },
-      { label: tr.cs2.dathost.operations, href: '/matches/operations', icon: Radio, perm: 'operations' },
     ],
   },
   {

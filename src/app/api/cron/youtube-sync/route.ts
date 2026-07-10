@@ -28,10 +28,10 @@ export async function GET(request: Request) {
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const analytics = await youtubeAnalyticsService.fillMonth(month).catch(() => ({ ok: false }));
 
-  // Instagram: refresh token (via getValidToken inside fillMonth) + current month
+  // Instagram: refresh token + current-month account metrics (followers + views).
   const instagram = await instagramService.fillMonth(month).catch(() => ({ ok: false }));
-  // Instagram posts/reels for the content-performance page
-  const instagramMedia = await instagramService.syncMedia().catch(() => ({ synced: 0 }));
+  // Only refresh posts linked to published content (not a daily 60-post scan).
+  const instagramMedia = await instagramService.syncLinkedMedia().catch(() => ({ refreshed: 0 }));
 
   const status = result.error ? 500 : 200;
   return Response.json(
