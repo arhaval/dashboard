@@ -103,7 +103,7 @@ export function RealizedTransactionsTable({ transactions }: RealizedTransactions
 
   return (
     <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
-      <table className="w-full">
+      <div className="overflow-x-auto"><table className="w-full">
         <thead>
           <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
             <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">
@@ -192,7 +192,7 @@ export function RealizedTransactionsTable({ transactions }: RealizedTransactions
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

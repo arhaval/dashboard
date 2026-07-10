@@ -165,6 +165,17 @@ input, select, textarea {
   font-size: 16px;
 }
 
+/* Tailwind's text-sm/text-xs utilities outrank the element rule above, so on
+   phones force >=16px — otherwise iOS zooms the page on every field focus
+   (price entry, script writing). Desktop keeps the smaller type. */
+@media (max-width: 639px) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 @media (min-width: 640px) {
   input, select, textarea {
     font-size: 0.875rem; /* 14px on desktop */

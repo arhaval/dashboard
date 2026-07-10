@@ -91,7 +91,7 @@ export function AddEntryModal({ open, onClose }: { open: boolean; onClose: () =>
 
       {/* Panel */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-md pointer-events-auto rounded-[var(--radius-lg)] shadow-2xl overflow-hidden"
+        <div className="w-full max-w-md pointer-events-auto my-8 max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] shadow-2xl"
           style={{ background: 'var(--color-bg-secondary)' }}>
 
           {/* Header */}

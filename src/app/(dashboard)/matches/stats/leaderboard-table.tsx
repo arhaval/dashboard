@@ -173,7 +173,7 @@ export function LeaderboardTable({ data }: { data: CS2PlayerLeaderboardEntry[] }
 
   return (
     <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
-      <table className="w-full">
+      <div className="overflow-x-auto"><table className="w-full">
         <thead>
           <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
             <th className="px-3 py-2 text-center text-xs font-medium text-[var(--color-text-muted)]">
@@ -271,7 +271,7 @@ export function LeaderboardTable({ data }: { data: CS2PlayerLeaderboardEntry[] }
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

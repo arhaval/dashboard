@@ -93,7 +93,7 @@ export function SelectablePaymentsTable({ payments }: SelectablePaymentsTablePro
   return (
     <>
       <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
-        <table className="w-full">
+        <div className="overflow-x-auto"><table className="w-full">
           <thead>
             <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
               <th className="w-10 px-4 py-3">
@@ -186,7 +186,7 @@ export function SelectablePaymentsTable({ payments }: SelectablePaymentsTablePro
               );
             })}
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       {/* Bulk Action Bar */}

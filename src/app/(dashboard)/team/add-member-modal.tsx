@@ -78,7 +78,7 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-md rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-6">
+      <div className="relative my-8 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-6">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">

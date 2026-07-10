@@ -80,7 +80,7 @@ function DeleteMemberModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-[#0B1437]/50 backdrop-blur-sm" onClick={() => !isPending && onClose()} />
       <div
-        className="relative z-10 w-full max-w-md rounded-[var(--radius-lg)] p-6"
+        className="relative z-10 my-8 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[var(--radius-lg)] p-6"
         style={{
           backgroundColor: 'var(--color-bg-secondary)',
           border: '1px solid var(--color-border)',

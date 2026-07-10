@@ -68,7 +68,7 @@ function StatsTable({
   return (
     <div>
       <div className="text-xs text-[var(--color-text-muted)] mb-1">{label}</div>
-      <table className="w-full text-xs font-mono">
+      <div className="overflow-x-auto"><table className="w-full text-xs font-mono">
         <thead>
           <tr className="text-[var(--color-text-muted)]">
             <th className="text-left py-1">Oyuncu</th>
@@ -95,7 +95,7 @@ function StatsTable({
             );
           })}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

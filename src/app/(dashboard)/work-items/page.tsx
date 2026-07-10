@@ -70,8 +70,74 @@ function WorkItemsTable({ items, currentUserId, isAdmin, paymentStatuses }: Work
     );
   }
 
+  const adminActions = (item: (typeof items)[number]) => (
+    <>
+      {item.status === 'APPROVED' && item.user_id !== currentUserId && item.cost && (
+        paymentStatuses[item.id] === 'PENDING' ? (
+          <span className="inline-block rounded-full bg-[var(--color-warning-muted)] px-2 py-0.5 text-xs font-medium text-[var(--color-warning)]">Bekliyor</span>
+        ) : paymentStatuses[item.id] === 'PAID' ? (
+          <span className="inline-block rounded-full bg-[var(--color-success-muted)] px-2 py-0.5 text-xs font-medium text-[var(--color-success)]">Ödendi</span>
+        ) : (
+          <CreatePaymentButton workItemId={item.id} userId={item.user_id} />
+        )
+      )}
+      {item.status !== 'PAID' && !paymentStatuses[item.id] && (
+        <WorkItemDeleteButton workItemId={item.id} />
+      )}
+    </>
+  );
+
   return (
-    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
+    <>
+      {/* Mobile: one card per item — status + cost reachable without scrolling */}
+      <div className="space-y-3 md:hidden">
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3"
+          >
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-[var(--color-text-primary)]">
+                  {getWorkItemTitle(item)}
+                </p>
+                <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                  {formatDate(item.work_date)}
+                  {item.user?.full_name ? ` · ${item.user.full_name}` : ''}
+                </p>
+              </div>
+              <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-xs font-medium', getTypeBadgeStyles(item.work_type))}>
+                {getWorkTypeLabel(item.work_type)}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 border-t border-[var(--color-border)] pt-2">
+              <StatusControl
+                workItemId={item.id}
+                currentStatus={item.status}
+                isAdmin={isAdmin}
+                isOwnItem={item.user_id === currentUserId}
+              />
+              <div className="ml-auto">
+                <CostEditor
+                  workItemId={item.id}
+                  currentCost={item.cost}
+                  canEdit={isAdmin && item.user_id !== currentUserId && item.status === 'DRAFT'}
+                />
+              </div>
+            </div>
+
+            {isAdmin && (
+              <div className="mt-2 flex flex-wrap items-center justify-end gap-2 border-t border-[var(--color-border)] pt-2">
+                {adminActions(item)}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] md:block">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[600px]">
           <thead>
@@ -157,22 +223,7 @@ function WorkItemsTable({ items, currentUserId, isAdmin, paymentStatuses }: Work
                 {isAdmin && (
                   <td className="px-3 py-3 text-right sm:px-4">
                     <div className="flex items-center justify-end gap-2">
-                      {item.status === 'APPROVED' && item.user_id !== currentUserId && item.cost && (
-                        paymentStatuses[item.id] === 'PENDING' ? (
-                          <span className={cn('inline-block rounded-full px-2 py-0.5 text-xs font-medium bg-[var(--color-warning-muted)] text-[var(--color-warning)]')}>
-                            Bekliyor
-                          </span>
-                        ) : paymentStatuses[item.id] === 'PAID' ? (
-                          <span className={cn('inline-block rounded-full px-2 py-0.5 text-xs font-medium bg-[var(--color-success-muted)] text-[var(--color-success)]')}>
-                            Ödendi
-                          </span>
-                        ) : (
-                          <CreatePaymentButton workItemId={item.id} userId={item.user_id} />
-                        )
-                      )}
-                      {item.status !== 'PAID' && !paymentStatuses[item.id] && (
-                        <WorkItemDeleteButton workItemId={item.id} />
-                      )}
+                      {adminActions(item)}
                     </div>
                   </td>
                 )}
@@ -181,7 +232,8 @@ function WorkItemsTable({ items, currentUserId, isAdmin, paymentStatuses }: Work
           </tbody>
         </table>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
