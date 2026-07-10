@@ -6,8 +6,9 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { classifyVideoGenre, VIDEO_GENRE_LABELS, type VideoGenre } from '@/app/(dashboard)/icerik-performansi/perf.constants';
+import { videoPerformanceService } from '@/services/video-performance.service';
 import type {
-  IdeaDTO, IdeaCategory, VoteType, VoteCounts, VoterDetail, SuggestPlatform,
+  IdeaDTO, IdeaCategory, VoteType, VoteCounts, VoterDetail, SuggestPlatform, IdeaOutcome,
 } from '@/app/(dashboard)/fikir-havuzu/idea.constants';
 
 export type { IdeaDTO, IdeaCategory, VoteType };
@@ -23,6 +24,40 @@ interface IdeaRow {
 interface VoteRow { idea_id: string; voter_id: string; vote: VoteType }
 
 function emptyCounts(): VoteCounts { return { up: 0, down: 0, unsure: 0 }; }
+
+/**
+ * For ideas that became content and were published with a linked YouTube video,
+ * fetch that video's real performance (views + genre score).
+ */
+async function resolveOutcomes(ideas: IdeaRow[]): Promise<Map<string, IdeaOutcome>> {
+  const out = new Map<string, IdeaOutcome>();
+  const cardIds = ideas.map((i) => i.content_queue_id).filter((v): v is string => Boolean(v));
+  if (cardIds.length === 0) return out;
+
+  const admin = createAdminClient();
+  const { data: cards } = await admin
+    .from('content_queue')
+    .select('id, published_video_id')
+    .in('id', cardIds);
+
+  const videoByCard = new Map<string, string>();
+  for (const c of (cards ?? []) as { id: string; published_video_id: string | null }[]) {
+    if (c.published_video_id) videoByCard.set(c.id, c.published_video_id);
+  }
+  if (videoByCard.size === 0) return out;
+
+  const scored = await videoPerformanceService.getAllScored();
+  const byVideo = new Map(scored.map((v) => [v.video_id, v]));
+
+  for (const i of ideas) {
+    const videoId = i.content_queue_id ? videoByCard.get(i.content_queue_id) : undefined;
+    const v = videoId ? byVideo.get(videoId) : undefined;
+    if (v) {
+      out.set(i.id, { video_id: v.video_id, views: Number(v.view_count), score: v.score, label: v.label });
+    }
+  }
+  return out;
+}
 
 export const ideaService = {
   async getAllForUser(user: Caller): Promise<IdeaDTO[]> {
@@ -55,6 +90,9 @@ export const ideaService = {
       }
     }
 
+    // Close the loop: idea → content card → published video → performance.
+    const outcomeByIdea = await resolveOutcomes(ideas);
+
     const dto = ideas.map((i): IdeaDTO => ({
       id: i.id,
       title: i.title,
@@ -71,6 +109,7 @@ export const ideaService = {
       counts: countsByIdea.get(i.id) ?? emptyCounts(),
       my_vote: myVoteByIdea.get(i.id) ?? null,
       is_mine: i.author_id === user.id,
+      outcome: outcomeByIdea.get(i.id) ?? null,
       author_name: isAdmin ? (i.author_id ? nameById.get(i.author_id) ?? '—' : '—') : null,
       voters: isAdmin ? (votersByIdea.get(i.id) ?? []) : null,
     }));

@@ -22,6 +22,8 @@ export interface ContentQueueItem {
   assigned_to: string | null;
   voiced_by: string | null;
   edited_by: string | null;
+  /** YouTube video id captured when the card was published. */
+  published_video_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +61,7 @@ export interface UpdateContentQueueInput {
   assigned_to?: string | null;
   voiced_by?: string | null;
   edited_by?: string | null;
+  published_video_id?: string | null;
 }
 
 // Tüm platformlarda geçerli genel format tipleri
@@ -104,6 +107,18 @@ export function deriveStage(item: Pick<ContentQueueItem, 'status' | 'has_text' |
   if (item.has_voice) return 'EDITOR';
   if (item.has_text) return 'SES';
   return 'METIN';
+}
+
+/**
+ * Pull the 11-char video id out of any YouTube URL form (watch?v=, youtu.be/,
+ * /shorts/, /live/), or accept a bare id. Returns null when nothing matches.
+ */
+export function extractYouTubeId(input: string): string | null {
+  const s = input.trim();
+  if (!s) return null;
+  if (/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
+  const m = s.match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/live\/|\/embed\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
 }
 
 /** Roles that may write/edit content cards and hand off the Metin stage. */

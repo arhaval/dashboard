@@ -1,9 +1,20 @@
 /** Fikir Havuzu — client-safe types & labels (no server imports). */
 
+import type { PerfLabel } from '../icerik-performansi/perf.constants';
+
 export type IdeaCategory = 'CONTENT' | 'BUSINESS' | 'STRATEGY';
 export type IdeaStatus = 'OPEN' | 'APPROVED' | 'REJECTED';
 export type VoteType = 'UP' | 'DOWN' | 'UNSURE';
 export type SuggestPlatform = 'YOUTUBE' | 'INSTAGRAM' | 'TIKTOK' | 'X';
+
+/** Real published performance of the content this idea became. */
+export interface IdeaOutcome {
+  video_id: string;
+  views: number;
+  /** views / genre average; null while the genre is still collecting data. */
+  score: number | null;
+  label: PerfLabel;
+}
 
 export interface VoteCounts {
   up: number;
@@ -36,6 +47,8 @@ export interface IdeaDTO {
   /** True when the viewer wrote this idea — lets them delete it without
    *  revealing the author to anyone else. */
   is_mine: boolean;
+  /** Set once the idea's content was published and linked to a video. */
+  outcome: IdeaOutcome | null;
   author_name: string | null;   // admin only
   voters: VoterDetail[] | null;  // admin only
 }

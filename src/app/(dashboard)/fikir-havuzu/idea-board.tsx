@@ -14,6 +14,7 @@ import {
   type IdeaDTO, type IdeaCategory, type VoteType,
 } from './idea.constants';
 import { CONTENT_FORMATS, PLATFORM_LABELS, type ContentPlatform } from '../icerik-plani/content-queue.constants';
+import { LABEL_META } from '../icerik-performansi/perf.constants';
 import { createIdea, updateIdea, voteIdea, deleteIdea, rejectIdea, approveIdea, evaluateIdea } from './actions';
 
 const VOTE_BUTTONS: { type: VoteType; icon: typeof ThumbsUp }[] = [
@@ -23,6 +24,12 @@ const VOTE_BUTTONS: { type: VoteType; icon: typeof ThumbsUp }[] = [
 ];
 
 const card = { backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' };
+
+function fmtViews(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}B`;
+  return String(n);
+}
 
 function countFor(idea: IdeaDTO, type: VoteType): number {
   return type === 'UP' ? idea.counts.up : type === 'DOWN' ? idea.counts.down : idea.counts.unsure;
@@ -243,9 +250,14 @@ function IdeaCard({ idea, onOpen }: { idea: IdeaDTO; onOpen: () => void }) {
         {idea.status !== 'OPEN' && (
           <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: STATUS_META[idea.status].bg, color: STATUS_META[idea.status].color }}>{STATUS_META[idea.status].label}</span>
         )}
-        {idea.ai_score != null && (
+        {idea.outcome ? (
+          <span className="ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold"
+            style={{ backgroundColor: LABEL_META[idea.outcome.label].bg, color: LABEL_META[idea.outcome.label].color }}>
+            {LABEL_META[idea.outcome.label].text}
+          </span>
+        ) : idea.ai_score != null ? (
           <span className="ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>%{idea.ai_score}</span>
-        )}
+        ) : null}
       </div>
 
       <h3 className="line-clamp-2 text-sm font-semibold leading-snug" style={{ color: 'var(--color-text-primary)' }}>{idea.title}</h3>
@@ -325,6 +337,30 @@ function IdeaDetail({ idea, isAdmin, commentsEnabled, onClose, onTransfer, onEdi
 
       {idea.summary && (
         <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{idea.summary}</p>
+      )}
+
+      {/* Real outcome — the idea → card → video → performance chain */}
+      {idea.outcome && (
+        <a
+          href={`https://youtu.be/${idea.outcome.video_id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 flex flex-wrap items-center gap-2 rounded-[var(--radius-md)] p-3 transition-opacity hover:opacity-90"
+          style={{ backgroundColor: LABEL_META[idea.outcome.label].bg, border: `1px solid ${LABEL_META[idea.outcome.label].color}` }}
+        >
+          <span className="text-[11px] font-bold" style={{ color: LABEL_META[idea.outcome.label].color }}>
+            {LABEL_META[idea.outcome.label].text}
+          </span>
+          <span className="font-mono text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+            {fmtViews(idea.outcome.views)} izlenme
+          </span>
+          {idea.outcome.score != null && (
+            <span className="text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
+              tür ortalamasının {idea.outcome.score.toFixed(2)}x&apos;i
+            </span>
+          )}
+          <span className="ml-auto text-[11px] font-medium" style={{ color: LABEL_META[idea.outcome.label].color }}>videoyu aç →</span>
+        </a>
       )}
 
       {(idea.suggested_platforms.length > 0 || idea.suggested_format) && (

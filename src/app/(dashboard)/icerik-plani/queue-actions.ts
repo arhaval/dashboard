@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { contentQueueService } from '@/services/content-queue.service';
 import { userService, workItemService } from '@/services';
 import { notificationService } from '@/services/notification.service';
-import { deriveStage, ROLE_STAGES, CONTENT_EDITOR_ROLES } from './content-queue.constants';
+import { deriveStage, ROLE_STAGES, CONTENT_EDITOR_ROLES, extractYouTubeId } from './content-queue.constants';
 import type {
   ContentPlatform,
   ContentStatus,
@@ -108,7 +108,9 @@ export async function advanceContentStage(id: string, link?: string | null, assi
     // Whoever handed off the edit is the editor.
     patch = { has_video: true, status: 'HAZIR', video_url: url ?? item.video_url, edited_by: user.id };
   } else if (stage === 'HAZIR') {
-    patch = { status: 'YAYINLANDI' };
+    // Publishing: optionally capture the real YouTube video so the idea →
+    // card → performance chain closes. Instagram-only content leaves it null.
+    patch = { status: 'YAYINLANDI', published_video_id: url ? extractYouTubeId(url) : null };
   } else {
     return { error: 'İlerletilecek aşama yok' };
   }
