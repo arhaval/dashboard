@@ -10,6 +10,7 @@ import {
   type ContentPlatform,
   type ContentStatus,
   type UpdateContentQueueInput,
+  type PublicationInput,
 } from './content-queue.constants';
 import { advanceContentStage, deleteContentItem, assignContentPerson } from './queue-actions';
 import { ContentForm } from './content-form';
@@ -98,6 +99,7 @@ interface CardProps {
   canEdit: boolean;
   handoffStages: string[];
   voicePeople: Person[];
+  publications?: PublicationInput[];
 }
 
 function ProductionProgress({ item }: { item: ContentQueueItem }) {
@@ -126,7 +128,7 @@ function ProductionProgress({ item }: { item: ContentQueueItem }) {
   );
 }
 
-function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, onAssign, canEdit, handoffStages, voicePeople }: CardProps) {
+function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, onAssign, canEdit, handoffStages, voicePeople, publications }: CardProps) {
   const [expanded, setExpanded] = useState(false);
   const [voiceLink, setVoiceLink] = useState(item.voice_url || '');
   const [videoLink, setVideoLink] = useState(item.video_url || '');
@@ -376,6 +378,15 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, onAss
                 {stage.advanceLabel}
               </button>
             )}
+            {canEdit && stage.id === 'YAYINLANDI' && (
+              <button
+                onClick={() => setPublishOpen(true)}
+                className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius-sm)] py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-80"
+                style={{ backgroundColor: 'var(--color-surface-sunken)', color: 'var(--color-text-secondary)' }}
+              >
+                📊 İstatistikler
+              </button>
+            )}
             {canEdit && (
               <>
                 <button
@@ -400,7 +411,7 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, onAss
         )}
       </div>
 
-      {publishOpen && <PublishModal item={item} onClose={() => setPublishOpen(false)} />}
+      {publishOpen && <PublishModal item={item} existing={stage.id === 'YAYINLANDI' ? (publications ?? []) : undefined} onClose={() => setPublishOpen(false)} />}
     </div>
   );
 }
@@ -418,9 +429,10 @@ interface ColumnProps {
   canEdit: boolean;
   handoffStages: string[];
   voicePeople: Person[];
+  publicationsByCard: Record<string, PublicationInput[]>;
 }
 
-function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, onAssign, isPending, canEdit, handoffStages, voicePeople }: ColumnProps) {
+function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, onAssign, isPending, canEdit, handoffStages, voicePeople, publicationsByCard }: ColumnProps) {
   return (
     <div className="flex w-full flex-col md:min-w-[220px] md:flex-1">
       {/* Column header */}
@@ -463,6 +475,7 @@ function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, onAssign, isP
               canEdit={canEdit}
               handoffStages={handoffStages}
               voicePeople={voicePeople}
+              publications={publicationsByCard[item.id]}
             />
           );
         })}
@@ -488,9 +501,11 @@ interface ContentKanbanProps {
   handoffStages?: string[];
   /** People who can be assigned to voice a card (Seslendirmen + Yayıncı). */
   voicePeople?: Person[];
+  /** Platform records of published cards, so editors can fix/refresh them. */
+  publicationsByCard?: Record<string, PublicationInput[]>;
 }
 
-export function ContentKanban({ items, canEdit = true, handoffStages = [], voicePeople = [] }: ContentKanbanProps) {
+export function ContentKanban({ items, canEdit = true, handoffStages = [], voicePeople = [], publicationsByCard = {} }: ContentKanbanProps) {
   const [isPending, startTransition] = useTransition();
   const [editItem,  setEditItem]  = useState<ContentQueueItem | null>(null);
   const [formOpen,  setFormOpen]  = useState(false);
@@ -544,6 +559,7 @@ export function ContentKanban({ items, canEdit = true, handoffStages = [], voice
             canEdit={canEdit}
             handoffStages={handoffStages}
             voicePeople={voicePeople}
+            publicationsByCard={publicationsByCard}
           />
         ))}
       </div>

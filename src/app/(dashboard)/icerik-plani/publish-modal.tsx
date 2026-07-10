@@ -13,22 +13,36 @@ import {
   PUBLISH_PLATFORMS, PLATFORM_COLORS, extractYouTubeId, extractInstagramShortcode,
   type ContentPlatform, type ContentQueueItem, type PublicationInput,
 } from './content-queue.constants';
-import { publishContent } from './queue-actions';
+import { publishContent, updatePublications } from './queue-actions';
 
 interface Row { checked: boolean; url: string; views: string; likes: string }
 
 const emptyRow: Row = { checked: false, url: '', views: '', likes: '' };
 
-export function PublishModal({ item, onClose }: { item: ContentQueueItem; onClose: () => void }) {
+export function PublishModal({ item, existing, onClose }: {
+  item: ContentQueueItem;
+  /** When given, the card is already published — we're editing its records. */
+  existing?: PublicationInput[];
+  onClose: () => void;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, start] = useTransition();
+  const editing = Boolean(existing);
 
   const [rows, setRows] = useState<Record<string, Row>>(() => {
     const init: Record<string, Row> = {};
     for (const p of PUBLISH_PLATFORMS) {
-      // Pre-tick the platforms the card was planned for.
-      init[p.value] = { ...emptyRow, checked: item.platforms.includes(p.value) };
+      const prev = existing?.find((e) => e.platform === p.value);
+      init[p.value] = prev
+        ? {
+            checked: true,
+            url: prev.url ?? '',
+            views: prev.views != null ? String(prev.views) : '',
+            likes: prev.likes != null ? String(prev.likes) : '',
+          }
+        // Pre-tick the platforms the card was planned for.
+        : { ...emptyRow, checked: !editing && item.platforms.includes(p.value) };
     }
     return init;
   });
@@ -68,7 +82,7 @@ export function PublishModal({ item, onClose }: { item: ContentQueueItem; onClos
     if (pubs.length === 0) { setError('En az bir platform seç.'); return; }
 
     start(async () => {
-      const res = await publishContent(item.id, pubs);
+      const res = editing ? await updatePublications(item.id, pubs) : await publishContent(item.id, pubs);
       if (res.error) setError(res.error);
       else { onClose(); router.refresh(); }
     });
@@ -84,9 +98,13 @@ export function PublishModal({ item, onClose }: { item: ContentQueueItem; onClos
         className="relative z-10 max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl p-5 sm:rounded-[var(--radius-lg)] sm:p-6"
         style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}
       >
-        <h3 className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>Yayınla</h3>
+        <h3 className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+          {editing ? 'Yayın Bilgileri' : 'Yayınla'}
+        </h3>
         <p className="mb-4 mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-          Hangi platformlara attıysan işaretle. YouTube ve Instagram&apos;ın sayıları otomatik gelir; diğerlerini elle gir.
+          {editing
+            ? 'Linki düzelt, eksik platformu ekle veya TikTok/X sayılarını güncelle. YouTube ve Instagram kendiliğinden tazelenir.'
+            : "Hangi platformlara attıysan işaretle. YouTube ve Instagram'ın sayıları otomatik gelir; diğerlerini elle gir."}
         </p>
 
         <div className="space-y-2.5">
@@ -132,7 +150,9 @@ export function PublishModal({ item, onClose }: { item: ContentQueueItem; onClos
 
         <div className="mt-4 flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>İptal</Button>
-          <Button type="button" onClick={submit} disabled={isPending}>{isPending ? 'Yayınlanıyor…' : 'Yayınla ✓'}</Button>
+          <Button type="button" onClick={submit} disabled={isPending}>
+            {isPending ? 'Kaydediliyor…' : editing ? 'Kaydet' : 'Yayınla ✓'}
+          </Button>
         </div>
       </div>
     </div>

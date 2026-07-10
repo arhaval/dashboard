@@ -13,9 +13,10 @@ interface ContentPlannerProps {
   canEdit?: boolean;
   handoffStages?: string[];
   voicePeople?: { id: string; name: string }[];
+  publicationsByCard?: Record<string, import('./content-queue.constants').PublicationInput[]>;
 }
 
-export function ContentPlanner({ items, canEdit = true, handoffStages = [], voicePeople = [] }: ContentPlannerProps) {
+export function ContentPlanner({ items, canEdit = true, handoffStages = [], voicePeople = [], publicationsByCard = {} }: ContentPlannerProps) {
   const [view, setView] = useState<View>('kanban');
 
   // Viewers get a read-only board only; the calendar is an editing surface.
@@ -56,7 +57,7 @@ export function ContentPlanner({ items, canEdit = true, handoffStages = [], voic
       </div>
 
       {activeView === 'kanban' ? (
-        <ContentKanban items={items} canEdit={canEdit} handoffStages={handoffStages} voicePeople={voicePeople} />
+        <ContentKanban items={items} canEdit={canEdit} handoffStages={handoffStages} voicePeople={voicePeople} publicationsByCard={publicationsByCard} />
       ) : (
         <ContentCalendar items={items} />
       )}

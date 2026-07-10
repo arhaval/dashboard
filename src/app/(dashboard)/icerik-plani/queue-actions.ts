@@ -112,6 +112,26 @@ export async function publishContent(id: string, publications: PublicationInput[
 }
 
 /**
+ * Edit a published card's platform records — fix a link, attach one that was
+ * missed, or refresh the hand-entered TikTok/X numbers (those never auto-update).
+ */
+export async function updatePublications(id: string, publications: PublicationInput[]) {
+  const user = await userService.getCurrentUser();
+  if (!user) return { error: 'Oturum gerekli' };
+  if (!(CONTENT_EDITOR_ROLES as readonly string[]).includes(user.role)) return { error: 'Yetki yok' };
+
+  const item = await contentQueueService.getByIdAdmin(id);
+  if (!item) return { error: 'İçerik bulunamadı' };
+
+  const saved = await contentQueueService.savePublications(id, publications);
+  if (saved.error) return { error: saved.error };
+
+  revalidatePath('/icerik-plani');
+  revalidatePath('/fikir-havuzu');
+  return { success: true };
+}
+
+/**
  * Advance an item to the next pipeline stage (hand off). Rules:
  * - Metin → Ses: Admin/Yayıncı/Youtuber completes the text AND picks who voices it
  *   (assigneeId, a Seslendirmen or Yayıncı). Card is assigned to that person;
