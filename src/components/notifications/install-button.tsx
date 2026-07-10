@@ -5,9 +5,15 @@ import { Download, Share, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePwaInstall } from '@/hooks/use-pwa-install';
 
-export function InstallButton() {
+interface InstallButtonProps {
+  /** Keep the text label visible on small screens (used in the profile card). */
+  fullLabel?: boolean;
+}
+
+export function InstallButton({ fullLabel = false }: InstallButtonProps = {}) {
   const { canInstall, isIos, isInstalled, install } = usePwaInstall();
   const [showIosGuide, setShowIosGuide] = React.useState(false);
+  const labelCls = fullLabel ? 'inline' : 'hidden sm:inline';
 
   // Already installed or nothing to show
   if (isInstalled || (!canInstall && !isIos)) return null;
@@ -27,7 +33,7 @@ export function InstallButton() {
           aria-label="Uygulamayı kur"
         >
           <Download className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Uygulamayı Kur</span>
+          <span className={labelCls}>Uygulamayı Kur</span>
         </button>
 
         {/* iOS guide modal */}
@@ -99,7 +105,7 @@ export function InstallButton() {
       aria-label="Uygulamayı kur"
     >
       <Download className="h-3.5 w-3.5" />
-      <span className="hidden sm:inline">Uygulamayı Kur</span>
+      <span className={labelCls}>Uygulamayı Kur</span>
     </button>
   );
 }

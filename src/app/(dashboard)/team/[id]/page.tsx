@@ -13,6 +13,7 @@ import { contentQueueService } from '@/services/content-queue.service';
 import { ROLE_STAGES } from '@/app/(dashboard)/icerik-plani/content-queue.constants';
 import { tr } from '@/lib/i18n';
 import { ArrowLeft } from 'lucide-react';
+import { InstallCard } from '@/components/notifications/install-card';
 import { MemberProfileCard } from './member-profile-card';
 import { MemberTransactions } from './member-transactions';
 import { MemberWork } from './member-work';
@@ -66,6 +67,9 @@ export default async function TeamMemberProfilePage({ params }: PageProps) {
       }
     >
       <MemberProfileCard member={member} stats={stats} />
+
+      {/* Install the PWA — own profile only; hides itself once installed. */}
+      {isOwnProfile && <InstallCard />}
 
       {showAssignedContent && (
         <div className="mt-6">

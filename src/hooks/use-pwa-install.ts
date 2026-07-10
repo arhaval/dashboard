@@ -17,13 +17,16 @@ interface PwaInstallState {
 export function usePwaInstall(): PwaInstallState {
   const [promptEvent, setPromptEvent] = React.useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = React.useState(false);
-
-  const isIos =
-    typeof window !== 'undefined' &&
-    /iphone|ipad|ipod/i.test(navigator.userAgent) &&
-    !(window.navigator as { standalone?: boolean }).standalone;
+  // Detected on the client only — computing this during render would differ
+  // from the server-rendered output and cause a hydration mismatch.
+  const [isIos, setIsIos] = React.useState(false);
 
   React.useEffect(() => {
+    setIsIos(
+      /iphone|ipad|ipod/i.test(navigator.userAgent) &&
+        !(window.navigator as { standalone?: boolean }).standalone
+    );
+
     // Already installed as PWA
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstalled(true);
