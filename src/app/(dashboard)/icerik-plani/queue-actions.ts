@@ -58,8 +58,8 @@ export async function assignContentPerson(id: string, assigneeId: string | null)
   if (assigneeId) {
     await notificationService.notify({
       userIds: [assigneeId],
-      title: '🎙 Ses işin var',
-      body: item.title,
+      title: '🎙 Seslendirme senden bekleniyor',
+      body: `Metin hazır. "${item.title}" için sesi kaydedip linkini yükle.`,
       url: '/icerik-plani',
       tag: `content-${id}`,
       excludeUserId: user.id,
@@ -135,14 +135,29 @@ export async function advanceContentStage(id: string, link?: string | null, assi
     revalidatePath('/work-items');
   }
 
-  // Notify whoever is now responsible for the new stage.
-  const notifyBase = { body: item.title, url: '/icerik-plani', tag: `content-${id}`, excludeUserId: user.id };
+  // Notify whoever is now responsible for the new stage — say what to do next.
+  const notifyBase = { url: '/icerik-plani', tag: `content-${id}`, excludeUserId: user.id };
   if (stage === 'METIN' && assigneeId) {
-    await notificationService.notify({ ...notifyBase, userIds: [assigneeId], title: '🎙 Ses işin var' });
+    await notificationService.notify({
+      ...notifyBase,
+      userIds: [assigneeId],
+      title: '🎙 Seslendirme senden bekleniyor',
+      body: `Metin hazır. "${item.title}" için sesi kaydedip linkini yükle.`,
+    });
   } else if (stage === 'SES') {
-    await notificationService.notify({ ...notifyBase, roles: ['EDITOR'], title: '🎬 Kurgu işin var' });
+    await notificationService.notify({
+      ...notifyBase,
+      roles: ['EDITOR'],
+      title: '🎬 Kurgu senden bekleniyor',
+      body: `Metin ve ses hazır. "${item.title}" için her şey hazır, kurguya başlayabilirsin.`,
+    });
   } else if (stage === 'EDITOR') {
-    await notificationService.notify({ ...notifyBase, roles: ['PUBLISHER'], title: '✅ Yayına hazır' });
+    await notificationService.notify({
+      ...notifyBase,
+      roles: ['PUBLISHER'],
+      title: '✅ Yayına hazır',
+      body: `"${item.title}" videosu hazır — yayınlayabilirsin.`,
+    });
   }
 
   revalidatePath('/icerik-plani');

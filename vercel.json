@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/youtube-sync",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/idea-reminder",
+      "schedule": "0 7 * * *"
     }
   ]
 }
