@@ -53,6 +53,34 @@ export async function createIdea(formData: FormData): Promise<{ error?: string }
   return res;
 }
 
+/** Edit an idea — the author or an admin, and only while it's still open. */
+export async function updateIdea(ideaId: string, formData: FormData): Promise<{ error?: string }> {
+  const user = await currentUser();
+  if (!user) return { error: 'Oturum gerekli' };
+
+  const raw = await ideaService.getRaw(ideaId);
+  if (!raw) return { error: 'Fikir bulunamadı' };
+  if (user.role !== 'ADMIN' && raw.author_id !== user.id) return { error: 'Yetki yok' };
+  if (raw.status !== 'OPEN') return { error: 'Karara bağlanmış fikir düzenlenemez' };
+
+  const title = str(formData.get('title'));
+  if (!title) return { error: 'Başlık zorunlu' };
+
+  const suggestedPlatforms = formData.getAll('suggested_platforms')
+    .map((p) => String(p))
+    .filter((p): p is SuggestPlatform => (VALID_PLATFORMS as string[]).includes(p));
+
+  const res = await ideaService.update(ideaId, {
+    title,
+    summary: str(formData.get('summary')),
+    category: (str(formData.get('category')) as IdeaCategory) ?? 'CONTENT',
+    suggestedPlatforms,
+    suggestedFormat: str(formData.get('suggested_format')),
+  });
+  revalidatePath('/fikir-havuzu');
+  return res;
+}
+
 export async function voteIdea(ideaId: string, vote: VoteType): Promise<{ error?: string }> {
   const user = await currentUser();
   if (!user) return { error: 'Oturum gerekli' };

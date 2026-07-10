@@ -96,6 +96,40 @@ export const ideaService = {
     return error ? { error: error.message } : {};
   },
 
+  /**
+   * Edit an idea. If the title or summary actually changed, the stored AI
+   * evaluation no longer describes this idea — clear it so it can be re-run.
+   */
+  async update(ideaId: string, input: {
+    title: string; summary: string | null; category: IdeaCategory;
+    suggestedPlatforms: SuggestPlatform[]; suggestedFormat: string | null;
+  }): Promise<{ error?: string }> {
+    const admin = createAdminClient();
+    const existing = await this.getRaw(ideaId);
+    if (!existing) return { error: 'Fikir bulunamadı' };
+
+    const textChanged =
+      existing.title !== input.title || (existing.summary ?? '') !== (input.summary ?? '');
+
+    const patch: Record<string, unknown> = {
+      title: input.title,
+      summary: input.summary,
+      category: input.category,
+      suggested_platforms: input.suggestedPlatforms,
+      suggested_format: input.suggestedFormat,
+      updated_at: new Date().toISOString(),
+    };
+    if (textChanged) {
+      patch.ai_comment = null;
+      patch.ai_score = null;
+      patch.ai_genre = null;
+      patch.evaluated_at = null;
+    }
+
+    const { error } = await admin.from('ideas').update(patch).eq('id', ideaId);
+    return error ? { error: error.message } : {};
+  },
+
   async vote(ideaId: string, voterId: string, vote: VoteType): Promise<{ error?: string }> {
     const admin = createAdminClient();
     const { error } = await admin

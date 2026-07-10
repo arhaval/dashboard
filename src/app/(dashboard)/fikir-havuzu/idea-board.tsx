@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Plus, ThumbsUp, ThumbsDown, HelpCircle, Sparkles, Trash2, ArrowRight, Users, X, Check,
+  Plus, ThumbsUp, ThumbsDown, HelpCircle, Sparkles, Trash2, ArrowRight, Users, X, Check, Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,7 @@ import {
   type IdeaDTO, type IdeaCategory, type VoteType,
 } from './idea.constants';
 import { CONTENT_FORMATS, PLATFORM_LABELS, type ContentPlatform } from '../icerik-plani/content-queue.constants';
-import { createIdea, voteIdea, deleteIdea, rejectIdea, approveIdea, evaluateIdea } from './actions';
+import { createIdea, updateIdea, voteIdea, deleteIdea, rejectIdea, approveIdea, evaluateIdea } from './actions';
 
 const VOTE_BUTTONS: { type: VoteType; icon: typeof ThumbsUp }[] = [
   { type: 'UP', icon: ThumbsUp },
@@ -44,19 +44,20 @@ function Sheet({ onClose, children, maxWidth = 'max-w-lg' }: { onClose: () => vo
   );
 }
 
-// ── Add-idea modal ───────────────────────────────────────────────────────────
+// ── Idea form (add + edit) ───────────────────────────────────────────────────
 
-function AddIdeaModal({ onClose }: { onClose: () => void }) {
+function IdeaFormModal({ idea, onClose }: { idea?: IdeaDTO | null; onClose: () => void }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, start] = useTransition();
+  const editing = Boolean(idea);
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     setError(null);
     start(async () => {
-      const res = await createIdea(fd);
+      const res = idea ? await updateIdea(idea.id, fd) : await createIdea(fd);
       if (res.error) setError(res.error);
       else { onClose(); router.refresh(); }
     });
@@ -67,22 +68,22 @@ function AddIdeaModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Sheet onClose={() => !isPending && onClose()}>
-      <h3 className="mb-4 text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>Yeni Fikir</h3>
+      <h3 className="mb-4 text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>{editing ? 'Fikri Düzenle' : 'Yeni Fikir'}</h3>
       <form onSubmit={submit} className="space-y-3">
         <div>
           <label className={labelCls} style={labelStyle}>Başlık <span style={{ color: 'var(--color-error)' }}>*</span></label>
-          <Input name="title" placeholder="örn. MAJ3R belgeseli 2. bölüm" required />
+          <Input name="title" defaultValue={idea?.title ?? ''} placeholder="örn. MAJ3R belgeseli 2. bölüm" required />
         </div>
         <div>
           <label className={labelCls} style={labelStyle}>Özet / Metin</label>
-          <textarea name="summary" rows={8} placeholder="Fikri özetle ya da tam metni yaz..."
+          <textarea name="summary" rows={8} defaultValue={idea?.summary ?? ''} placeholder="Fikri özetle ya da tam metni yaz..."
             className="max-h-[40vh] w-full resize-y rounded-[var(--radius-sm)] px-3 py-2.5 text-sm leading-relaxed outline-none"
             style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', minHeight: 140 }} />
           <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Tek cümle de olur, detaylı senaryo da — sınır yok.</p>
         </div>
         <div>
           <label className={labelCls} style={labelStyle}>Kategori</label>
-          <Select name="category" defaultValue="CONTENT">
+          <Select name="category" defaultValue={idea?.category ?? 'CONTENT'}>
             {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </Select>
         </div>
@@ -93,21 +94,25 @@ function AddIdeaModal({ onClose }: { onClose: () => void }) {
             {SUGGEST_PLATFORM_OPTIONS.map((p) => (
               <label key={p.value} className="flex cursor-pointer items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-xs"
                 style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}>
-                <input type="checkbox" name="suggested_platforms" value={p.value} className="accent-[var(--color-accent)]" /> {p.label}
+                <input type="checkbox" name="suggested_platforms" value={p.value} defaultChecked={idea?.suggested_platforms.includes(p.value) ?? false} className="accent-[var(--color-accent)]" /> {p.label}
               </label>
             ))}
           </div>
-          <Select name="suggested_format" defaultValue="">
+          <Select name="suggested_format" defaultValue={idea?.suggested_format ?? ''}>
             <option value="">Format önerme</option>
             {SUGGEST_FORMATS.map((f) => <option key={f} value={f}>{f}</option>)}
           </Select>
         </div>
 
-        <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Fikri kimin yazdığını yalnızca admin görür.</p>
+        <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+          {editing
+            ? 'Başlığı ya da metni değiştirirsen mevcut AI değerlendirmesi silinir, yeniden çalıştırılabilir.'
+            : 'Fikri kimin yazdığını yalnızca admin görür.'}
+        </p>
         {error && <p className="text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>}
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>İptal</Button>
-          <Button type="submit" disabled={isPending}>{isPending ? 'Ekleniyor…' : 'Havuza Ekle'}</Button>
+          <Button type="submit" disabled={isPending}>{isPending ? 'Kaydediliyor…' : editing ? 'Kaydet' : 'Havuza Ekle'}</Button>
         </div>
       </form>
     </Sheet>
@@ -267,8 +272,9 @@ function IdeaCard({ idea, onOpen }: { idea: IdeaDTO; onOpen: () => void }) {
 
 // ── Detail sheet: full text + AI + voting + admin decision ───────────────────
 
-function IdeaDetail({ idea, isAdmin, commentsEnabled, onClose, onTransfer }: {
-  idea: IdeaDTO; isAdmin: boolean; commentsEnabled: boolean; onClose: () => void; onTransfer: (idea: IdeaDTO) => void;
+function IdeaDetail({ idea, isAdmin, commentsEnabled, onClose, onTransfer, onEdit }: {
+  idea: IdeaDTO; isAdmin: boolean; commentsEnabled: boolean; onClose: () => void;
+  onTransfer: (idea: IdeaDTO) => void; onEdit: (idea: IdeaDTO) => void;
 }) {
   const router = useRouter();
   const [isPending, start] = useTransition();
@@ -305,6 +311,11 @@ function IdeaDetail({ idea, isAdmin, commentsEnabled, onClose, onTransfer }: {
             <span className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>✍️ {idea.author_name}</span>
           )}
         </div>
+        {(isAdmin || idea.is_mine) && idea.status === 'OPEN' && (
+          <button onClick={() => onEdit(idea)} className="rounded p-1.5" style={{ color: 'var(--color-text-muted)' }} aria-label="Düzenle" title="Düzenle">
+            <Pencil className="h-4 w-4" />
+          </button>
+        )}
         <button onClick={onClose} className="rounded p-1" style={{ color: 'var(--color-text-muted)' }} aria-label="Kapat">
           <X className="h-5 w-5" />
         </button>
@@ -405,6 +416,7 @@ function IdeaDetail({ idea, isAdmin, commentsEnabled, onClose, onTransfer }: {
 export function IdeaBoard({ ideas, isAdmin, commentsEnabled }: { ideas: IdeaDTO[]; isAdmin: boolean; commentsEnabled: boolean }) {
   const [filter, setFilter] = useState<'ALL' | IdeaCategory>('ALL');
   const [adding, setAdding] = useState(false);
+  const [editIdea, setEditIdea] = useState<IdeaDTO | null>(null);
   const [transferIdea, setTransferIdea] = useState<IdeaDTO | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
 
@@ -450,7 +462,8 @@ export function IdeaBoard({ ideas, isAdmin, commentsEnabled }: { ideas: IdeaDTO[
         </div>
       )}
 
-      {adding && <AddIdeaModal onClose={() => setAdding(false)} />}
+      {adding && <IdeaFormModal onClose={() => setAdding(false)} />}
+      {editIdea && <IdeaFormModal idea={editIdea} onClose={() => setEditIdea(null)} />}
       {detail && (
         <IdeaDetail
           idea={detail}
@@ -458,6 +471,7 @@ export function IdeaBoard({ ideas, isAdmin, commentsEnabled }: { ideas: IdeaDTO[
           commentsEnabled={commentsEnabled}
           onClose={() => setDetailId(null)}
           onTransfer={setTransferIdea}
+          onEdit={setEditIdea}
         />
       )}
       {transferIdea && <TransferModal idea={transferIdea} onClose={() => setTransferIdea(null)} />}
