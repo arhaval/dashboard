@@ -21,6 +21,7 @@ export interface InstagramMedia {
   permalink: string | null;
   thumbnail_url: string | null;
   published_at: string | null;
+  view_count: number;
   like_count: number;
   comment_count: number;
   genre: IgGenre | null;

@@ -58,12 +58,12 @@ async function resolveOutcomes(ideas: IdeaRow[]): Promise<Map<string, IdeaOutcom
 
   // Instagram: match stored permalink against the shortcode we captured
   const igCodes = pubs.filter((p) => p.platform === 'INSTAGRAM' && p.external_id).map((p) => p.external_id!);
-  const igByCode = new Map<string, { likes: number }>();
+  const igByCode = new Map<string, { views: number; likes: number }>();
   if (igCodes.length > 0) {
-    const { data } = await admin.from('instagram_media').select('permalink, like_count');
-    for (const m of (data ?? []) as { permalink: string | null; like_count: number }[]) {
+    const { data } = await admin.from('instagram_media').select('permalink, view_count, like_count');
+    for (const m of (data ?? []) as { permalink: string | null; view_count: number | null; like_count: number }[]) {
       const code = igCodes.find((c) => m.permalink?.includes(c));
-      if (code) igByCode.set(code, { likes: Number(m.like_count) });
+      if (code) igByCode.set(code, { views: Number(m.view_count ?? 0), likes: Number(m.like_count) });
     }
   }
 
@@ -75,7 +75,7 @@ async function resolveOutcomes(ideas: IdeaRow[]): Promise<Map<string, IdeaOutcom
       list.push({ platform: p.platform, url: p.url, views: v ? v.view_count : null, likes: null, score: v?.score ?? null, label: v?.label ?? null });
     } else if (p.platform === 'INSTAGRAM') {
       const m = p.external_id ? igByCode.get(p.external_id) : undefined;
-      list.push({ platform: p.platform, url: p.url, views: null, likes: m ? m.likes : null, score: null, label: null });
+      list.push({ platform: p.platform, url: p.url, views: m && m.views > 0 ? m.views : null, likes: m ? m.likes : null, score: null, label: null });
     } else {
       list.push({ platform: p.platform, url: p.url, views: p.views ?? null, likes: p.likes ?? null, score: null, label: null });
     }

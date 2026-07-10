@@ -13,7 +13,7 @@ export function InstagramPerformanceGrid({ media, commentsEnabled }: { media: Sc
     thumbnail: m.thumbnail_url,
     title: m.caption?.trim() || '(açıklama yok)',
     url: m.permalink ?? '#',
-    views: null,
+    views: m.view_count ?? null,
     likes: m.like_count,
     comments: m.comment_count,
     date: m.published_at,

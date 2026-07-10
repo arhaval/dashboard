@@ -323,6 +323,42 @@ export const instagramService = {
       if (error) return { synced: i, error: error.message };
     }
 
+    // Per-post views come from the media INSIGHTS endpoint (the media object
+    // itself only carries likes/comments). That's one call per post, and IG
+    // rate-limits hard — so only refresh the most recent posts. Older posts'
+    // view counts barely move and keep their last known value.
+    const INSIGHT_LIMIT = 60;
+    const CHUNK = 10;
+    const targets = rows.slice(0, INSIGHT_LIMIT).map((r) => r.media_id as string);
+
+    const views: { media_id: string; view_count: number }[] = [];
+    for (let i = 0; i < targets.length; i += CHUNK) {
+      const chunk = targets.slice(i, i + CHUNK);
+      const results = await Promise.all(
+        chunk.map(async (mediaId) => {
+          try {
+            const res = await fetch(`${GRAPH}/${mediaId}/insights?metric=views&access_token=${auth.token}`);
+            const j = await res.json();
+            const entry = j?.data?.[0];
+            // Depending on metric_type the value sits in values[0].value or total_value.value
+            const value = entry?.values?.[0]?.value ?? entry?.total_value?.value;
+            return typeof value === 'number' ? { media_id: mediaId, view_count: value } : null;
+          } catch {
+            return null; // insights unavailable for this media type — skip
+          }
+        })
+      );
+      for (const r of results) if (r) views.push(r);
+    }
+
+    for (let i = 0; i < views.length; i += CHUNK) {
+      await Promise.all(
+        views.slice(i, i + CHUNK).map((v) =>
+          admin.from('instagram_media').update({ view_count: v.view_count }).eq('media_id', v.media_id)
+        )
+      );
+    }
+
     // Auto-assign genre for non-locked rows (manual overrides preserved).
     const idsByGenre = new Map<IgGenre, string[]>();
     for (const r of rows) {
