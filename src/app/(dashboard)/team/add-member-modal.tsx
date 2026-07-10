@@ -22,6 +22,7 @@ interface AddMemberModalProps {
 const ROLE_OPTIONS = [
   { value: 'TEAM_MEMBER', label: tr.roles.TEAM_MEMBER },
   { value: 'PUBLISHER',   label: tr.roles.PUBLISHER },
+  { value: 'YOUTUBER',    label: tr.roles.YOUTUBER },
   { value: 'EDITOR',      label: tr.roles.EDITOR },
   { value: 'VOICE',       label: tr.roles.VOICE },
   { value: 'GRAFIKER',    label: tr.roles.GRAFIKER },

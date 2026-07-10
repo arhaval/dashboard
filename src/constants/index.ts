@@ -29,7 +29,7 @@ export const WORK_STATUSES: readonly WorkStatus[] = ['DRAFT', 'APPROVED', 'PAID'
 
 export const CONTENT_LENGTHS: readonly ContentLength[] = ['SHORT', 'LONG'] as const;
 
-export const USER_ROLES: readonly UserRole[] = ['ADMIN', 'PUBLISHER', 'EDITOR', 'VOICE', 'GRAFIKER', 'TEAM_MEMBER'] as const;
+export const USER_ROLES: readonly UserRole[] = ['ADMIN', 'PUBLISHER', 'YOUTUBER', 'EDITOR', 'VOICE', 'GRAFIKER', 'TEAM_MEMBER'] as const;
 
 export const TRANSACTION_TYPES: readonly TransactionType[] = ['INCOME', 'EXPENSE'] as const;
 
@@ -91,6 +91,7 @@ export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
 export const ROLE_COLORS: Record<UserRole, string> = {
   ADMIN:       'bg-red-500/15 text-red-400',
   PUBLISHER:   'bg-blue-500/15 text-blue-400',
+  YOUTUBER:    'bg-rose-500/15 text-rose-400',
   EDITOR:      'bg-purple-500/15 text-purple-400',
   VOICE:       'bg-green-500/15 text-green-400',
   GRAFIKER:    'bg-orange-500/15 text-orange-400',

@@ -54,11 +54,12 @@ export const PAGE_DEFS: PageDef[] = [
 export const ALL_PAGE_KEYS: PageKey[] = PAGE_DEFS.map((p) => p.key);
 
 /** Editable roles (ADMIN excluded — always full access). */
-export const EDITABLE_ROLES: UserRole[] = ['PUBLISHER', 'EDITOR', 'VOICE', 'GRAFIKER', 'TEAM_MEMBER'];
+export const EDITABLE_ROLES: UserRole[] = ['PUBLISHER', 'YOUTUBER', 'EDITOR', 'VOICE', 'GRAFIKER', 'TEAM_MEMBER'];
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: 'Yönetici',
   PUBLISHER: 'Yayıncı',
+  YOUTUBER: 'Youtuber',
   EDITOR: 'Editör',
   VOICE: 'Seslendirmen',
   GRAFIKER: 'Grafiker',
@@ -69,6 +70,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 export const DEFAULT_PAGES: Record<UserRole, PageKey[]> = {
   ADMIN: ALL_PAGE_KEYS,
   PUBLISHER: ['dashboard', 'work-items', 'payments', 'schedule', 'content-plan', 'idea-pool'],
+  YOUTUBER:  ['dashboard', 'work-items', 'payments', 'schedule', 'content-plan', 'idea-pool', 'social'],
   EDITOR:    ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool', 'matches'],
   VOICE:     ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool', 'matches'],
   GRAFIKER:  ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool', 'matches'],

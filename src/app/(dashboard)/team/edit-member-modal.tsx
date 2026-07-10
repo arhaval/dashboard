@@ -24,6 +24,7 @@ interface EditMemberModalProps {
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'TEAM_MEMBER', label: 'Ekip Üyesi'   },
   { value: 'PUBLISHER',   label: 'Yayıncı'      },
+  { value: 'YOUTUBER',    label: 'Youtuber'     },
   { value: 'EDITOR',      label: 'Editör'       },
   { value: 'VOICE',       label: 'Seslendirmen' },
   { value: 'GRAFIKER',    label: 'Grafiker'     },

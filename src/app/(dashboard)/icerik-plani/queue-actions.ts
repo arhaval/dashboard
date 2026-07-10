@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { contentQueueService } from '@/services/content-queue.service';
 import { userService, workItemService } from '@/services';
 import { notificationService } from '@/services/notification.service';
-import { deriveStage, ROLE_STAGES } from './content-queue.constants';
+import { deriveStage, ROLE_STAGES, CONTENT_EDITOR_ROLES } from './content-queue.constants';
 import type {
   ContentPlatform,
   ContentStatus,
@@ -16,7 +16,7 @@ import type {
 export async function createContentItem(input: Omit<CreateContentQueueInput, 'created_by'>) {
   const user = await userService.getCurrentUser();
   if (!user) return { error: 'Oturum gerekli' };
-  if (!['ADMIN', 'PUBLISHER'].includes(user.role)) return { error: 'Yetki yok' };
+  if (!(CONTENT_EDITOR_ROLES as readonly string[]).includes(user.role)) return { error: 'Yetki yok' };
 
   const result = await contentQueueService.create({ ...input, created_by: user.id });
   if (result.error) return { error: result.error };
@@ -28,7 +28,7 @@ export async function createContentItem(input: Omit<CreateContentQueueInput, 'cr
 export async function updateContentItem(id: string, input: UpdateContentQueueInput) {
   const user = await userService.getCurrentUser();
   if (!user) return { error: 'Oturum gerekli' };
-  if (!['ADMIN', 'PUBLISHER'].includes(user.role)) return { error: 'Yetki yok' };
+  if (!(CONTENT_EDITOR_ROLES as readonly string[]).includes(user.role)) return { error: 'Yetki yok' };
 
   const result = await contentQueueService.update(id, input);
   if (result.error) return { error: result.error };
@@ -42,12 +42,12 @@ export async function updateContentStatus(id: string, status: ContentStatus) {
 }
 
 /**
- * Assign (or reassign) who voices a card. Admin/Yayıncı only. Notifies the
+ * Assign (or reassign) who voices a card. Content editors only. Notifies the
  * chosen person. Also fixes older cards that reached "Ses" before assignees.
  */
 export async function assignContentPerson(id: string, assigneeId: string | null) {
   const user = await userService.getCurrentUser();
-  if (!user || !['ADMIN', 'PUBLISHER'].includes(user.role)) return { error: 'Yetki yok' };
+  if (!user || !(CONTENT_EDITOR_ROLES as readonly string[]).includes(user.role)) return { error: 'Yetki yok' };
 
   const item = await contentQueueService.getByIdAdmin(id);
   if (!item) return { error: 'İçerik bulunamadı' };
@@ -71,7 +71,7 @@ export async function assignContentPerson(id: string, assigneeId: string | null)
 
 /**
  * Advance an item to the next pipeline stage (hand off). Rules:
- * - Metin → Ses: Admin/Yayıncı completes the text AND picks who voices it
+ * - Metin → Ses: Admin/Yayıncı/Youtuber completes the text AND picks who voices it
  *   (assigneeId, a Seslendirmen or Yayıncı). Card is assigned to that person;
  *   only they get notified.
  * - Ses → Kurgu: the ASSIGNED voice person (or Admin/Yayıncı) drops the link;
@@ -88,10 +88,10 @@ export async function advanceContentStage(id: string, link?: string | null, assi
   if (!item) return { error: 'İçerik bulunamadı' };
 
   const stage = deriveStage(item);
-  const isFull = ['ADMIN', 'PUBLISHER'].includes(user.role);
+  const isFull = (CONTENT_EDITOR_ROLES as readonly string[]).includes(user.role);
 
   // Permission by stage
-  if (stage === 'METIN' && !isFull) return { error: 'Metni yalnızca Yayıncı/Admin tamamlar' };
+  if (stage === 'METIN' && !isFull) return { error: 'Metni yalnızca Yayıncı/Youtuber/Admin tamamlar' };
   if (stage === 'SES' && !isFull && item.assigned_to !== user.id) return { error: 'Bu ses işini ilerletme yetkin yok' };
   if (stage === 'EDITOR' && !isFull && !(ROLE_STAGES[user.role] ?? []).includes('EDITOR')) return { error: 'Bu kurgu işini ilerletme yetkin yok' };
   if (stage === 'HAZIR' && !isFull) return { error: 'Yayına almayı yalnızca Yayıncı/Admin yapabilir' };
@@ -154,7 +154,7 @@ export async function advanceContentStage(id: string, link?: string | null, assi
   } else if (stage === 'EDITOR') {
     await notificationService.notify({
       ...notifyBase,
-      roles: ['PUBLISHER'],
+      roles: ['PUBLISHER', 'YOUTUBER'],
       title: '✅ Yayına hazır',
       body: `"${item.title}" videosu hazır — yayınlayabilirsin.`,
     });
@@ -167,7 +167,7 @@ export async function advanceContentStage(id: string, link?: string | null, assi
 export async function deleteContentItem(id: string) {
   const user = await userService.getCurrentUser();
   if (!user) return { error: 'Oturum gerekli' };
-  if (!['ADMIN', 'PUBLISHER'].includes(user.role)) return { error: 'Yetki yok' };
+  if (!(CONTENT_EDITOR_ROLES as readonly string[]).includes(user.role)) return { error: 'Yetki yok' };
 
   const result = await contentQueueService.delete(id);
   if (!result.success) return { error: result.error };

@@ -106,9 +106,13 @@ export function deriveStage(item: Pick<ContentQueueItem, 'status' | 'has_text' |
   return 'METIN';
 }
 
+/** Roles that may write/edit content cards and hand off the Metin stage. */
+export const CONTENT_EDITOR_ROLES = ['ADMIN', 'PUBLISHER', 'YOUTUBER'] as const;
+
 /** Which pipeline stages a given user role is responsible for. */
 export const ROLE_STAGES: Record<string, ContentStage[]> = {
   PUBLISHER: ['METIN'],   // metni yazan
+  YOUTUBER:  ['METIN'],   // metni yazan + seslendirmen atayan
   VOICE:     ['SES'],     // seslendiren
   EDITOR:    ['EDITOR'],  // kurgulayan
 };

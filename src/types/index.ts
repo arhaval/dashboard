@@ -7,7 +7,7 @@
 // User & Auth Types
 // =============================================================================
 
-export type UserRole = 'ADMIN' | 'PUBLISHER' | 'EDITOR' | 'VOICE' | 'GRAFIKER' | 'TEAM_MEMBER';
+export type UserRole = 'ADMIN' | 'PUBLISHER' | 'YOUTUBER' | 'EDITOR' | 'VOICE' | 'GRAFIKER' | 'TEAM_MEMBER';
 
 export interface User {
   id: string;

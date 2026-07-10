@@ -211,6 +211,7 @@ export const tr = {
   roles: {
     ADMIN: 'Yönetici',
     PUBLISHER: 'Yayıncı',
+    YOUTUBER: 'Youtuber',
     EDITOR: 'Editör',
     VOICE: 'Seslendirmen',
     GRAFIKER: 'Grafiker',
