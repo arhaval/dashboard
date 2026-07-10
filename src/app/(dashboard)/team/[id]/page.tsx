@@ -10,6 +10,7 @@ import { PageShell } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { userService, financeService, workItemService } from '@/services';
 import { contentQueueService } from '@/services/content-queue.service';
+import { ideaService } from '@/services/idea.service';
 import { ROLE_STAGES } from '@/app/(dashboard)/icerik-plani/content-queue.constants';
 import { tr } from '@/lib/i18n';
 import { ArrowLeft } from 'lucide-react';
@@ -18,6 +19,7 @@ import { MemberProfileCard } from './member-profile-card';
 import { MemberTransactions } from './member-transactions';
 import { MemberWork } from './member-work';
 import { MemberAssignedContent } from './member-assigned-content';
+import { MemberIdeaStats } from './member-idea-stats';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -44,13 +46,15 @@ export default async function TeamMemberProfilePage({ params }: PageProps) {
   const canSeeWork = isAdmin || isOwnProfile;
   // Content the member is responsible for at the current pipeline stage (by role).
   const showAssignedContent = canSeeWork && Boolean(ROLE_STAGES[member.role]);
-  const [transactions, stats, workItems, assignedContent] = await Promise.all([
+  const [transactions, stats, workItems, assignedContent, ideaStats] = await Promise.all([
     isAdmin ? financeService.getByUserId(id) : Promise.resolve([]),
     isAdmin
       ? financeService.getUserStats(id)
       : Promise.resolve({ totalIncome: 0, totalExpenses: 0, netBalance: 0, transactionCount: 0 }),
     canSeeWork ? workItemService.getAll({ user_id: id }) : Promise.resolve([]),
     showAssignedContent ? contentQueueService.getAssignedForUser(id, member.role) : Promise.resolve([]),
+    // Ideas this member contributed that became content, with their real numbers.
+    canSeeWork ? ideaService.getAuthorOutcomes(id) : Promise.resolve([]),
   ]);
 
   return (
@@ -77,6 +81,15 @@ export default async function TeamMemberProfilePage({ params }: PageProps) {
             Sana Düşen İçerikler
           </h3>
           <MemberAssignedContent items={assignedContent} />
+        </div>
+      )}
+
+      {canSeeWork && ideaStats.length > 0 && (
+        <div className="mt-6">
+          <h3 className="mb-4 text-lg font-medium text-[var(--color-text-primary)]">
+            Fikirlerinin Getirisi
+          </h3>
+          <MemberIdeaStats stats={ideaStats} />
         </div>
       )}
 

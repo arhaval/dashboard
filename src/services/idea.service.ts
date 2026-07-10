@@ -96,7 +96,41 @@ async function resolveOutcomes(ideas: IdeaRow[]): Promise<Map<string, IdeaOutcom
   return out;
 }
 
+/** One of a member's ideas that reached production, with its real numbers. */
+export interface AuthorIdeaStat {
+  id: string;
+  title: string;
+  created_at: string;
+  /** null while the content isn't published or wasn't linked to a platform. */
+  outcome: IdeaOutcome | null;
+}
+
 export const ideaService = {
+  /**
+   * Ideas this person contributed that were approved into content, together
+   * with how that content actually performed. Shown on their profile.
+   */
+  async getAuthorOutcomes(userId: string): Promise<AuthorIdeaStat[]> {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from('ideas')
+      .select('*')
+      .eq('author_id', userId)
+      .eq('status', 'APPROVED')
+      .order('created_at', { ascending: false });
+
+    const ideas = (data as IdeaRow[]) ?? [];
+    if (ideas.length === 0) return [];
+
+    const outcomes = await resolveOutcomes(ideas);
+    return ideas.map((i) => ({
+      id: i.id,
+      title: i.title,
+      created_at: i.created_at,
+      outcome: outcomes.get(i.id) ?? null,
+    }));
+  },
+
   async getAllForUser(user: Caller): Promise<IdeaDTO[]> {
     const admin = createAdminClient();
     const isAdmin = user.role === 'ADMIN';
