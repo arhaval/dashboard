@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Plus, ThumbsUp, ThumbsDown, HelpCircle, Sparkles, Trash2, ArrowRight, Users, X,
+  Plus, ThumbsUp, ThumbsDown, HelpCircle, Sparkles, Trash2, ArrowRight, Users, X, Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,26 @@ const VOTE_BUTTONS: { type: VoteType; icon: typeof ThumbsUp }[] = [
 
 const card = { backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' };
 
+function countFor(idea: IdeaDTO, type: VoteType): number {
+  return type === 'UP' ? idea.counts.up : type === 'DOWN' ? idea.counts.down : idea.counts.unsure;
+}
+
+// ── Sheet shell: bottom sheet on phones, centered dialog on desktop ──────────
+
+function Sheet({ onClose, children, maxWidth = 'max-w-lg' }: { onClose: () => void; children: React.ReactNode; maxWidth?: string }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+      <div className="absolute inset-0 bg-[#0B1437]/50 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className={`relative z-10 max-h-[92vh] w-full ${maxWidth} overflow-y-auto rounded-t-2xl p-5 sm:rounded-[var(--radius-lg)] sm:p-6`}
+        style={card}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ── Add-idea modal ───────────────────────────────────────────────────────────
 
 function AddIdeaModal({ onClose }: { onClose: () => void }) {
@@ -42,63 +62,60 @@ function AddIdeaModal({ onClose }: { onClose: () => void }) {
     });
   }
 
+  const labelCls = 'mb-1 block text-xs font-medium';
+  const labelStyle = { color: 'var(--color-text-muted)' };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#0B1437]/50 backdrop-blur-sm" onClick={() => !isPending && onClose()} />
-      <div className="relative z-10 max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[var(--radius-lg)] p-6" style={card}>
-        <h3 className="mb-4 text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>Yeni Fikir</h3>
-        <form onSubmit={submit} className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Başlık <span style={{ color: 'var(--color-error)' }}>*</span></label>
-            <Input name="title" placeholder="örn. MAJ3R belgeseli 2. bölüm" required />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Özet / Metin</label>
-            <textarea name="summary" rows={10} placeholder="Fikri özetle ya da tam metni yaz..."
-              className="max-h-[50vh] w-full resize-y rounded-[var(--radius-sm)] px-3 py-2.5 text-sm leading-relaxed outline-none"
-              style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', minHeight: 160 }} />
-            <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Tek cümle de olur, detaylı senaryo/script de — sınır yok.</p>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Kategori</label>
-            <Select name="category" defaultValue="CONTENT">
-              {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-            </Select>
-          </div>
+    <Sheet onClose={() => !isPending && onClose()}>
+      <h3 className="mb-4 text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>Yeni Fikir</h3>
+      <form onSubmit={submit} className="space-y-3">
+        <div>
+          <label className={labelCls} style={labelStyle}>Başlık <span style={{ color: 'var(--color-error)' }}>*</span></label>
+          <Input name="title" placeholder="örn. MAJ3R belgeseli 2. bölüm" required />
+        </div>
+        <div>
+          <label className={labelCls} style={labelStyle}>Özet / Metin</label>
+          <textarea name="summary" rows={8} placeholder="Fikri özetle ya da tam metni yaz..."
+            className="max-h-[40vh] w-full resize-y rounded-[var(--radius-sm)] px-3 py-2.5 text-sm leading-relaxed outline-none"
+            style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', minHeight: 140 }} />
+          <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Tek cümle de olur, detaylı senaryo da — sınır yok.</p>
+        </div>
+        <div>
+          <label className={labelCls} style={labelStyle}>Kategori</label>
+          <Select name="category" defaultValue="CONTENT">
+            {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </Select>
+        </div>
 
-          {/* Optional suggestion (hint only — final choice at Aktar) */}
-          <div className="rounded-[var(--radius-sm)] p-3" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
-            <p className="mb-2 text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>Önerilen Format / Platform <span style={{ color: 'var(--color-text-muted)' }}>(opsiyonel)</span></p>
-            <div className="mb-2 flex flex-wrap gap-2">
-              {SUGGEST_PLATFORM_OPTIONS.map((p) => (
-                <label key={p.value} className="flex cursor-pointer items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-1.5 text-xs"
-                  style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}>
-                  <input type="checkbox" name="suggested_platforms" value={p.value} className="accent-[var(--color-accent)]" /> {p.label}
-                </label>
-              ))}
-            </div>
-            <Select name="suggested_format" defaultValue="">
-              <option value="">Format önerme</option>
-              {SUGGEST_FORMATS.map((f) => <option key={f} value={f}>{f}</option>)}
-            </Select>
-            <p className="mt-1.5 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Emin değilsen boş bırak — kesin karar &quot;Onayla → Aktar&quot;da verilir.</p>
+        <div className="rounded-[var(--radius-sm)] p-3" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
+          <p className="mb-2 text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>Önerilen Format / Platform <span style={{ color: 'var(--color-text-muted)' }}>(opsiyonel)</span></p>
+          <div className="mb-2 flex flex-wrap gap-2">
+            {SUGGEST_PLATFORM_OPTIONS.map((p) => (
+              <label key={p.value} className="flex cursor-pointer items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-xs"
+                style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}>
+                <input type="checkbox" name="suggested_platforms" value={p.value} className="accent-[var(--color-accent)]" /> {p.label}
+              </label>
+            ))}
           </div>
+          <Select name="suggested_format" defaultValue="">
+            <option value="">Format önerme</option>
+            {SUGGEST_FORMATS.map((f) => <option key={f} value={f}>{f}</option>)}
+          </Select>
+        </div>
 
-          <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Fikri kimin yazdığını yalnızca admin görür.</p>
-          {error && <p className="text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>}
-          <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>İptal</Button>
-            <Button type="submit" disabled={isPending}>{isPending ? 'Ekleniyor…' : 'Havuza Ekle'}</Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Fikri kimin yazdığını yalnızca admin görür.</p>
+        {error && <p className="text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>}
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>İptal</Button>
+          <Button type="submit" disabled={isPending}>{isPending ? 'Ekleniyor…' : 'Havuza Ekle'}</Button>
+        </div>
+      </form>
+    </Sheet>
   );
 }
 
 // ── Transfer (approve) modal ─────────────────────────────────────────────────
 
-// Map an idea's suggested format to a content_queue format value (prefill).
 const SUGGEST_TO_FORMAT: Record<string, string> = {
   'Uzun Video': 'Video', 'Short': 'Short / Reels', 'Reels': 'Short / Reels',
   'Gönderi': 'Gönderi / Post', 'Canlı': 'Canlı Yayın',
@@ -110,13 +127,10 @@ function TransferModal({ idea, onClose }: { idea: IdeaDTO; onClose: () => void }
   const [isPending, start] = useTransition();
   const platforms = Object.keys(PLATFORM_LABELS) as ContentPlatform[];
 
-  // Prefill from the idea's suggestion where it maps to a content platform;
-  // if nothing overlaps, default to YouTube. Admin can change freely.
   const suggested = idea.suggested_platforms as string[];
   const overlap = platforms.filter((p) => suggested.includes(p));
   const isChecked = (p: ContentPlatform) => (overlap.length > 0 ? overlap.includes(p) : p === 'YOUTUBE');
   const defaultFormat = (idea.suggested_format && SUGGEST_TO_FORMAT[idea.suggested_format]) || 'Video';
-  const hasSuggestion = idea.suggested_platforms.length > 0 || Boolean(idea.suggested_format);
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -130,54 +144,128 @@ function TransferModal({ idea, onClose }: { idea: IdeaDTO; onClose: () => void }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#0B1437]/50 backdrop-blur-sm" onClick={() => !isPending && onClose()} />
-      <div className="relative z-10 w-full max-w-md rounded-[var(--radius-lg)] p-6" style={card}>
-        <h3 className="mb-1 text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>İçerik Planı&apos;na Aktar</h3>
-        <p className="mb-3 text-xs" style={{ color: 'var(--color-text-muted)' }}>Kart &quot;Metin Yazılıyor&quot; aşamasında açılır.</p>
-        {hasSuggestion && (
-          <div className="mb-4 flex flex-wrap items-center gap-1.5 rounded-[var(--radius-sm)] p-2.5" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
-            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Fikir önerisi</span>
-            {idea.suggested_platforms.map((p) => (
-              <span key={p} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)' }}>{SUGGEST_PLATFORM_LABELS[p]}</span>
+    <Sheet onClose={() => !isPending && onClose()} maxWidth="max-w-md">
+      <h3 className="mb-1 text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>İçerik Planı&apos;na Aktar</h3>
+      <p className="mb-4 text-xs" style={{ color: 'var(--color-text-muted)' }}>Kart &quot;Metin Yazılıyor&quot; aşamasında açılır.</p>
+      <form onSubmit={submit} className="space-y-4">
+        <div>
+          <label className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Platform(lar) <span style={{ color: 'var(--color-error)' }}>*</span></label>
+          <div className="grid grid-cols-2 gap-2">
+            {platforms.map((p) => (
+              <label key={p} className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] px-2.5 py-2.5 text-sm"
+                style={{ backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}>
+                <input type="checkbox" name="platforms" value={p} defaultChecked={isChecked(p)} className="accent-[var(--color-accent)]" />
+                {PLATFORM_LABELS[p]}
+              </label>
             ))}
-            {idea.suggested_format && <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>{idea.suggested_format}</span>}
           </div>
-        )}
-        <form onSubmit={submit} className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Platform(lar) <span style={{ color: 'var(--color-error)' }}>*</span></label>
-            <div className="grid grid-cols-2 gap-2">
-              {platforms.map((p) => (
-                <label key={p} className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] px-2.5 py-2 text-sm"
-                  style={{ backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}>
-                  <input type="checkbox" name="platforms" value={p} defaultChecked={isChecked(p)} className="accent-[var(--color-accent)]" />
-                  {PLATFORM_LABELS[p]}
-                </label>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Format</label>
-            <Select name="content_type" defaultValue={defaultFormat}>
-              {CONTENT_FORMATS.map((f) => <option key={f} value={f}>{f}</option>)}
-            </Select>
-          </div>
-          {error && <p className="text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>İptal</Button>
-            <Button type="submit" disabled={isPending}>{isPending ? 'Aktarılıyor…' : 'Onayla → Aktar'}</Button>
-          </div>
-        </form>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Format</label>
+          <Select name="content_type" defaultValue={defaultFormat}>
+            {CONTENT_FORMATS.map((f) => <option key={f} value={f}>{f}</option>)}
+          </Select>
+        </div>
+        {error && <p className="text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>}
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>İptal</Button>
+          <Button type="submit" disabled={isPending}>{isPending ? 'Aktarılıyor…' : 'Onayla → Aktar'}</Button>
+        </div>
+      </form>
+    </Sheet>
+  );
+}
+
+// ── Vote selector — big, obvious, one tap ────────────────────────────────────
+
+function VoteSelector({ idea, disabled, onVote }: { idea: IdeaDTO; disabled: boolean; onVote: (v: VoteType) => void }) {
+  return (
+    <div>
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+        Oyunu ver
+      </p>
+      <div className="grid grid-cols-3 gap-2">
+        {VOTE_BUTTONS.map(({ type, icon: Icon }) => {
+          const active = idea.my_vote === type;
+          const m = VOTE_META[type];
+          return (
+            <button
+              key={type}
+              onClick={() => onVote(type)}
+              disabled={disabled}
+              aria-pressed={active}
+              className="relative flex min-h-[84px] flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] px-2 py-3 text-xs font-semibold transition-all disabled:opacity-50"
+              style={active
+                ? { backgroundColor: m.color, color: '#fff', border: `2px solid ${m.color}` }
+                : { backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)', border: '2px solid var(--color-border)' }}
+            >
+              {active && (
+                <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full" style={{ backgroundColor: '#fff' }}>
+                  <Check className="h-3 w-3" style={{ color: m.color }} />
+                </span>
+              )}
+              <Icon className="h-5 w-5" />
+              <span className="text-center leading-tight">{m.label}</span>
+              <span className="font-mono text-[11px]" style={{ opacity: 0.85 }}>{countFor(idea, type)}</span>
+            </button>
+          );
+        })}
       </div>
+      <p className="mt-2 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+        {idea.my_vote
+          ? `Senin oyun: ${VOTE_META[idea.my_vote].label} — değiştirmek için başka bir seçeneğe bas.`
+          : 'Henüz oy vermedin. Bir seçeneğe bas.'}
+      </p>
     </div>
   );
 }
 
-// ── Idea card ────────────────────────────────────────────────────────────────
+// ── Compact card ─────────────────────────────────────────────────────────────
 
-function IdeaCard({ idea, isAdmin, commentsEnabled, onTransfer }: {
-  idea: IdeaDTO; isAdmin: boolean; commentsEnabled: boolean; onTransfer: (idea: IdeaDTO) => void;
+function IdeaCard({ idea, onOpen }: { idea: IdeaDTO; onOpen: () => void }) {
+  const cat = CATEGORY_META[idea.category];
+  return (
+    <button
+      onClick={onOpen}
+      className="flex w-full flex-col gap-2 rounded-[var(--radius-lg)] p-3 text-left transition-shadow hover:shadow-md"
+      style={card}
+    >
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: cat.bg, color: cat.color }}>{cat.label}</span>
+        {idea.status !== 'OPEN' && (
+          <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: STATUS_META[idea.status].bg, color: STATUS_META[idea.status].color }}>{STATUS_META[idea.status].label}</span>
+        )}
+        {idea.ai_score != null && (
+          <span className="ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>%{idea.ai_score}</span>
+        )}
+      </div>
+
+      <h3 className="line-clamp-2 text-sm font-semibold leading-snug" style={{ color: 'var(--color-text-primary)' }}>{idea.title}</h3>
+
+      <div className="mt-auto flex items-center gap-1.5 border-t pt-2" style={{ borderColor: 'var(--color-border)' }}>
+        {VOTE_BUTTONS.map(({ type, icon: Icon }) => {
+          const active = idea.my_vote === type;
+          const m = VOTE_META[type];
+          return (
+            <span key={type} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+              style={active
+                ? { backgroundColor: m.bg, color: m.color, border: `1px solid ${m.color}` }
+                : { color: 'var(--color-text-muted)' }}>
+              <Icon className="h-3.5 w-3.5" />
+              <span className="font-mono">{countFor(idea, type)}</span>
+            </span>
+          );
+        })}
+        <span className="ml-auto text-[11px] font-medium" style={{ color: 'var(--color-accent)' }}>Detay →</span>
+      </div>
+    </button>
+  );
+}
+
+// ── Detail sheet: full text + AI + voting + admin decision ───────────────────
+
+function IdeaDetail({ idea, isAdmin, commentsEnabled, onClose, onTransfer }: {
+  idea: IdeaDTO; isAdmin: boolean; commentsEnabled: boolean; onClose: () => void; onTransfer: (idea: IdeaDTO) => void;
 }) {
   const router = useRouter();
   const [isPending, start] = useTransition();
@@ -191,7 +279,7 @@ function IdeaCard({ idea, isAdmin, commentsEnabled, onTransfer }: {
     setError(null);
     start(async () => { const r = await fn(); if (r.error) setError(r.error); else router.refresh(); });
   }
-  function handleVote(v: VoteType) { run(() => voteIdea(idea.id, v)); }
+
   function handleEvaluate() {
     setError(null);
     start(async () => {
@@ -202,107 +290,109 @@ function IdeaCard({ idea, isAdmin, commentsEnabled, onTransfer }: {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-[var(--radius-lg)] p-4" style={card}>
+    <Sheet onClose={onClose}>
       {/* head */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ backgroundColor: cat.bg, color: cat.color }}>{cat.label}</span>
-        {idea.status !== 'OPEN' && (
-          <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ backgroundColor: STATUS_META[idea.status].bg, color: STATUS_META[idea.status].color }}>{STATUS_META[idea.status].label}</span>
-        )}
-        {isAdmin && idea.author_name && (
-          <span className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>✍️ {idea.author_name}</span>
-        )}
-        {isAdmin && (
-          <button onClick={() => { if (confirm('Fikri sil?')) run(() => deleteIdea(idea.id)); }} disabled={isPending}
-            className="ml-auto rounded p-1 transition-colors hover:bg-red-500/10" title="Sil" style={{ color: 'var(--color-error)' }}>
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        )}
+      <div className="mb-3 flex items-start gap-2">
+        <div className="flex flex-1 flex-wrap items-center gap-1.5">
+          <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ backgroundColor: cat.bg, color: cat.color }}>{cat.label}</span>
+          {idea.status !== 'OPEN' && (
+            <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ backgroundColor: STATUS_META[idea.status].bg, color: STATUS_META[idea.status].color }}>{STATUS_META[idea.status].label}</span>
+          )}
+          {isAdmin && idea.author_name && (
+            <span className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>✍️ {idea.author_name}</span>
+          )}
+        </div>
+        <button onClick={onClose} className="rounded p-1" style={{ color: 'var(--color-text-muted)' }} aria-label="Kapat">
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
-      {/* body */}
-      <div>
-        <h3 className="text-sm font-semibold leading-snug" style={{ color: 'var(--color-text-primary)' }}>{idea.title}</h3>
-        {idea.summary && <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{idea.summary}</p>}
-        {(idea.suggested_platforms.length > 0 || idea.suggested_format) && (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Öneri</span>
-            {idea.suggested_platforms.map((p) => (
-              <span key={p} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' }}>{SUGGEST_PLATFORM_LABELS[p]}</span>
-            ))}
-            {idea.suggested_format && (
-              <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>{idea.suggested_format}</span>
-            )}
-          </div>
-        )}
-      </div>
+      <h2 className="text-lg font-semibold leading-snug" style={{ color: 'var(--color-text-primary)' }}>{idea.title}</h2>
 
-      {/* votes */}
-      <div className="flex flex-wrap items-center gap-2">
-        {VOTE_BUTTONS.map(({ type, icon: Icon }) => {
-          const active = idea.my_vote === type;
-          const m = VOTE_META[type];
-          const count = type === 'UP' ? idea.counts.up : type === 'DOWN' ? idea.counts.down : idea.counts.unsure;
-          return (
-            <button key={type} onClick={() => handleVote(type)} disabled={isPending}
-              className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-1.5 text-xs font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
-              style={active
-                ? { backgroundColor: m.bg, color: m.color, border: `1px solid ${m.color}` }
-                : { backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>
-              <Icon className="h-3.5 w-3.5" /> {m.label} <span className="font-mono">{count}</span>
-            </button>
-          );
-        })}
-        {isAdmin && idea.voters && idea.voters.length > 0 && (
-          <button onClick={() => setShowVoters((v) => !v)} className="inline-flex items-center gap-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-            <Users className="h-3 w-3" /> kim ne verdi
-          </button>
-        )}
-      </div>
-      {isAdmin && showVoters && idea.voters && (
-        <div className="flex flex-wrap gap-1.5 rounded-[var(--radius-sm)] p-2" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
-          {idea.voters.length === 0 ? <span className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Henüz oy yok</span> :
-            idea.voters.map((v, i) => (
-              <span key={i} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: VOTE_META[v.vote].bg, color: VOTE_META[v.vote].color }}>{v.name}: {VOTE_META[v.vote].label}</span>
-            ))}
+      {idea.summary && (
+        <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{idea.summary}</p>
+      )}
+
+      {(idea.suggested_platforms.length > 0 || idea.suggested_format) && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Öneri</span>
+          {idea.suggested_platforms.map((p) => (
+            <span key={p} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' }}>{SUGGEST_PLATFORM_LABELS[p]}</span>
+          ))}
+          {idea.suggested_format && (
+            <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>{idea.suggested_format}</span>
+          )}
         </div>
       )}
 
-      {/* AI evaluation */}
-      {comment ? (
-        <div className="rounded-[var(--radius-sm)] p-3" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
-          <div className="mb-1 flex items-center gap-2">
-            <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-accent)' }}><Sparkles className="h-3 w-3" /> AI değerlendirme</span>
-            {score != null && <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>Tahmini tutma %{score}</span>}
-          </div>
-          <p className="whitespace-pre-wrap text-[12px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{comment}</p>
-        </div>
-      ) : isAdmin ? (
-        <button onClick={handleEvaluate} disabled={!commentsEnabled || isPending}
-          title={commentsEnabled ? 'Claude ile değerlendir' : 'ANTHROPIC_API_KEY gerekli'}
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] py-2 text-xs font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>
-          <Sparkles className="h-3.5 w-3.5" /> {isPending ? 'Değerlendiriliyor…' : 'Değerlendir'}
-        </button>
-      ) : null}
+      {/* voting */}
+      <div className="mt-5 border-t pt-4" style={{ borderColor: 'var(--color-border)' }}>
+        <VoteSelector idea={idea} disabled={isPending} onVote={(v) => run(() => voteIdea(idea.id, v))} />
+      </div>
 
-      {error && <p className="text-[11px]" style={{ color: 'var(--color-error)' }}>{error}</p>}
+      {isAdmin && idea.voters && (
+        <div className="mt-3">
+          <button onClick={() => setShowVoters((v) => !v)} className="inline-flex items-center gap-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+            <Users className="h-3 w-3" /> {showVoters ? 'gizle' : 'kim ne verdi'}
+          </button>
+          {showVoters && (
+            <div className="mt-2 flex flex-wrap gap-1.5 rounded-[var(--radius-sm)] p-2" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
+              {idea.voters.length === 0
+                ? <span className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Henüz oy yok</span>
+                : idea.voters.map((v, i) => (
+                    <span key={i} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: VOTE_META[v.vote].bg, color: VOTE_META[v.vote].color }}>{v.name}: {VOTE_META[v.vote].label}</span>
+                  ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* AI */}
+      <div className="mt-4">
+        {comment ? (
+          <div className="rounded-[var(--radius-sm)] p-3" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-accent)' }}><Sparkles className="h-3 w-3" /> AI değerlendirme</span>
+              {score != null && <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>Tahmini tutma %{score}</span>}
+            </div>
+            <p className="whitespace-pre-wrap text-[12px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{comment}</p>
+          </div>
+        ) : isAdmin ? (
+          <button onClick={handleEvaluate} disabled={!commentsEnabled || isPending}
+            title={commentsEnabled ? 'Claude ile değerlendir' : 'ANTHROPIC_API_KEY gerekli'}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] py-2.5 text-xs font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>
+            <Sparkles className="h-3.5 w-3.5" /> {isPending ? 'Değerlendiriliyor…' : 'Değerlendir'}
+          </button>
+        ) : null}
+      </div>
+
+      {error && <p className="mt-2 text-[11px]" style={{ color: 'var(--color-error)' }}>{error}</p>}
 
       {/* admin decision */}
       {isAdmin && idea.status === 'OPEN' && (
-        <div className="flex gap-2 border-t pt-3" style={{ borderColor: 'var(--color-border)' }}>
-          <Button size="sm" onClick={() => onTransfer(idea)} disabled={isPending} className="flex-1">
-            <ArrowRight className="mr-1.5 h-3.5 w-3.5" /> Onayla → Aktar
+        <div className="mt-4 flex flex-wrap gap-2 border-t pt-4" style={{ borderColor: 'var(--color-border)' }}>
+          <Button onClick={() => onTransfer(idea)} disabled={isPending} className="flex-1">
+            <ArrowRight className="mr-1.5 h-4 w-4" /> Onayla → Aktar
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => run(() => rejectIdea(idea.id))} disabled={isPending}>
-            <X className="mr-1 h-3.5 w-3.5" /> Reddet
+          <Button variant="secondary" onClick={() => run(() => rejectIdea(idea.id))} disabled={isPending}>
+            <X className="mr-1 h-4 w-4" /> Reddet
           </Button>
         </div>
       )}
       {idea.status === 'APPROVED' && (
-        <p className="text-[11px]" style={{ color: 'var(--color-success)' }}>İçerik Planı&apos;na aktarıldı — &quot;Metin Yazılıyor&quot; aşamasında.</p>
+        <p className="mt-3 text-[11px]" style={{ color: 'var(--color-success)' }}>İçerik Planı&apos;na aktarıldı — &quot;Metin Yazılıyor&quot; aşamasında.</p>
       )}
-    </div>
+
+      {isAdmin && (
+        <div className="mt-4 flex justify-end border-t pt-3" style={{ borderColor: 'var(--color-border)' }}>
+          <button onClick={() => { if (confirm('Fikri sil?')) { run(() => deleteIdea(idea.id)); onClose(); } }} disabled={isPending}
+            className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-2 text-xs font-semibold" style={{ color: 'var(--color-error)' }}>
+            <Trash2 className="h-3.5 w-3.5" /> Fikri sil
+          </button>
+        </div>
+      )}
+    </Sheet>
   );
 }
 
@@ -312,21 +402,28 @@ export function IdeaBoard({ ideas, isAdmin, commentsEnabled }: { ideas: IdeaDTO[
   const [filter, setFilter] = useState<'ALL' | IdeaCategory>('ALL');
   const [adding, setAdding] = useState(false);
   const [transferIdea, setTransferIdea] = useState<IdeaDTO | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const visible = ideas.filter((i) => filter === 'ALL' || i.category === filter);
   const counts: Record<string, number> = { ALL: ideas.length };
   for (const i of ideas) counts[i.category] = (counts[i.category] ?? 0) + 1;
 
+  // Re-derive from props so the sheet reflects fresh data after a vote.
+  const detail = detailId ? ideas.find((i) => i.id === detailId) ?? null : null;
+
+  const chip = (active: boolean) =>
+    active
+      ? { backgroundColor: 'var(--color-accent)', color: '#fff' }
+      : { backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' };
+
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <button onClick={() => setFilter('ALL')} className="rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold"
-          style={filter === 'ALL' ? { backgroundColor: 'var(--color-accent)', color: '#fff' } : { backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>
+        <button onClick={() => setFilter('ALL')} className="rounded-[var(--radius-sm)] px-3 py-2 text-xs font-semibold" style={chip(filter === 'ALL')}>
           Tümü ({counts.ALL})
         </button>
         {CATEGORY_OPTIONS.map((c) => (
-          <button key={c.value} onClick={() => setFilter(c.value)} className="rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold"
-            style={filter === c.value ? { backgroundColor: 'var(--color-accent)', color: '#fff' } : { backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>
+          <button key={c.value} onClick={() => setFilter(c.value)} className="rounded-[var(--radius-sm)] px-3 py-2 text-xs font-semibold" style={chip(filter === c.value)}>
             {c.label} ({counts[c.value] ?? 0})
           </button>
         ))}
@@ -342,14 +439,23 @@ export function IdeaBoard({ ideas, isAdmin, commentsEnabled }: { ideas: IdeaDTO[
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visible.map((idea) => (
-            <IdeaCard key={idea.id} idea={idea} isAdmin={isAdmin} commentsEnabled={commentsEnabled} onTransfer={setTransferIdea} />
+            <IdeaCard key={idea.id} idea={idea} onOpen={() => setDetailId(idea.id)} />
           ))}
         </div>
       )}
 
       {adding && <AddIdeaModal onClose={() => setAdding(false)} />}
+      {detail && (
+        <IdeaDetail
+          idea={detail}
+          isAdmin={isAdmin}
+          commentsEnabled={commentsEnabled}
+          onClose={() => setDetailId(null)}
+          onTransfer={setTransferIdea}
+        />
+      )}
       {transferIdea && <TransferModal idea={transferIdea} onClose={() => setTransferIdea(null)} />}
     </div>
   );
