@@ -33,6 +33,9 @@ export interface IdeaDTO {
   created_at: string;
   counts: VoteCounts;
   my_vote: VoteType | null;
+  /** True when the viewer wrote this idea — lets them delete it without
+   *  revealing the author to anyone else. */
+  is_mine: boolean;
   author_name: string | null;   // admin only
   voters: VoterDetail[] | null;  // admin only
 }

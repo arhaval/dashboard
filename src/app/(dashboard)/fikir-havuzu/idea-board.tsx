@@ -232,6 +232,9 @@ function IdeaCard({ idea, onOpen }: { idea: IdeaDTO; onOpen: () => void }) {
     >
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: cat.bg, color: cat.color }}>{cat.label}</span>
+        {idea.is_mine && (
+          <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' }}>senin</span>
+        )}
         {idea.status !== 'OPEN' && (
           <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: STATUS_META[idea.status].bg, color: STATUS_META[idea.status].color }}>{STATUS_META[idea.status].label}</span>
         )}
@@ -384,11 +387,12 @@ function IdeaDetail({ idea, isAdmin, commentsEnabled, onClose, onTransfer }: {
         <p className="mt-3 text-[11px]" style={{ color: 'var(--color-success)' }}>İçerik Planı&apos;na aktarıldı — &quot;Metin Yazılıyor&quot; aşamasında.</p>
       )}
 
-      {isAdmin && (
+      {/* Admins delete anything; authors may delete their own idea. */}
+      {(isAdmin || idea.is_mine) && (
         <div className="mt-4 flex justify-end border-t pt-3" style={{ borderColor: 'var(--color-border)' }}>
           <button onClick={() => { if (confirm('Fikri sil?')) { run(() => deleteIdea(idea.id)); onClose(); } }} disabled={isPending}
             className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-2 text-xs font-semibold" style={{ color: 'var(--color-error)' }}>
-            <Trash2 className="h-3.5 w-3.5" /> Fikri sil
+            <Trash2 className="h-3.5 w-3.5" /> {isAdmin ? 'Fikri sil' : 'Fikrimi sil'}
           </button>
         </div>
       )}

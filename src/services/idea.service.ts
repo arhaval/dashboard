@@ -70,6 +70,7 @@ export const ideaService = {
       created_at: i.created_at,
       counts: countsByIdea.get(i.id) ?? emptyCounts(),
       my_vote: myVoteByIdea.get(i.id) ?? null,
+      is_mine: i.author_id === user.id,
       author_name: isAdmin ? (i.author_id ? nameById.get(i.author_id) ?? '—' : '—') : null,
       voters: isAdmin ? (votersByIdea.get(i.id) ?? []) : null,
     }));
