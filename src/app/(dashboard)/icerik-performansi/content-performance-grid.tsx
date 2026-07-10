@@ -2,7 +2,7 @@
 
 import { PerfView, type PerfRow } from './perf-view';
 import { VIDEO_GENRE_LABELS, VIDEO_GENRES, type ScoredVideo, type VideoGenre } from './perf.constants';
-import { syncVideosNow, commentOnVideo, setVideoGenre } from './perf-actions';
+import { syncVideosNow, commentOnVideo, setVideoGenre, setVideoScript } from './perf-actions';
 
 const GENRE_OPTIONS = VIDEO_GENRES.map((g) => ({ value: g, label: VIDEO_GENRE_LABELS[g] }));
 
@@ -22,6 +22,7 @@ export function ContentPerformanceGrid({ videos, commentsEnabled }: { videos: Sc
     score: v.score,
     label: v.label,
     hasComment: Boolean(v.claude_comment),
+    script: v.script,
   }));
 
   return (
@@ -34,6 +35,7 @@ export function ContentPerformanceGrid({ videos, commentsEnabled }: { videos: Sc
       onSetGenre={(id, g) => setVideoGenre(id, g as VideoGenre)}
       onComment={commentOnVideo}
       onSync={syncVideosNow}
+      onSetScript={setVideoScript}
       commentsEnabled={commentsEnabled}
     />
   );

@@ -2,7 +2,7 @@
 
 import { PerfView, type PerfRow } from './perf-view';
 import { IG_GENRE_LABELS, IG_GENRES, type ScoredMedia, type IgGenre } from './ig-perf.constants';
-import { syncInstagramNow, commentOnMedia, setMediaGenre } from './ig-perf-actions';
+import { syncInstagramNow, commentOnMedia, setMediaGenre, setMediaScript } from './ig-perf-actions';
 
 const GENRE_OPTIONS = IG_GENRES.map((g) => ({ value: g, label: IG_GENRE_LABELS[g] }));
 
@@ -22,6 +22,7 @@ export function InstagramPerformanceGrid({ media, commentsEnabled }: { media: Sc
     score: m.score,
     label: m.label,
     hasComment: Boolean(m.claude_comment),
+    script: m.script,
   }));
 
   return (
@@ -34,6 +35,7 @@ export function InstagramPerformanceGrid({ media, commentsEnabled }: { media: Sc
       onSetGenre={(id, g) => setMediaGenre(id, g as IgGenre)}
       onComment={commentOnMedia}
       onSync={syncInstagramNow}
+      onSetScript={setMediaScript}
       commentsEnabled={commentsEnabled}
     />
   );

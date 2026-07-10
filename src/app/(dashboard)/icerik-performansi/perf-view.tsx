@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState, useTransition, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import {
   RefreshCw, List, LayoutGrid, Sparkles, ChevronUp, ChevronDown,
-  Eye, ThumbsUp, MessageSquare,
+  Eye, ThumbsUp, MessageSquare, FileText, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LABEL_META, type PerfLabel } from './perf.constants';
@@ -30,6 +30,8 @@ export interface PerfRow {
   score: number | null;
   label: PerfLabel;
   hasComment: boolean;
+  /** Our own script for this content. Having one puts it in the library. */
+  script: string | null;
 }
 
 interface GenreOption { value: string; label: string }
@@ -43,6 +45,7 @@ interface Props {
   onSetGenre: (actionId: string, genre: string) => Promise<{ error?: string }>;
   onComment: (actionId: string) => Promise<{ comment?: string; error?: string }>;
   onSync: () => Promise<{ synced?: number; error?: string }>;
+  onSetScript: (actionId: string, script: string) => Promise<{ error?: string }>;
   commentsEnabled: boolean;
 }
 
@@ -71,9 +74,14 @@ const SCORE_FILTERS: { id: 'ALL' | PerfLabel; label: string }[] = [
 ];
 
 export function PerfView(props: Props) {
-  const { rows, genreOptions, thumbAspect, emptyText, syncLabel, onSetGenre, onComment, onSync, commentsEnabled } = props;
+  const { rows, genreOptions, thumbAspect, emptyText, syncLabel, onSetGenre, onComment, onSync, onSetScript, commentsEnabled } = props;
 
   const [view, setView] = useState<'list' | 'card'>('list');
+  // The page is a curated library: by default only content we wrote a script
+  // for. The full synced corpus stays behind the toggle — it is the baseline
+  // that makes the genre scores mean anything.
+  const [libraryOnly, setLibraryOnly] = useState(true);
+  const [scriptRow, setScriptRow] = useState<PerfRow | null>(null);
 
   // The list is a wide table — start phones on the card grid instead. Runs
   // after mount so the server and first client render still agree.
@@ -91,6 +99,7 @@ export function PerfView(props: Props) {
   const [genreOverride, setGenreOverride] = useState<Record<string, string>>({});
   const [lockedOverride, setLockedOverride] = useState<Record<string, boolean>>({});
   const [commented, setCommented] = useState<Record<string, boolean>>({});
+  const [scripts, setScripts] = useState<Record<string, string | null>>({});
 
   const genreLabel = useMemo(() => {
     const m = new Map<string, string>();
@@ -101,6 +110,8 @@ export function PerfView(props: Props) {
   const genreOf = (r: PerfRow) => genreOverride[r.key] ?? r.genre;
   const lockedOf = (r: PerfRow) => lockedOverride[r.key] ?? r.genreLocked;
   const commentedOf = (r: PerfRow) => commented[r.key] ?? r.hasComment;
+  const scriptOf = (r: PerfRow) => (r.key in scripts ? scripts[r.key] : r.script);
+  const libraryCount = rows.filter((r) => scriptOf(r)).length;
 
   const genreCounts = useMemo(() => {
     const c = new Map<string, number>();
@@ -111,7 +122,9 @@ export function PerfView(props: Props) {
 
   const filtered = useMemo(() => {
     const arr = rows.filter(
-      (r) => (scoreFilter === 'ALL' || r.label === scoreFilter) && (genreFilter === 'ALL' || genreOf(r) === genreFilter)
+      (r) => (scoreFilter === 'ALL' || r.label === scoreFilter) &&
+        (genreFilter === 'ALL' || genreOf(r) === genreFilter) &&
+        (!libraryOnly || Boolean(scriptOf(r)))
     );
     const dir = sortDir === 'asc' ? 1 : -1;
     return [...arr].sort((a, b) => {
@@ -125,7 +138,7 @@ export function PerfView(props: Props) {
       return d * dir;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, scoreFilter, genreFilter, sortKey, sortDir, genreOverride, genreLabel]);
+  }, [rows, scoreFilter, genreFilter, sortKey, sortDir, genreOverride, genreLabel, libraryOnly, scripts]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -171,6 +184,18 @@ export function PerfView(props: Props) {
           })}
         </div>
 
+        <button
+          onClick={() => setLibraryOnly((v) => !v)}
+          className="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-xs font-semibold transition-colors"
+          title={libraryOnly ? 'Tüm senkron içeriği göster' : 'Sadece metni olanları göster'}
+          style={libraryOnly
+            ? { backgroundColor: 'var(--color-accent)', color: '#fff' }
+            : { backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+        >
+          <FileText className="h-3.5 w-3.5" />
+          {libraryOnly ? `Kütüphane (${libraryCount})` : `Tümü (${rows.length})`}
+        </button>
+
         <Select value={genreFilter} onChange={setGenreFilter}>
           <option value="ALL">Tüm türler ({rows.length})</option>
           {genreOptions.map((g) => <option key={g.value} value={g.value}>{g.label} ({genreCounts.get(g.value) ?? 0})</option>)}
@@ -190,16 +215,98 @@ export function PerfView(props: Props) {
 
       {filtered.length === 0 ? (
         <div className="rounded-[var(--radius-md)] p-10 text-center" style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)' }}>
-          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{rows.length === 0 ? emptyText : 'Bu filtreyle eşleşen içerik yok.'}</p>
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            {rows.length === 0
+              ? emptyText
+              : libraryOnly && libraryCount === 0
+                ? 'Kütüphane boş. "Tümü"ne geçip bir içeriğe 📝 ile metnini ekle — kütüphane böyle büyür.'
+                : 'Bu filtreyle eşleşen içerik yok.'}
+          </p>
         </div>
       ) : view === 'list' ? (
         <ListView rows={filtered} showViews={showViews} thumbAspect={thumbAspect} sortKey={sortKey} sortDir={sortDir}
           toggleSort={toggleSort} genreOptions={genreOptions} genreOf={genreOf} lockedOf={lockedOf} commentedOf={commentedOf}
-          changeGenre={changeGenre} onComment={onComment} setCommented={setCommented} commentsEnabled={commentsEnabled} total={rows.length} />
+          changeGenre={changeGenre} onComment={onComment} setCommented={setCommented} commentsEnabled={commentsEnabled} total={rows.length}
+          scriptOf={scriptOf} onOpenScript={setScriptRow} />
       ) : (
         <CardView rows={filtered} thumbAspect={thumbAspect} genreOptions={genreOptions} genreOf={genreOf} lockedOf={lockedOf}
-          commentedOf={commentedOf} changeGenre={changeGenre} onComment={onComment} setCommented={setCommented} commentsEnabled={commentsEnabled} />
+          commentedOf={commentedOf} changeGenre={changeGenre} onComment={onComment} setCommented={setCommented} commentsEnabled={commentsEnabled}
+          scriptOf={scriptOf} onOpenScript={setScriptRow} />
       )}
+
+      {scriptRow && (
+        <ScriptModal
+          row={scriptRow}
+          initial={scriptOf(scriptRow) ?? ''}
+          onClose={() => setScriptRow(null)}
+          onSave={async (text) => {
+            const res = await onSetScript(scriptRow.actionId, text);
+            if (!res.error) setScripts((m) => ({ ...m, [scriptRow.key]: text.trim() || null }));
+            return res;
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Script editor ────────────────────────────────────────────────────────────
+
+function ScriptModal({ row, initial, onClose, onSave }: {
+  row: PerfRow; initial: string; onClose: () => void;
+  onSave: (text: string) => Promise<{ error?: string }>;
+}) {
+  const [text, setText] = useState(initial);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, start] = useTransition();
+
+  function save() {
+    setError(null);
+    start(async () => {
+      const res = await onSave(text);
+      if (res.error) setError(res.error);
+      else onClose();
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+      <div className="absolute inset-0 bg-[#0B1437]/50 backdrop-blur-sm" onClick={() => !isPending && onClose()} />
+      <div className="relative z-10 max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl p-5 sm:rounded-[var(--radius-lg)] sm:p-6"
+        style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}>
+        <div className="mb-3 flex items-start gap-3">
+          {row.thumbnail && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={row.thumbnail} alt="" className="h-12 w-20 flex-shrink-0 rounded-[var(--radius-sm)] object-cover" />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="line-clamp-2 text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>{row.title}</p>
+            <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Metni ekleyince bu içerik kütüphaneye girer.</p>
+          </div>
+          <button onClick={onClose} className="rounded p-1" style={{ color: 'var(--color-text-muted)' }} aria-label="Kapat">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={14}
+          placeholder="Bu içeriğin metnini yapıştır…"
+          className="w-full resize-y rounded-[var(--radius-sm)] px-3 py-2.5 text-sm leading-relaxed outline-none"
+          style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', minHeight: 220 }}
+        />
+        <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+          Boş bırakıp kaydedersen içerik kütüphaneden çıkar.
+        </p>
+
+        {error && <p className="mt-2 text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>}
+
+        <div className="mt-4 flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>İptal</Button>
+          <Button type="button" onClick={save} disabled={isPending}>{isPending ? 'Kaydediliyor…' : 'Kaydet'}</Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -240,6 +347,19 @@ function ScoreBadge({ label, score }: { label: PerfLabel; score: number | null }
   );
 }
 
+function ScriptButton({ hasScript, onClick }: { hasScript: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick}
+      title={hasScript ? 'Metni düzenle' : 'Metin ekle (kütüphaneye al)'}
+      className="inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-1.5 text-xs font-semibold transition-opacity hover:opacity-80"
+      style={hasScript
+        ? { backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)', border: '1px solid var(--color-accent)' }
+        : { backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }}>
+      <FileText className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
 function CommentButton({ done, disabled, onClick }: { done: boolean; disabled: boolean; onClick: () => void }) {
   return (
     <button onClick={onClick} disabled={disabled || done}
@@ -264,6 +384,8 @@ interface SharedRowProps {
   onComment: (actionId: string) => Promise<{ comment?: string; error?: string }>;
   setCommented: Dispatch<SetStateAction<Record<string, boolean>>>;
   commentsEnabled: boolean;
+  scriptOf: (r: PerfRow) => string | null;
+  onOpenScript: (r: PerfRow) => void;
 }
 
 // ── List view ────────────────────────────────────────────────────────────────
@@ -283,7 +405,7 @@ function SortHeader({ label, active, dir, onClick, align }: { label: string; act
 function ListView(props: SharedRowProps & {
   showViews: boolean; sortKey: SortKey; sortDir: 'asc' | 'desc'; toggleSort: (k: SortKey) => void; total: number;
 }) {
-  const { rows, showViews, thumbAspect, sortKey, sortDir, toggleSort, genreOptions, genreOf, lockedOf, commentedOf, changeGenre, onComment, setCommented, commentsEnabled, total } = props;
+  const { rows, showViews, thumbAspect, sortKey, sortDir, toggleSort, genreOptions, genreOf, lockedOf, commentedOf, changeGenre, onComment, setCommented, commentsEnabled, total, scriptOf, onOpenScript } = props;
   const thumbCls = thumbAspect === 'video' ? 'h-[34px] w-[60px]' : 'h-[40px] w-[40px]';
 
   return (
@@ -322,8 +444,11 @@ function ListView(props: SharedRowProps & {
                 <td className="px-3.5 py-2"><ScoreBadge label={r.label} score={r.score} /></td>
                 <td className="px-3.5 py-2 text-right font-mono text-[12px]" style={{ color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>{fmtDate(r.date)}</td>
                 <td className="px-3.5 py-2 text-right">
-                  <CommentButton done={commentedOf(r)} disabled={!commentsEnabled}
-                    onClick={() => onComment(r.actionId).then((res) => { if (res.comment) setCommented((m) => ({ ...m, [r.key]: true })); })} />
+                  <div className="inline-flex items-center gap-1.5">
+                    <ScriptButton hasScript={Boolean(scriptOf(r))} onClick={() => onOpenScript(r)} />
+                    <CommentButton done={commentedOf(r)} disabled={!commentsEnabled}
+                      onClick={() => onComment(r.actionId).then((res) => { if (res.comment) setCommented((m) => ({ ...m, [r.key]: true })); })} />
+                  </div>
                 </td>
               </tr>
             ))}
@@ -341,7 +466,7 @@ function ListView(props: SharedRowProps & {
 // ── Card view (compact) ──────────────────────────────────────────────────────
 
 function CardView(props: SharedRowProps) {
-  const { rows, thumbAspect, genreOptions, genreOf, lockedOf, commentedOf, changeGenre, onComment, setCommented, commentsEnabled } = props;
+  const { rows, thumbAspect, genreOptions, genreOf, lockedOf, commentedOf, changeGenre, onComment, setCommented, commentsEnabled, scriptOf, onOpenScript } = props;
   const aspect = thumbAspect === 'video' ? 'aspect-video' : 'aspect-square';
   return (
     <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
@@ -364,10 +489,11 @@ function CardView(props: SharedRowProps) {
               <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" /> {fmt(r.comments)}</span>
               <span className="ml-auto font-mono text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{fmtDate(r.date)}</span>
             </div>
-            <div className="mt-auto pt-1">
+            <div className="mt-auto flex items-center gap-1.5 pt-1">
+              <ScriptButton hasScript={Boolean(scriptOf(r))} onClick={() => onOpenScript(r)} />
               <button onClick={() => onComment(r.actionId).then((res) => { if (res.comment) setCommented((m) => ({ ...m, [r.key]: true })); })}
                 disabled={!commentsEnabled || commentedOf(r)}
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] py-1.5 text-[11px] font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] py-1.5 text-[11px] font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
                 style={commentedOf(r)
                   ? { backgroundColor: 'var(--color-success-muted)', color: 'var(--color-success)' }
                   : { backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}>

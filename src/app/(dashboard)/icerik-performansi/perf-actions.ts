@@ -56,6 +56,22 @@ export async function setVideoGenre(
   return {};
 }
 
+/** Attach (or clear) the script of a video — this is what builds the library. */
+export async function setVideoScript(videoId: string, script: string): Promise<{ error?: string }> {
+  const admin = await assertAdmin();
+  if (!admin.ok) return { error: admin.error };
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from('video_performance')
+    .update({ script: script.trim() || null })
+    .eq('video_id', videoId);
+  if (error) return { error: error.message };
+
+  revalidatePath('/icerik-performansi');
+  return {};
+}
+
 export async function commentOnVideo(videoId: string): Promise<{ comment?: string; error?: string }> {
   const admin = await assertAdmin();
   if (!admin.ok) return { error: admin.error };

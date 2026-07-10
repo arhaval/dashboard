@@ -23,6 +23,8 @@ export interface VideoPerformance {
   duration_seconds: number;
   genre: VideoGenre | null;
   genre_locked: boolean;
+  /** The script we wrote for this content. Its presence puts it in the library. */
+  script: string | null;
   claude_comment: string | null;
   commented_at: string | null;
   synced_at: string | null;

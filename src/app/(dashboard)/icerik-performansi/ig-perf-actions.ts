@@ -37,6 +37,21 @@ export async function syncInstagramNow(): Promise<{ synced?: number; error?: str
   return { synced: result.synced };
 }
 
+/** Attach (or clear) the script of an Instagram post. */
+export async function setMediaScript(mediaId: string, script: string): Promise<{ error?: string }> {
+  if (!(await assertAdmin())) return { error: 'Yetki yok' };
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from('instagram_media')
+    .update({ script: script.trim() || null })
+    .eq('media_id', mediaId);
+  if (error) return { error: error.message };
+
+  revalidatePath('/icerik-performansi');
+  return {};
+}
+
 export async function commentOnMedia(mediaId: string): Promise<{ comment?: string; error?: string }> {
   if (!(await assertAdmin())) return { error: 'Yetki yok' };
 
