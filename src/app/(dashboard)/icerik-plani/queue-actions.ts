@@ -202,11 +202,12 @@ export async function advanceContentStage(id: string, link?: string | null, assi
       body: `Metin ve ses hazır. "${item.title}" için her şey hazır, kurguya başlayabilirsin.`,
     });
   } else if (stage === 'EDITOR') {
+    // Video ready to publish → only the admin is notified.
     await notificationService.notify({
       ...notifyBase,
-      roles: ['PUBLISHER', 'YOUTUBER'],
+      roles: ['ADMIN'],
       title: '✅ Yayına hazır',
-      body: `"${item.title}" videosu hazır — yayınlayabilirsin.`,
+      body: `"${item.title}" videosu hazır — yayınlanmayı bekliyor.`,
     });
   }
 
