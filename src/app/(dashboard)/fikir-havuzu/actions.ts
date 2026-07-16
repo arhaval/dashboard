@@ -102,6 +102,20 @@ export async function deleteIdea(ideaId: string): Promise<{ error?: string }> {
   return res;
 }
 
+/** Archive / unarchive an idea — the author or an admin. */
+export async function archiveIdea(ideaId: string, archived: boolean): Promise<{ error?: string }> {
+  const user = await currentUser();
+  if (!user) return { error: 'Oturum gerekli' };
+
+  const raw = await ideaService.getRaw(ideaId);
+  if (!raw) return { error: 'Fikir bulunamadı' };
+  if (user.role !== 'ADMIN' && raw.author_id !== user.id) return { error: 'Yetki yok' };
+
+  const res = await ideaService.setArchived(ideaId, archived);
+  revalidatePath('/fikir-havuzu');
+  return res;
+}
+
 export async function rejectIdea(ideaId: string): Promise<{ error?: string }> {
   const user = await currentUser();
   if (user?.role !== 'ADMIN') return { error: 'Yetki yok' };

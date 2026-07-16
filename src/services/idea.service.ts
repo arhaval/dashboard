@@ -276,6 +276,23 @@ export const ideaService = {
     return error ? { error: error.message } : {};
   },
 
+  /**
+   * Shelve an idea (or bring it back). APPROVED ideas are never archived —
+   * their outcome is wired to the author's profile and the content card.
+   */
+  async setArchived(ideaId: string, archived: boolean): Promise<{ error?: string }> {
+    const existing = await this.getRaw(ideaId);
+    if (!existing) return { error: 'Fikir bulunamadı' };
+    if (existing.status === 'APPROVED') return { error: 'Aktarılmış fikir arşivlenemez' };
+
+    const admin = createAdminClient();
+    const { error } = await admin
+      .from('ideas')
+      .update({ status: archived ? 'ARCHIVED' : 'OPEN', updated_at: new Date().toISOString() })
+      .eq('id', ideaId);
+    return error ? { error: error.message } : {};
+  },
+
   async vote(ideaId: string, voterId: string, vote: VoteType): Promise<{ error?: string }> {
     const admin = createAdminClient();
     const { error } = await admin

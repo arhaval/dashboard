@@ -3,7 +3,7 @@
 import type { PerfLabel } from '../icerik-performansi/perf.constants';
 
 export type IdeaCategory = 'CONTENT' | 'BUSINESS' | 'STRATEGY';
-export type IdeaStatus = 'OPEN' | 'APPROVED' | 'REJECTED';
+export type IdeaStatus = 'OPEN' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
 export type VoteType = 'UP' | 'DOWN' | 'UNSURE';
 export type SuggestPlatform = 'YOUTUBE' | 'INSTAGRAM' | 'TIKTOK' | 'X';
 
@@ -100,4 +100,14 @@ export const STATUS_META: Record<IdeaStatus, { label: string; bg: string; color:
   OPEN:     { label: 'Havuzda',   bg: 'var(--color-bg-tertiary)',   color: 'var(--color-text-secondary)' },
   APPROVED: { label: 'Aktarıldı', bg: 'var(--color-success-muted)', color: 'var(--color-success)' },
   REJECTED: { label: 'Reddedildi', bg: 'var(--color-error-muted)',  color: 'var(--color-error)' },
+  ARCHIVED: { label: 'Arşiv',      bg: 'var(--color-bg-tertiary)',   color: 'var(--color-text-muted)' },
 };
+
+/** Board filters. Default is "Havuzda" so decided/archived ideas don't pile up. */
+export const STATUS_FILTERS: { id: 'ALL' | IdeaStatus; label: string }[] = [
+  { id: 'OPEN',     label: 'Havuzda' },
+  { id: 'APPROVED', label: 'Aktarıldı' },
+  { id: 'REJECTED', label: 'Reddedildi' },
+  { id: 'ARCHIVED', label: 'Arşiv' },
+  { id: 'ALL',      label: 'Tümü' },
+];

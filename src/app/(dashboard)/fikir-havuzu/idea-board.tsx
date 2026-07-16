@@ -3,19 +3,19 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Plus, ThumbsUp, ThumbsDown, HelpCircle, Sparkles, Trash2, ArrowRight, Users, X, Check, Pencil,
+  Plus, ThumbsUp, ThumbsDown, HelpCircle, Sparkles, Trash2, ArrowRight, Users, X, Check, Pencil, Archive, ArchiveRestore,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import {
-  CATEGORY_META, CATEGORY_OPTIONS, VOTE_META, STATUS_META,
+  CATEGORY_META, CATEGORY_OPTIONS, VOTE_META, STATUS_META, STATUS_FILTERS,
   SUGGEST_PLATFORM_OPTIONS, SUGGEST_PLATFORM_LABELS, SUGGEST_FORMATS,
-  type IdeaDTO, type IdeaCategory, type VoteType,
+  type IdeaDTO, type IdeaCategory, type VoteType, type IdeaStatus,
 } from './idea.constants';
 import { CONTENT_FORMATS, PLATFORM_LABELS, PLATFORM_COLORS, type ContentPlatform } from '../icerik-plani/content-queue.constants';
 import { LABEL_META } from '../icerik-performansi/perf.constants';
-import { createIdea, updateIdea, voteIdea, deleteIdea, rejectIdea, approveIdea, evaluateIdea } from './actions';
+import { createIdea, updateIdea, voteIdea, deleteIdea, rejectIdea, approveIdea, evaluateIdea, archiveIdea } from './actions';
 
 const VOTE_BUTTONS: { type: VoteType; icon: typeof ThumbsUp }[] = [
   { type: 'UP', icon: ThumbsUp },
@@ -474,9 +474,18 @@ function IdeaDetail({ idea, isAdmin, commentsEnabled, onClose, onTransfer, onEdi
         <p className="mt-3 text-[11px]" style={{ color: 'var(--color-success)' }}>İçerik Planı&apos;na aktarıldı — &quot;Metin Yazılıyor&quot; aşamasında.</p>
       )}
 
-      {/* Admins delete anything; authors may delete their own idea. */}
+      {/* Admins act on anything; authors on their own idea. */}
       {(isAdmin || idea.is_mine) && (
-        <div className="mt-4 flex justify-end border-t pt-3" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="mt-4 flex flex-wrap justify-end gap-2 border-t pt-3" style={{ borderColor: 'var(--color-border)' }}>
+          {idea.status !== 'APPROVED' && (
+            <button onClick={() => { run(() => archiveIdea(idea.id, idea.status !== 'ARCHIVED')); onClose(); }} disabled={isPending}
+              className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-2 text-xs font-semibold"
+              style={{ color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>
+              {idea.status === 'ARCHIVED'
+                ? <><ArchiveRestore className="h-3.5 w-3.5" /> Arşivden çıkar</>
+                : <><Archive className="h-3.5 w-3.5" /> Arşivle</>}
+            </button>
+          )}
           <button onClick={() => { if (confirm('Fikri sil?')) { run(() => deleteIdea(idea.id)); onClose(); } }} disabled={isPending}
             className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-2 text-xs font-semibold" style={{ color: 'var(--color-error)' }}>
             <Trash2 className="h-3.5 w-3.5" /> {isAdmin ? 'Fikri sil' : 'Fikrimi sil'}
@@ -490,15 +499,19 @@ function IdeaDetail({ idea, isAdmin, commentsEnabled, onClose, onTransfer, onEdi
 // ── Board ────────────────────────────────────────────────────────────────────
 
 export function IdeaBoard({ ideas, isAdmin, commentsEnabled }: { ideas: IdeaDTO[]; isAdmin: boolean; commentsEnabled: boolean }) {
+  // Default to the live pool — decided and archived ideas stay out of the way.
+  const [status, setStatus] = useState<'ALL' | IdeaStatus>('OPEN');
   const [filter, setFilter] = useState<'ALL' | IdeaCategory>('ALL');
   const [adding, setAdding] = useState(false);
   const [editIdea, setEditIdea] = useState<IdeaDTO | null>(null);
   const [transferIdea, setTransferIdea] = useState<IdeaDTO | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  const visible = ideas.filter((i) => filter === 'ALL' || i.category === filter);
-  const counts: Record<string, number> = { ALL: ideas.length };
-  for (const i of ideas) counts[i.category] = (counts[i.category] ?? 0) + 1;
+  const visible = ideas.filter(
+    (i) => (status === 'ALL' || i.status === status) && (filter === 'ALL' || i.category === filter)
+  );
+  const statusCounts: Record<string, number> = { ALL: ideas.length };
+  for (const i of ideas) statusCounts[i.status] = (statusCounts[i.status] ?? 0) + 1;
 
   // Re-derive from props so the sheet reflects fresh data after a vote.
   const detail = detailId ? ideas.find((i) => i.id === detailId) ?? null : null;
@@ -511,14 +524,20 @@ export function IdeaBoard({ ideas, isAdmin, commentsEnabled }: { ideas: IdeaDTO[
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <button onClick={() => setFilter('ALL')} className="rounded-[var(--radius-sm)] px-3 py-2 text-xs font-semibold" style={chip(filter === 'ALL')}>
-          Tümü ({counts.ALL})
-        </button>
-        {CATEGORY_OPTIONS.map((c) => (
-          <button key={c.value} onClick={() => setFilter(c.value)} className="rounded-[var(--radius-sm)] px-3 py-2 text-xs font-semibold" style={chip(filter === c.value)}>
-            {c.label} ({counts[c.value] ?? 0})
+        {STATUS_FILTERS.map((f) => (
+          <button key={f.id} onClick={() => setStatus(f.id)} className="rounded-[var(--radius-sm)] px-3 py-2 text-xs font-semibold" style={chip(status === f.id)}>
+            {f.label} ({statusCounts[f.id] ?? 0})
           </button>
         ))}
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value as 'ALL' | IdeaCategory)}
+          className="rounded-[var(--radius-sm)] px-3 py-2 text-xs font-semibold outline-none"
+          style={{ backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+        >
+          <option value="ALL">Tüm kategoriler</option>
+          {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+        </select>
         <div className="ml-auto">
           <Button size="sm" onClick={() => setAdding(true)}><Plus className="mr-1.5 h-4 w-4" /> Fikir Ekle</Button>
         </div>
@@ -527,7 +546,11 @@ export function IdeaBoard({ ideas, isAdmin, commentsEnabled }: { ideas: IdeaDTO[
       {visible.length === 0 ? (
         <div className="rounded-[var(--radius-md)] p-10 text-center" style={card}>
           <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            {ideas.length === 0 ? 'Havuz boş. İlk fikri sen ekle.' : 'Bu kategoride fikir yok.'}
+            {ideas.length === 0
+              ? 'Havuz boş. İlk fikri sen ekle.'
+              : status === 'OPEN'
+                ? 'Havuzda bekleyen fikir yok — hepsi karara bağlanmış ya da arşivde.'
+                : 'Bu filtreyle eşleşen fikir yok.'}
           </p>
         </div>
       ) : (
