@@ -139,6 +139,42 @@ export const contentQueueService = {
     }
   },
 
+  /**
+   * Re-apply every published card's script to its library rows.
+   *
+   * linkScriptToContent runs at publish time, but a just-uploaded video has no
+   * video_performance / instagram_media row yet — the sync hasn't seen it — so
+   * the update silently matches nothing and the script never reaches the
+   * library. Running this after each sync closes that gap: the card stays the
+   * single source of truth and the library copy is derived from it.
+   */
+  async relinkPublishedScripts(): Promise<{ linked: number }> {
+    const admin = createAdminClient();
+
+    const { data: pubs } = await admin
+      .from('content_publications')
+      .select('platform, external_id, content_queue:content_queue_id(content_text)')
+      .not('external_id', 'is', null);
+
+    type Row = {
+      platform: string;
+      external_id: string;
+      content_queue: { content_text: string | null } | null;
+    };
+
+    let linked = 0;
+    for (const p of (pubs ?? []) as unknown as Row[]) {
+      const script = p.content_queue?.content_text;
+      if (!script?.trim()) continue;
+      await this.linkScriptToContent(
+        [{ platform: p.platform, external_id: p.external_id } as PublicationInput],
+        script
+      );
+      linked += 1;
+    }
+    return { linked };
+  },
+
   async getByIdAdmin(id: string): Promise<ContentQueueItem | null> {
     const admin = createAdminClient();
     const { data } = await admin.from('content_queue').select('*').eq('id', id).maybeSingle();

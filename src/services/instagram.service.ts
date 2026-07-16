@@ -19,6 +19,75 @@ const TOKEN_URL = 'https://api.instagram.com/oauth/access_token';
 const GRAPH = 'https://graph.instagram.com';
 const SCOPES = 'instagram_business_basic,instagram_business_manage_insights';
 
+const MEDIA_FIELDS =
+  'id,caption,media_type,media_product_type,thumbnail_url,media_url,permalink,timestamp,like_count,comments_count';
+/** Full-history scan depth (100 items per page). */
+const ALL_PAGES = 30;
+/** Enough to cover anything published since the last sync. */
+const RECENT_PAGES = 3;
+
+interface IgMedia {
+  id: string;
+  caption?: string;
+  media_type?: string;
+  media_product_type?: string;
+  thumbnail_url?: string;
+  media_url?: string;
+  permalink?: string;
+  timestamp?: string;
+  like_count?: number;
+  comments_count?: number;
+}
+
+interface IgMediaResponse {
+  data?: IgMedia[];
+  paging?: { next?: string };
+  error?: { message: string };
+}
+
+/**
+ * Fetch media pages from /me/media as instagram_media row objects, newest first.
+ * Shared by the full sync and the linked-content refresh so both write rows of
+ * exactly the same shape.
+ */
+async function fetchMediaRows(
+  token: string,
+  maxPages: number
+): Promise<{ rows: Record<string, unknown>[]; error?: string }> {
+  let url: string | null = `${GRAPH}/me/media?fields=${MEDIA_FIELDS}&limit=100&access_token=${token}`;
+  const rows: Record<string, unknown>[] = [];
+  let pages = 0;
+
+  while (url && pages < maxPages) {
+    const res: Response = await fetch(url);
+    const data: IgMediaResponse = await res.json();
+    if (data.error) return { rows, error: data.error.message };
+
+    for (const m of data.data ?? []) {
+      let content_type = 'post';
+      if (m.media_product_type === 'REELS') content_type = 'reels';
+      else if (m.media_type === 'CAROUSEL_ALBUM') content_type = 'carousel';
+      else if (m.media_type === 'VIDEO') content_type = 'video';
+
+      rows.push({
+        media_id: m.id,
+        caption: m.caption ?? null,
+        content_type,
+        permalink: m.permalink ?? null,
+        thumbnail_url: m.thumbnail_url || m.media_url || null,
+        published_at: m.timestamp ?? null,
+        like_count: Number(m.like_count ?? 0),
+        comment_count: Number(m.comments_count ?? 0),
+        synced_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    }
+    url = data.paging?.next ?? null;
+    pages += 1;
+  }
+  return { rows };
+}
+
 function pad(n: number): string {
   return String(n).padStart(2, '0');
 }
@@ -262,57 +331,8 @@ export const instagramService = {
     const auth = await this.getValidToken();
     if (!auth) return { synced: 0, error: 'Instagram bağlı değil' };
 
-    const fields =
-      'id,caption,media_type,media_product_type,thumbnail_url,media_url,permalink,timestamp,like_count,comments_count';
-    let url: string | null = `${GRAPH}/me/media?fields=${fields}&limit=100&access_token=${auth.token}`;
-
-    interface IgMedia {
-      id: string;
-      caption?: string;
-      media_type?: string;
-      media_product_type?: string;
-      thumbnail_url?: string;
-      media_url?: string;
-      permalink?: string;
-      timestamp?: string;
-      like_count?: number;
-      comments_count?: number;
-    }
-
-    interface IgMediaResponse {
-      data?: IgMedia[];
-      paging?: { next?: string };
-      error?: { message: string };
-    }
-
-    const rows: Record<string, unknown>[] = [];
-    let pages = 0;
-    while (url && pages < 30) {
-      const res: Response = await fetch(url);
-      const data: IgMediaResponse = await res.json();
-      if (data.error) return { synced: rows.length, error: data.error.message };
-      for (const m of (data.data ?? []) as IgMedia[]) {
-        let content_type = 'post';
-        if (m.media_product_type === 'REELS') content_type = 'reels';
-        else if (m.media_type === 'CAROUSEL_ALBUM') content_type = 'carousel';
-        else if (m.media_type === 'VIDEO') content_type = 'video';
-        else content_type = 'post';
-        rows.push({
-          media_id: m.id,
-          caption: m.caption ?? null,
-          content_type,
-          permalink: m.permalink ?? null,
-          thumbnail_url: m.thumbnail_url || m.media_url || null,
-          published_at: m.timestamp ?? null,
-          like_count: Number(m.like_count ?? 0),
-          comment_count: Number(m.comments_count ?? 0),
-          synced_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-      }
-      url = data.paging?.next ?? null;
-      pages += 1;
-    }
+    const { rows, error: fetchErr } = await fetchMediaRows(auth.token, ALL_PAGES);
+    if (fetchErr) return { synced: rows.length, error: fetchErr };
     if (rows.length === 0) return { synced: 0 };
 
     const admin = createAdminClient();
@@ -384,7 +404,7 @@ export const instagramService = {
    * (content_publications). Keeps idea outcomes current without the rate-limit
    * cost of scanning 60 posts a day.
    */
-  async syncLinkedMedia(): Promise<{ refreshed: number; error?: string }> {
+  async syncLinkedMedia(): Promise<{ refreshed: number; added?: number; error?: string }> {
     const auth = await this.getValidToken();
     if (!auth) return { refreshed: 0, error: 'Instagram bağlı değil' };
     const admin = createAdminClient();
@@ -399,9 +419,31 @@ export const instagramService = {
 
     // Map the linked shortcodes to media ids via the stored permalink.
     const { data: media } = await admin.from('instagram_media').select('media_id, permalink');
-    const targets = ((media ?? []) as { media_id: string; permalink: string | null }[])
-      .filter((m) => codes.some((c) => m.permalink?.includes(c)))
-      .map((m) => m.media_id);
+    const known = (media ?? []) as { media_id: string; permalink: string | null }[];
+    const resolve = (code: string) => known.find((m) => m.permalink?.includes(code))?.media_id;
+
+    const targets = codes.map(resolve).filter((id): id is string => Boolean(id));
+
+    // A post published after the last full scan isn't in instagram_media at all,
+    // so refreshing known rows would never reach it — its stats would stay empty
+    // forever. Pull the account's recent media to fill those in.
+    let added = 0;
+    const missing = codes.filter((c) => !resolve(c));
+    if (missing.length > 0) {
+      const { rows, error } = await fetchMediaRows(auth.token, RECENT_PAGES);
+      if (error) return { refreshed: 0, added: 0, error };
+      const fresh = rows.filter((r) =>
+        missing.some((c) => (r.permalink as string | null)?.includes(c))
+      );
+      if (fresh.length > 0) {
+        const { error: upErr } = await admin
+          .from('instagram_media')
+          .upsert(fresh, { onConflict: 'media_id' });
+        if (upErr) return { refreshed: 0, added: 0, error: upErr.message };
+        added = fresh.length;
+        targets.push(...fresh.map((r) => r.media_id as string));
+      }
+    }
 
     let refreshed = 0;
     for (const mediaId of targets) {
@@ -418,6 +460,6 @@ export const instagramService = {
         /* skip this one */
       }
     }
-    return { refreshed };
+    return { refreshed, added };
   },
 };

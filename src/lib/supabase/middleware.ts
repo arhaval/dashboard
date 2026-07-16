@@ -43,8 +43,11 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Define public routes that don't require authentication
-  const publicRoutes = ['/login', '/auth/callback', '/obs-overlay'];
+  // Define public routes that don't require authentication.
+  // /api/cron is not user-facing: Vercel Cron calls it with no session, so it
+  // must bypass the login redirect. Those routes authenticate themselves with
+  // CRON_SECRET (Vercel sends it as `Authorization: Bearer <secret>`).
+  const publicRoutes = ['/login', '/auth/callback', '/obs-overlay', '/api/cron'];
   const isPublicRoute = publicRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)
   );

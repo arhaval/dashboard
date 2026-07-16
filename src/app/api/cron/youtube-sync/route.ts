@@ -7,18 +7,15 @@
 import { syncYouTubeVideos } from '@/services/youtube.service';
 import { youtubeAnalyticsService } from '@/services/youtube-analytics.service';
 import { instagramService } from '@/services/instagram.service';
+import { contentQueueService } from '@/services/content-queue.service';
+import { denyCron } from '@/lib/cron-auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = request.headers.get('authorization');
-    if (auth !== `Bearer ${secret}`) {
-      return new Response('Unauthorized', { status: 401 });
-    }
-  }
+  const denied = denyCron(request);
+  if (denied) return denied;
 
   const result = await syncYouTubeVideos();
 
@@ -33,9 +30,14 @@ export async function GET(request: Request) {
   // Only refresh posts linked to published content (not a daily 60-post scan).
   const instagramMedia = await instagramService.syncLinkedMedia().catch(() => ({ refreshed: 0 }));
 
+  // Now that the rows exist, push each published card's script onto them — a
+  // freshly uploaded video has no row at publish time, so this is where content
+  // published since the last run actually enters the library.
+  const scripts = await contentQueueService.relinkPublishedScripts().catch(() => ({ linked: 0 }));
+
   const status = result.error ? 500 : 200;
   return Response.json(
-    { ...result, analytics, instagram, instagramMedia, at: new Date().toISOString() },
+    { ...result, analytics, instagram, instagramMedia, scripts, at: new Date().toISOString() },
     { status }
   );
 }
