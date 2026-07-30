@@ -8,6 +8,9 @@ import { contentImpactService } from '@/services/content-impact.service';
 import { PerformanceTabs } from './performance-tabs';
 
 export const dynamic = 'force-dynamic';
+// Geri doldurma server action'ı video başına birkaç Analytics sorgusu yapar;
+// varsayılan fonksiyon süresi bunun için dar kalıyor.
+export const maxDuration = 60;
 
 export default async function IcerikPerformansiPage() {
   const currentUser = await userService.getCurrentUser();

@@ -42,6 +42,31 @@ export async function syncVideosNow(): Promise<{ synced?: number; error?: string
   return { synced: result.synced };
 }
 
+/**
+ * YouTube geçmiş ölçüm noktalarını geri doldur — TEK SEFERLİK bakım işlemi.
+ *
+ * YouTube Analytics günlük geçmişi yıllar geriye sakladığı için, karta bağlı
+ * videoların 24s/7g/30g noktaları sonradan da kurulabilir. Instagram'da böyle
+ * bir imkân YOK (insights yalnızca ömür boyu toplam döndürür), o yüzden burada
+ * yalnızca YouTube işlenir.
+ *
+ * `dryRun` ile hiçbir şey yazılmaz; ne üretileceği raporlanır.
+ */
+export async function backfillYoutubeCheckpoints(
+  dryRun: boolean
+): Promise<{ publications?: number; snapshotsWritten?: number; skipped?: number; errors?: string[]; error?: string }> {
+  const admin = await assertAdmin();
+  if (!admin.ok) return { error: admin.error };
+
+  try {
+    const result = await publicationMetricsService.backfillYoutube({ dryRun });
+    if (!dryRun) revalidatePath('/icerik-performansi');
+    return result;
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Geri doldurma başarısız' };
+  }
+}
+
 /** Manually set a video's genre. Locks it so future syncs don't overwrite. */
 export async function setVideoGenre(
   videoId: string,

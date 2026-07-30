@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Layers, Search, TrendingUp, X } from 'lucide-react';
 import { ContentImpactDrawer } from './content-impact-drawer';
+import { BackfillButton } from './backfill-button';
 import { fetchContentImpactPage } from './content-impact-actions';
 import {
   ALL,
@@ -175,6 +176,12 @@ export function ContentImpactView({ initialPage }: Props) {
             <Pagination page={data} onPage={(p) => patch({ page: p })} disabled={pending} />
           </>
         )}
+      </div>
+
+      {/* Bakım: YouTube geçmiş ölçüm noktalarını geri doldurma. Listenin
+          altında duruyor — günlük kullanımın parçası değil, tek seferlik iş. */}
+      <div className="mt-4">
+        <BackfillButton />
       </div>
 
       {unlinkedTotal > 0 && (
