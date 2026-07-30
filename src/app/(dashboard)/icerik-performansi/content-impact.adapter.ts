@@ -100,6 +100,18 @@ export function millisecondsToSeconds(ms: number | null): number | null {
 }
 
 /**
+ * TOPLAM süreler tam saniyeye yuvarlanır.
+ *
+ * Milisaniyeden çevirince kesirli değer çıkıyor (660732031ms → 660732,031sn)
+ * ama toplam süre kolonu tam sayı; kesirli değer bütün kaydı düşürür. Toplam
+ * izlenme süresinde saniyenin binde biri zaten anlamsız bir hassasiyet.
+ * ORTALAMA süre yuvarlanmaz — orada ondalık gerçekten bilgi taşır.
+ */
+export function toWholeSeconds(seconds: number | null): number | null {
+  return seconds == null ? null : Math.round(seconds);
+}
+
+/**
  * Bir platformun `exposure` (erişim) değeri hangi alandan gelir.
  *
  * X gösterim üzerinden dağıtır, video platformları izlenme üzerinden. Gösterimi
@@ -218,7 +230,7 @@ export function mapYoutubeAnalytics(row: YoutubeAnalyticsRow, issues?: ParseIssu
     likes: p('likes'),
     comments: p('comments'),
     shares: p('shares'),
-    watchTimeSeconds: minutesToSeconds(p('estimatedMinutesWatched')),
+    watchTimeSeconds: toWholeSeconds(minutesToSeconds(p('estimatedMinutesWatched'))),
     // Analytics averageViewDuration zaten SANİYE — tekrar çevrilmez.
     averageViewDurationSeconds: p('averageViewDuration'),
     averageViewPercentage: p('averageViewPercentage'),
@@ -259,7 +271,7 @@ export function mapInstagramInsights(v: InstagramInsightValues, issues?: ParseIs
     shares: p('shares') ?? p('shares_count'),
     totalInteractions: p('total_interactions'),
     followersGained: p('follows'),
-    watchTimeSeconds: millisecondsToSeconds(p('ig_reels_video_view_total_time')),
+    watchTimeSeconds: toWholeSeconds(millisecondsToSeconds(p('ig_reels_video_view_total_time'))),
     averageViewDurationSeconds: millisecondsToSeconds(p('ig_reels_avg_watch_time')),
   };
 }

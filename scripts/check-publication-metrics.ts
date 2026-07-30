@@ -27,6 +27,7 @@ import {
   overlayMetrics,
   parseMetric,
   toNumber,
+  toWholeSeconds,
   type ParseIssue,
 } from '../src/app/(dashboard)/icerik-performansi/content-impact.adapter';
 import {
@@ -215,6 +216,43 @@ function eq(name: string, actual: unknown, expected: unknown) {
   check('IG insights: çift bölme yok (8600ms 0,0086 değil 8,6)', ins.averageViewDurationSeconds === 8.6);
   eq('birim: milisaniye → saniye', millisecondsToSeconds(1500), 1.5);
   eq('birim: null ise null', millisecondsToSeconds(null), null);
+  eq('birim: tam saniyeye yuvarlama', toWholeSeconds(660_732.031), 660_732);
+  eq('birim: yuvarlamada null korunur', toWholeSeconds(null), null);
+
+  // Ortalama metrikler DIŞINDA hiçbir metrik ondalık olmamalı — hepsi BIGINT
+  // kolona gidiyor. Bu, aynı hata sınıfının tekrar etmesini engelleyen genel bir
+  // kontrol: yeni bir metrik eklenip yanlışlıkla ondalık bırakılırsa burada patlar.
+  const dolu = mapInstagramInsights({
+    views: 41_200, reach: 33_100, saved: 900, shares: 410, total_interactions: 3820,
+    ig_reels_video_view_total_time: 660_732_031, ig_reels_avg_watch_time: 23_732,
+  });
+  const ondalikOlanlar = SUMMABLE_METRICS.filter(
+    (k) => dolu[k] != null && !Number.isInteger(dolu[k] as number)
+  );
+  eq('toplanabilir metriklerin hiçbiri ondalık değil', ondalikOlanlar, []);
+
+  // KOLON TİPİ SÖZLEŞMESİ: toplam süre BIGINT kolona yazılır, kesirli olamaz.
+  // Gerçek bir Instagram değeri (660732031 ms) tam da bunu kırmıştı: kesirli
+  // saniye Postgres tarafından reddedilince o kaydın BÜTÜN metrikleri kayboldu.
+  const realReels = mapInstagramInsights({
+    ig_reels_video_view_total_time: 660_732_031,
+    ig_reels_avg_watch_time: 23_732,
+  });
+  check(
+    'toplam izlenme süresi tam sayı olmalı (BIGINT kolon)',
+    Number.isInteger(realReels.watchTimeSeconds),
+    realReels.watchTimeSeconds
+  );
+  eq('toplam süre doğru yuvarlanır', realReels.watchTimeSeconds, 660_732);
+  check(
+    'ortalama süre ondalık KALIR (NUMERIC kolon)',
+    realReels.averageViewDurationSeconds === 23.732,
+    realReels.averageViewDurationSeconds
+  );
+  check(
+    'YouTube toplam süresi de tam sayı',
+    Number.isInteger(mapYoutubeAnalytics({ estimatedMinutesWatched: 12_000 }).watchTimeSeconds),
+  );
 
   // Alias desteği (sürüm farkı)
   eq('IG insights: saved_count alias’ı', mapInstagramInsights({ saved_count: 77 }).saves, 77);

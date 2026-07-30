@@ -42,6 +42,7 @@ import {
   type SourceCoverage,
 } from '@/app/(dashboard)/icerik-performansi/publication-snapshot.constants';
 import {
+  AVERAGE_METRICS,
   EMPTY_METRICS,
   METRIC_KEYS,
   type MetricKey,
@@ -123,9 +124,22 @@ function lagSeconds(capturedAt: string, dataThroughDate: string | null): number 
   return Math.max(0, Math.round((new Date(capturedAt).getTime() - endOfDay) / 1000));
 }
 
+/**
+ * Metrikleri kolon değerlerine çevir.
+ *
+ * ORTALAMA metrikler dışındaki bütün kolonlar BIGINT'tir; kesirli bir değer
+ * Postgres tarafından reddedilir ve o satırdaki DİĞER bütün metrikler de
+ * kaybolur. Bir kaynak beklenmedik biçimde ondalık döndürdüğünde tek bir alan
+ * yüzünden bütün ölçümü kaybetmemek için burada güvenceye alınır.
+ * (Instagram'ın milisaniyelik Reels süresi tam olarak bunu yapıyordu.)
+ */
 function metricsToColumns(metrics: PlatformMetrics): Record<string, number | null> {
+  const decimalOk = new Set<MetricKey>(AVERAGE_METRICS);
   const out: Record<string, number | null> = {};
-  for (const key of METRIC_KEYS) out[COLUMN_BY_METRIC[key]] = metrics[key];
+  for (const key of METRIC_KEYS) {
+    const v = metrics[key];
+    out[COLUMN_BY_METRIC[key]] = v == null || decimalOk.has(key) ? v : Math.round(v);
+  }
   return out;
 }
 
