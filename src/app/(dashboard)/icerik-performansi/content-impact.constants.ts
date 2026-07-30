@@ -176,7 +176,8 @@ export const METRIC_CATALOG: Record<MetricKey, MetricSpec> = {
     note: 'Ortalamadır; platformlar arası toplanamaz.',
   },
   averageViewPercentage: {
-    label: 'Ortalama izlenme yüzdesi', short: 'Ort. %', unit: 'percent', storage: 'DECIMAL_PERCENTAGE', summable: false,
+    // "Ort. %" etiketi "%43,8" değeriyle yan yana çift yüzde gibi okunuyordu.
+    label: 'Ortalama izlenme yüzdesi', short: 'Tamamlanma', unit: 'percent', storage: 'DECIMAL_PERCENTAGE', summable: false,
     apiNames: { YOUTUBE: 'analytics.averageViewPercentage' },
     note: 'Ortalamadır; platformlar arası toplanamaz.',
   },

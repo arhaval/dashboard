@@ -1,517 +1,432 @@
 'use client';
 
 /**
- * İçerik detayı — sağ drawer. Üç bölüm:
- *   A. Toplam Etki        (bütün platformların toplamı + veri kapsamı)
- *   B. Platform Kırılımı  (her platform ayrı ayrı, desteklenmeyen metrik "—")
- *   C. Editoryal Sonuç    (kural motorunun çıktısı — burada `if` bloğu YOK)
+ * İçerik detayı.
  *
- * Bu component karar üretmez, yalnızca ContentImpact'i gösterir.
+ * TASARIM KARARI — neden sekmeli:
+ * Önceki hali tek bir uzun kaydırmaydı; 16 metrik kutusu, ardından her platform
+ * için 14 metriklik şişman kartlar, ardından öneriler. Üç platformlu bir
+ * içerikte ekran bitmiyordu ve her şey aynı puntoda olduğu için hiçbir şey öne
+ * çıkmıyordu. Artık üç bölüm var ve aynı anda yalnızca biri görünüyor:
+ *
+ *   ÖZET       → karar için gereken iki sayı ve genel durum
+ *   PLATFORMLAR→ platform platform kırılım (akordiyon)
+ *   SONUÇ      → editoryal yorum ve aksiyonlar
+ *
+ * Biçim dili ürünün mevcut İsviçre tipografisi; yalnızca gerçekten uygulanıyor:
+ * kutu içinde kutu yerine ince çizgiler, tek tip 10px yerine gerçek bir ölçek,
+ * sayılar hizalı monospace. Telefonda tam ekran, masaüstünde sağ panel.
  */
 
-import { useState } from 'react';
-import { X, ExternalLink, TrendingUp, TrendingDown } from 'lucide-react';
-import { LABEL_META } from './perf.constants';
+import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
+import { PlatformsPane } from './content-impact-platforms';
 import {
   CORE_TOTALS,
-  DATA_SOURCE_LABELS,
   METRIC_CATALOG,
   METRIC_LABELS,
-  METRIC_SHORT_LABELS,
   OVERALL_STATUS_META,
-  SCORE_BASIS_LABELS,
   TOTALS_ORDER,
   fmtDate,
+  fmtInt,
   fmtMetricValue,
   fmtRatio,
-  isUnsupported,
-  metricsFor,
   type ContentImpact,
-  type MetricKey,
   type MetricTotal,
-  type PlatformMetrics,
-  type PlatformPublication,
-  type PublicationCheckpoint,
   type RecommendationPriority,
+  type SummableMetricKey,
 } from './content-impact.constants';
-import {
-  CHECKPOINT_LABELS,
-  MEASUREMENT_QUALITY_LABELS,
-  MEASUREMENT_QUALITY_TOOLTIPS,
-  type MeasurementQuality,
-} from './publication-snapshot.constants';
 import { PLATFORM_COLORS, PLATFORM_LABELS } from '../icerik-plani/content-queue.constants';
 
-const PRIORITY_META: Record<RecommendationPriority, { text: string; bg: string; color: string }> = {
-  HIGH:   { text: 'Yüksek', bg: 'var(--color-error-muted)',   color: 'var(--color-error)' },
-  MEDIUM: { text: 'Orta',   bg: 'var(--color-warning-muted)', color: 'var(--color-warning)' },
-  LOW:    { text: 'Düşük',  bg: 'var(--color-bg-tertiary)',   color: 'var(--color-text-secondary)' },
+type Pane = 'summary' | 'platforms' | 'verdict';
+
+const PRIORITY: Record<RecommendationPriority, { text: string; color: string }> = {
+  HIGH: { text: 'Yüksek', color: 'var(--color-error)' },
+  MEDIUM: { text: 'Orta', color: 'var(--color-warning)' },
+  LOW: { text: 'Düşük', color: 'var(--color-text-muted)' },
 };
 
 export function ContentImpactDrawer({ impact, onClose }: { impact: ContentImpact; onClose: () => void }) {
-  const { totals, comparison, verdict, publications, recommendation } = impact;
-  const status = OVERALL_STATUS_META[verdict.status];
+  const [pane, setPane] = useState<Pane>('summary');
+  const status = OVERALL_STATUS_META[impact.verdict.status];
+
+  // Esc ile kapanma + arkadaki sayfanın kaymaması.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  const panes: { id: Pane; label: string; count?: number }[] = [
+    { id: 'summary', label: 'Özet' },
+    { id: 'platforms', label: 'Platformlar', count: impact.publications.length },
+    { id: 'verdict', label: 'Sonuç', count: impact.recommendation.actions.length },
+  ];
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+    <div className="ci-shell">
+      {/*
+        Panelin ölçüleri ve girişi burada tanımlı, Tailwind sınıflarıyla değil:
+        düzenin çalışması, bir yardımcı sınıfın üretilip üretilmediğine bağlı
+        olmamalı. Telefonda alttan gelen tam ekran, masaüstünde sağ panel.
+      */}
+      <style>{`
+        .ci-shell { position: fixed; inset: 0; z-index: 50; display: flex; justify-content: flex-end }
+        .ci-panel { position: relative; z-index: 10; display: flex; flex-direction: column;
+                    height: 100%; width: 100%;
+                    animation: ci-panel-up 260ms cubic-bezier(.22,1,.36,1) }
+        @media (min-width: 640px) {
+          .ci-panel { max-width: 560px; border-left: 1px solid var(--color-border);
+                      animation: ci-panel-right 220ms cubic-bezier(.22,1,.36,1) }
+        }
+        @media (min-width: 1024px) { .ci-panel { max-width: 640px } }
+        @keyframes ci-fade { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+        @keyframes ci-panel-up { from { transform: translateY(100%) } to { transform: none } }
+        @keyframes ci-panel-right { from { transform: translateX(24px); opacity: .6 } to { transform: none; opacity: 1 } }
+        @media (prefers-reduced-motion: reduce) {
+          .ci-panel, .ci-shell [style*="ci-fade"] { animation: none !important }
+        }
+      `}</style>
 
-      <aside
-        className="relative z-10 flex h-full w-full flex-col overflow-y-auto sm:max-w-2xl"
-        style={{ backgroundColor: 'var(--color-bg-secondary)', borderLeft: '1px solid var(--color-border)' }}
-      >
-        {/* Başlık */}
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+
+      <aside className="ci-panel" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
+        {/* ── Künye ─────────────────────────────────────────────────────────── */}
         <header
-          className="sticky top-0 z-10 flex items-start gap-3 px-5 py-4"
-          style={{ backgroundColor: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-border)' }}
+          className="flex items-start gap-3 px-5 pb-4 pt-5"
+          style={{ borderBottom: '1px solid var(--color-border)' }}
         >
           {impact.thumbnail && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={impact.thumbnail} alt="" className="h-12 w-20 flex-shrink-0 rounded-[var(--radius-sm)] object-cover" />
+            <img
+              src={impact.thumbnail}
+              alt=""
+              className="h-11 w-[74px] flex-shrink-0 object-cover"
+              style={{ borderRadius: 'var(--radius-sm)' }}
+            />
           )}
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-semibold leading-snug" style={{ color: 'var(--color-text-primary)' }}>
+            <h2
+              className="text-[15px] font-semibold leading-tight"
+              style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
+            >
               {impact.title}
             </h2>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <code className="font-mono text-[10px]" style={{ color: 'var(--color-text-muted)' }}>#{impact.code}</code>
-              <span className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-                İlk yayın: {fmtDate(impact.firstPublishedAt)}
-              </span>
-              <span
-                className="rounded-full px-2 py-0.5 text-[10px] font-bold"
-                style={{ backgroundColor: status.bg, color: status.color }}
-              >
-                {status.text}
-              </span>
-            </div>
-            <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>{verdict.note}</p>
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+              <code className="font-mono">#{impact.code}</code>
+              <span>·</span>
+              <span>{fmtDate(impact.firstPublishedAt)}</span>
+              {impact.contentType && <><span>·</span><span>{impact.contentType}</span></>}
+              {impact.inLibrary && <><span>·</span><span style={{ color: 'var(--color-info)' }}>metin var</span></>}
+            </p>
           </div>
-          <button onClick={onClose} className="rounded p-1" style={{ color: 'var(--color-text-muted)' }} aria-label="Kapat">
-            <X className="h-5 w-5" />
+          <button
+            onClick={onClose}
+            className="-mr-1 -mt-1 flex-shrink-0 p-1.5"
+            style={{ color: 'var(--color-text-muted)' }}
+            aria-label="Kapat"
+          >
+            <X className="h-4.5 w-4.5" />
           </button>
         </header>
 
-        <div className="flex flex-col gap-6 px-5 py-5">
-          {/* ── A. TOPLAM ETKİ ─────────────────────────────────────────────── */}
-          <section>
-            <SectionTitle>A · Toplam Etki</SectionTitle>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {/* Çekirdek metrikler her zaman; diğerleri yalnızca veri geldiyse
-                  — 16 kutuluk bir duvar okunmaz hale gelir. */}
-              {TOTALS_ORDER.filter(
-                (key) => CORE_TOTALS.includes(key) || totals[key]?.value != null
-              ).map((key) => (
-                <TotalTile
-                  key={key}
-                  label={METRIC_LABELS[key]}
-                  total={totals[key]}
-                  metricKey={key}
-                  hint={METRIC_CATALOG[key].note}
-                />
-              ))}
-              <TotalTile
-                label="Ham etkileşim"
-                total={totals.engagements}
-                hint="Beğeni + yorum + paylaşım + kaydetme. Ham toplamdır, başarı skoru değildir."
-              />
-              <div
-                className="rounded-[var(--radius-md)] p-2.5"
-                style={{ backgroundColor: 'var(--color-surface-sunken)', border: '1px solid var(--color-border)' }}
+        {/* ── Bölüm seçimi ──────────────────────────────────────────────────── */}
+        <nav className="flex gap-6 px-5" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          {panes.map((p) => {
+            const active = pane === p.id;
+            return (
+              <button
+                key={p.id}
+                onClick={() => setPane(p.id)}
+                className="relative -mb-px py-3 text-[11px] font-semibold uppercase transition-colors"
+                style={{
+                  color: active ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+                  letterSpacing: '0.08em',
+                  borderBottom: active ? '2px solid var(--color-accent)' : '2px solid transparent',
+                }}
               >
-                <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>
-                  Yayınlanan platform
-                </p>
-                <p className="mt-1 font-mono text-[15px] font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                  {publications.length}
-                </p>
-              </div>
-            </div>
-            <p className="mt-2 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-              Toplamlara yalnızca veri sağlayan platformlar girer — eksik veri sıfır sayılmaz.
-            </p>
-          </section>
+                {p.label}
+                {p.count != null && (
+                  <span className="ml-1.5 font-mono" style={{ opacity: 0.55 }}>{p.count}</span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
 
-          {/* En güçlü / en zayıf */}
-          {(comparison.strongest || comparison.weakest) && (
-            <section className="flex flex-col gap-2">
-              {comparison.strongest && (
-                <RankLine kind="strong" text={comparison.strongest.explanation} />
-              )}
-              {comparison.weakest ? (
-                <RankLine kind="weak" text={comparison.weakest.explanation} />
-              ) : (
-                <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-                  Karşılaştırılabilir tek platform var — en zayıf platform belirlenemez.
-                </p>
-              )}
-            </section>
-          )}
-
-          {/* ── B. PLATFORM KIRILIMI ───────────────────────────────────────── */}
-          <section>
-            <SectionTitle>B · Platform Kırılımı</SectionTitle>
-            <div className="flex flex-col gap-2.5">
-              {publications.map((p) => (
-                <PlatformCard key={p.platform} pub={p} />
-              ))}
-            </div>
-          </section>
-
-          {/* ── C. EDİTORYAL SONUÇ ─────────────────────────────────────────── */}
-          <section>
-            <SectionTitle>C · Editoryal Sonuç</SectionTitle>
-
-            <Block title="Ne oldu?" items={recommendation.observation} />
-            <Block title="Ne anlama geliyor?" items={recommendation.interpretation} />
-
-            <p className="mb-1.5 mt-4 text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
-              Önerilen aksiyonlar
-            </p>
-            {recommendation.actions.length === 0 ? (
-              <p className="text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
-                Aksiyon gerektiren bir bulgu yok.
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {recommendation.actions.map((a) => {
-                  const meta = PRIORITY_META[a.priority];
-                  return (
-                    <li
-                      key={a.code}
-                      className="rounded-[var(--radius-md)] p-3"
-                      style={{ backgroundColor: 'var(--color-surface-sunken)', border: '1px solid var(--color-border)' }}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-[13px] font-semibold" style={{ color: 'var(--color-text-primary)' }}>{a.label}</p>
-                        <span
-                          className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold"
-                          style={{ backgroundColor: meta.bg, color: meta.color }}
-                        >
-                          {meta.text}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-[12px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{a.reason}</p>
-                      <code className="mt-1.5 block font-mono text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{a.code}</code>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-
-            {recommendation.triggeredRules.length > 0 && (
-              <details className="mt-3">
-                <summary className="cursor-pointer text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-                  Tetiklenen kurallar ({recommendation.triggeredRules.length})
-                </summary>
-                <div className="mt-1.5 flex flex-wrap gap-1">
-                  {recommendation.triggeredRules.map((r) => (
-                    <code
-                      key={r}
-                      className="rounded px-1.5 py-0.5 font-mono text-[10px]"
-                      style={{ backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' }}
-                    >
-                      {r}
-                    </code>
-                  ))}
-                </div>
-              </details>
-            )}
-          </section>
+        {/* ── İçerik ────────────────────────────────────────────────────────── */}
+        <div key={pane} className="flex-1 overflow-y-auto px-5 py-5" style={{ animation: 'ci-fade 240ms ease-out' }}>
+          {pane === 'summary' && <SummaryPane impact={impact} status={status} />}
+          {pane === 'platforms' && <PlatformsPane publications={impact.publications} />}
+          {pane === 'verdict' && <VerdictPane impact={impact} />}
         </div>
       </aside>
     </div>
   );
 }
 
-// ── Parçalar ─────────────────────────────────────────────────────────────────
+// ── ÖZET ─────────────────────────────────────────────────────────────────────
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function SummaryPane({ impact, status }: {
+  impact: ContentImpact;
+  status: { text: string; bg: string; color: string };
+}) {
+  const { totals, comparison, verdict } = impact;
+  const secondary = TOTALS_ORDER.filter(
+    (k) => k !== 'exposure' && (CORE_TOTALS.includes(k) || totals[k]?.value != null)
+  );
+
   return (
-    <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-accent)' }}>
-      {children}
-    </h3>
+    <div className="flex flex-col gap-7">
+      {/* İki büyük sayı — karar bunlarla veriliyor, gerisi destek. */}
+      <div className="flex flex-col gap-5">
+        <Headline label="Toplam erişim" total={totals.exposure} hint={METRIC_CATALOG.exposure.note} />
+        <Headline label="Toplam etkileşim" total={totals.engagements} hint="Beğeni + yorum + paylaşım + kaydetme. Ham toplamdır, başarı skoru değildir." />
+      </div>
+
+      {/* Genel durum */}
+      <section>
+        <MicroLabel>Genel durum</MicroLabel>
+        <div className="mt-2 flex items-baseline gap-2.5">
+          <span
+            className="text-[19px] font-semibold"
+            style={{ color: status.color, fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
+          >
+            {status.text}
+          </span>
+          <span className="text-[11.5px]" style={{ color: 'var(--color-text-muted)' }}>{verdict.note}</span>
+        </div>
+      </section>
+
+      {/* En güçlü / en zayıf */}
+      {comparison.strongest && (
+        <section>
+          <MicroLabel>Platform kıyası</MicroLabel>
+          <div className="mt-2">
+            <RankRow kind="En güçlü" rank={comparison.strongest} />
+            {comparison.weakest ? (
+              <RankRow kind="En zayıf" rank={comparison.weakest} />
+            ) : (
+              <p
+                className="py-2 text-[11.5px]"
+                style={{ color: 'var(--color-text-muted)', borderTop: '1px solid var(--color-border)' }}
+              >
+                Karşılaştırılabilir tek platform var — en zayıf belirlenemez.
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Diğer toplamlar */}
+      <section>
+        <MicroLabel>Toplamlar</MicroLabel>
+        <dl className="mt-2">
+          {secondary.map((key) => (
+            <TotalRow key={key} metricKey={key} total={totals[key]} />
+          ))}
+        </dl>
+        <p className="mt-2.5 text-[10.5px] leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
+          Toplamlara yalnızca veri sağlayan platformlar girer — eksik veri sıfır sayılmaz.
+        </p>
+      </section>
+    </div>
   );
 }
 
-function TotalTile({ label, total, hint, metricKey }: {
-  label: string; total: MetricTotal; hint?: string; metricKey?: MetricKey;
-}) {
+/** Büyük sayı + veri kapsamı. Ölçek farkı hiyerarşiyi tek başına kuruyor. */
+function Headline({ label, total, hint }: { label: string; total: MetricTotal; hint?: string }) {
   const complete = total.available === total.total;
   return (
-    <div
-      className="rounded-[var(--radius-md)] p-2.5"
-      style={{ backgroundColor: 'var(--color-surface-sunken)', border: '1px solid var(--color-border)' }}
-      title={hint}
-    >
-      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>{label}</p>
-      <p className="mt-1 font-mono text-[15px] font-bold" style={{ color: 'var(--color-text-primary)' }}>
-        {metricKey ? fmtMetricValue(metricKey, total.value) : (total.value ?? '—')}
-      </p>
+    <div title={hint}>
+      <MicroLabel>{label}</MicroLabel>
       <p
-        className="mt-0.5 text-[10px]"
-        style={{ color: complete ? 'var(--color-text-muted)' : 'var(--color-warning)' }}
+        className="mt-1 font-mono leading-none"
+        style={{
+          color: total.value == null ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+          fontSize: 'clamp(30px, 8vw, 38px)',
+          fontWeight: 600,
+          letterSpacing: '-0.03em',
+          fontVariantNumeric: 'tabular-nums',
+        }}
       >
-        Veri kapsamı: {total.available}/{total.total} platform
+        {total.value == null ? '—' : fmtInt(total.value)}
+      </p>
+      <p className="mt-1.5 text-[11px]" style={{ color: complete ? 'var(--color-text-muted)' : 'var(--color-warning)' }}>
+        {total.available}/{total.total} platformdan veri
       </p>
     </div>
   );
 }
 
-function RankLine({ kind, text }: { kind: 'strong' | 'weak'; text: string }) {
-  const Icon = kind === 'strong' ? TrendingUp : TrendingDown;
-  const color = kind === 'strong' ? 'var(--color-success)' : 'var(--color-error)';
+function RankRow({ kind, rank }: {
+  kind: string;
+  rank: { platform: keyof typeof PLATFORM_LABELS; score: number; explanation: string };
+}) {
+  const color = PLATFORM_COLORS[rank.platform];
   return (
-    <p className="flex items-start gap-1.5 text-[12.5px]" style={{ color: 'var(--color-text-secondary)' }}>
-      <Icon className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" style={{ color }} />
-      <span>
-        <b style={{ color: 'var(--color-text-primary)' }}>{kind === 'strong' ? 'En güçlü platform: ' : 'En zayıf platform: '}</b>
-        {text}
+    <div
+      className="flex items-baseline gap-3 py-2"
+      style={{ borderTop: '1px solid var(--color-border)' }}
+      title={rank.explanation}
+    >
+      <span className="w-[58px] flex-shrink-0 text-[10.5px] uppercase" style={{ color: 'var(--color-text-muted)', letterSpacing: '0.06em' }}>
+        {kind}
       </span>
-    </p>
+      <span className="flex-1 text-[12.5px] font-semibold" style={{ color: color.color }}>
+        {PLATFORM_LABELS[rank.platform]}
+      </span>
+      <span className="font-mono text-[13px]" style={{ color: 'var(--color-text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+        {fmtRatio(rank.score)}×
+      </span>
+    </div>
   );
 }
 
-function Block({ title, items }: { title: string; items: string[] }) {
+/**
+ * "Toplam erişim" → "Erişim". Başlık zaten "Toplamlar" olduğu için her satırda
+ * tekrar etmesi gereksiz. Türkçe büyük harf: i → İ.
+ */
+function shortTotalLabel(key: SummableMetricKey): string {
+  const stripped = METRIC_LABELS[key].replace(/^Toplam /, '');
+  return stripped.charAt(0).toLocaleUpperCase('tr') + stripped.slice(1);
+}
+
+function TotalRow({ metricKey, total }: { metricKey: SummableMetricKey; total: MetricTotal }) {
+  const partial = total.value != null && total.available < total.total;
+  return (
+    <div className="flex items-baseline justify-between gap-3 py-2" style={{ borderTop: '1px solid var(--color-border)' }}>
+      <dt className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }} title={METRIC_CATALOG[metricKey].note}>
+        {shortTotalLabel(metricKey)}
+      </dt>
+      <dd className="flex items-baseline gap-2">
+        {partial && (
+          <span className="font-mono text-[10px]" style={{ color: 'var(--color-warning)' }} title="Bazı platformların verisi yok">
+            {total.available}/{total.total}
+          </span>
+        )}
+        <span
+          className="font-mono text-[12.5px]"
+          style={{
+            color: total.value == null ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {fmtMetricValue(metricKey, total.value)}
+        </span>
+      </dd>
+    </div>
+  );
+}
+
+// ── SONUÇ ────────────────────────────────────────────────────────────────────
+
+function VerdictPane({ impact }: { impact: ContentImpact }) {
+  const { observation, interpretation, actions, triggeredRules } = impact.recommendation;
+
+  return (
+    <div className="flex flex-col gap-7">
+      <Prose title="Ne oldu?" items={observation} />
+      <Prose title="Ne anlama geliyor?" items={interpretation} />
+
+      <section>
+        <MicroLabel>Önerilen aksiyonlar</MicroLabel>
+        {actions.length === 0 ? (
+          <p className="mt-2 text-[12.5px]" style={{ color: 'var(--color-text-secondary)' }}>
+            Aksiyon gerektiren bir bulgu yok.
+          </p>
+        ) : (
+          <ol className="mt-2">
+            {actions.map((a, i) => (
+              <li
+                key={a.code}
+                className="flex gap-3 py-3"
+                style={{ borderTop: '1px solid var(--color-border)' }}
+              >
+                <span
+                  className="mt-0.5 font-mono text-[11px]"
+                  style={{ color: 'var(--color-text-muted)', fontVariantNumeric: 'tabular-nums' }}
+                >
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold leading-snug" style={{ color: 'var(--color-text-primary)' }}>
+                    {a.label}
+                  </p>
+                  <p className="mt-1 text-[12px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+                    {a.reason}
+                  </p>
+                  <p className="mt-1.5 flex items-center gap-2 text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
+                    <span style={{ color: PRIORITY[a.priority].color }}>{PRIORITY[a.priority].text} öncelik</span>
+                    <span>·</span>
+                    <code className="font-mono">{a.code}</code>
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+
+      {triggeredRules.length > 0 && (
+        <details>
+          <summary className="cursor-pointer text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+            Tetiklenen kurallar ({triggeredRules.length})
+          </summary>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {triggeredRules.map((r) => (
+              <code
+                key={r}
+                className="px-1.5 py-0.5 font-mono text-[10px]"
+                style={{
+                  backgroundColor: 'var(--color-surface-sunken)',
+                  color: 'var(--color-text-secondary)',
+                  borderRadius: 'var(--radius-sm)',
+                }}
+              >
+                {r}
+              </code>
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/** Asılı madde işaretli editoryal paragraflar — kutu yok, çizgi yok. */
+function Prose({ title, items }: { title: string; items: string[] }) {
   if (items.length === 0) return null;
   return (
-    <div className="mb-3">
-      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{title}</p>
-      <ul className="flex flex-col gap-1">
+    <section>
+      <MicroLabel>{title}</MicroLabel>
+      <ul className="mt-2 flex flex-col gap-1.5">
         {items.map((t, i) => (
-          <li key={i} className="flex gap-1.5 text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
-            <span style={{ color: 'var(--color-text-muted)' }}>·</span>
-            <span>{t}</span>
+          <li
+            key={i}
+            className="text-[13px] leading-relaxed"
+            style={{ color: 'var(--color-text-secondary)', textIndent: '-0.85em', paddingLeft: '0.85em' }}
+          >
+            <span style={{ color: 'var(--color-text-muted)' }}>— </span>{t}
           </li>
         ))}
       </ul>
-    </div>
+    </section>
   );
 }
 
-/**
- * Ölçüm kalitesi rozeti. Yaklaşık ve kesin ölçümler görsel olarak ayrılır ama
- * büyük uyarı kutusu kurulmaz — bilgi taşısın, ekranı boğmasın.
- */
-const QUALITY_STYLE: Record<MeasurementQuality, { bg: string; color: string }> = {
-  EXACT_REALTIME: { bg: 'var(--color-success-muted)', color: 'var(--color-success)' },
-  APPROX_DAILY_BACKFILL: { bg: 'var(--color-warning-muted)', color: 'var(--color-warning)' },
-  LATE_MEASUREMENT: { bg: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' },
-  PARTIAL_SOURCE_DATA: { bg: 'var(--color-warning-muted)', color: 'var(--color-warning)' },
-};
-
-function QualityBadge({ quality }: { quality: MeasurementQuality }) {
-  const style = QUALITY_STYLE[quality];
+function MicroLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span
-      className="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold"
-      style={{ backgroundColor: style.bg, color: style.color }}
-      title={MEASUREMENT_QUALITY_TOOLTIPS[quality]}
+    <p
+      className="text-[10px] font-semibold uppercase"
+      style={{ color: 'var(--color-text-muted)', letterSpacing: '0.11em' }}
     >
-      {MEASUREMENT_QUALITY_LABELS[quality]}
-    </span>
-  );
-}
-
-/** "Güncel" + ölçülmüş checkpoint'ler. Ölçülmemiş olan seçilemez. */
-function CheckpointTabs({ checkpoints, active, onSelect }: {
-  checkpoints: PublicationCheckpoint[];
-  active: string;
-  onSelect: (v: string) => void;
-}) {
-  const options = [{ key: 'CURRENT', label: 'Güncel', enabled: true, title: 'En son ölçüm' }].concat(
-    checkpoints.map((c) => ({
-      key: c.key,
-      label: CHECKPOINT_LABELS[c.key],
-      enabled: c.measured,
-      title: c.measured
-        ? `${MEASUREMENT_QUALITY_LABELS[c.measurementQuality]} — ${MEASUREMENT_QUALITY_TOOLTIPS[c.measurementQuality]}`
-        : 'Henüz oluşmadı — bu noktada ölçüm alınmamış',
-    }))
-  );
-
-  return (
-    <div className="mt-2 inline-flex gap-1 rounded-[var(--radius-sm)] p-0.5" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
-      {options.map((o) => (
-        <button
-          key={o.key}
-          disabled={!o.enabled}
-          onClick={() => onSelect(o.key)}
-          title={o.title}
-          className="rounded-[var(--radius-sm)] px-2 py-0.5 text-[10px] font-semibold disabled:opacity-35"
-          style={
-            active === o.key
-              ? { backgroundColor: 'var(--color-accent)', color: '#fff' }
-              : { color: 'var(--color-text-muted)' }
-          }
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function PlatformCard({ pub }: { pub: PlatformPublication }) {
-  const c = PLATFORM_COLORS[pub.platform];
-  const label = LABEL_META[pub.label];
-  const [checkpoint, setCheckpoint] = useState('CURRENT');
-
-  const selected = pub.checkpoints.find((x) => x.key === checkpoint);
-  const shown: PlatformMetrics = checkpoint === 'CURRENT' ? pub.metrics : (selected?.metrics ?? pub.metrics);
-  const hasHistory = pub.checkpoints.some((x) => x.measured);
-
-  return (
-    <div
-      className="rounded-[var(--radius-md)] p-3"
-      style={{ backgroundColor: 'var(--color-surface-sunken)', border: '1px solid var(--color-border)' }}
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded px-1.5 py-0.5 text-[11px] font-bold" style={{ backgroundColor: c.bg, color: c.color }}>
-          {PLATFORM_LABELS[pub.platform]}
-        </span>
-        <span
-          className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
-          style={{ backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' }}
-        >
-          {DATA_SOURCE_LABELS[pub.source]}
-        </span>
-        {pub.genreLabel && (
-          <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{pub.genreLabel}</span>
-        )}
-        <span className="ml-auto font-mono text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
-          {fmtDate(pub.publishedAt)}
-        </span>
-      </div>
-
-      <div className="mt-1.5 flex items-start gap-2">
-        <p className="min-w-0 flex-1 truncate text-[12.5px] font-medium" style={{ color: 'var(--color-text-primary)' }}>
-          {pub.title}
-        </p>
-        {pub.url && (
-          <a
-            href={pub.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-shrink-0 rounded p-0.5"
-            style={{ color: 'var(--color-accent)' }}
-            title="Yayına git"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        )}
-      </div>
-
-      {/* Skor — mevcut platform skoru veya kontrollü fallback */}
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: label.bg, color: label.color }}>
-          {label.text}
-        </span>
-        {pub.score != null ? (
-          <span className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-            <span className="font-mono">{fmtRatio(pub.score)}x</span> · {SCORE_BASIS_LABELS[pub.scoreBasis]}
-          </span>
-        ) : (
-          <span className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-            Karşılaştırılabilir skor yok
-          </span>
-        )}
-      </div>
-
-      {/* 24s / 7g / 30g — yalnızca gerçekten ölçüm varsa seçilebilir */}
-      {hasHistory && (
-        <CheckpointTabs checkpoints={pub.checkpoints} active={checkpoint} onSelect={setCheckpoint} />
-      )}
-      {checkpoint !== 'CURRENT' && selected?.measured && (
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <QualityBadge quality={selected.measurementQuality} />
-          <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
-            {new Date(selected.actualCapturedAt as string).toLocaleString('tr-TR')}
-            {selected.isLate && ` · hedeften ${Math.round((selected.delaySeconds ?? 0) / 3600)} saat sonra`}
-            {selected.status === 'PARTIAL' && ` · ${selected.laggingSources.join(', ')} verisi geride`}
-            {selected.dataThroughDate && ` · veri ${selected.dataThroughDate} tarihine kadar`}
-            {' · doluluk %'}{Math.round(selected.dataCompleteness * 100)}
-          </span>
-        </div>
-      )}
-      {checkpoint !== 'CURRENT' && selected && !selected.measured && (
-        <p className="mt-1.5 text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
-          Henüz ölçülmedi
-        </p>
-      )}
-
-      {/* Metrikler — desteklenmeyen alanlarda sahte 0 yok. Platformun hiç
-          vermediği metrikler listeye bile girmez. */}
-      <dl className="mt-2.5 grid grid-cols-3 gap-x-3 gap-y-1.5 sm:grid-cols-4">
-        {metricsFor(pub.platform).map((key) => (
-          <MetricCell
-            key={key}
-            metricKey={key}
-            value={shown[key]}
-            platformSupports={!isUnsupported(pub.platform, key)}
-            availability={pub.availability[key]}
-            note={key === 'exposure' ? pub.exposureBasis : undefined}
-          />
-        ))}
-      </dl>
-
-      {pub.snapshotCount > 0 && (
-        <p className="mt-2 text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
-          {pub.snapshotCount} ölçüm kaydı toplandı.
-        </p>
-      )}
-    </div>
-  );
-}
-
-/**
- * "Veri yok" (henüz gelmedi) ile "API desteklemiyor" (hiç gelmeyecek) farkı
- * kullanıcıya açıkça gösterilir — ikisi de 0 DEĞİLDİR.
- */
-function MetricCell({
-  metricKey,
-  value,
-  platformSupports,
-  availability,
-  note,
-}: {
-  metricKey: MetricKey;
-  value: number | null;
-  platformSupports: boolean;
-  availability?: 'OK' | 'UNSUPPORTED' | 'PERMISSION_MISSING' | 'FAILED';
-  note?: string;
-}) {
-  let text: string;
-  let title: string | undefined;
-  if (value != null) {
-    text = fmtMetricValue(metricKey, value);
-    title = METRIC_CATALOG[metricKey].note;
-  } else if (!platformSupports || availability === 'UNSUPPORTED') {
-    text = 'API desteklemiyor';
-    title = 'Bu platform/medya türü bu metriği hiç vermiyor';
-  } else if (availability === 'PERMISSION_MISSING') {
-    text = 'İzin yok';
-    title = 'Metrik için gereken izin verilmemiş';
-  } else if (availability === 'FAILED') {
-    text = 'Alınamadı';
-    title = 'Son senkronizasyonda hata alındı; eski değer de yok';
-  } else {
-    text = 'Veri yok';
-    title = 'Henüz ölçülmedi';
-  }
-
-  return (
-    <div title={title}>
-      <dt className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>
-        {METRIC_SHORT_LABELS[metricKey]}
-        {note && <span className="ml-1 normal-case opacity-70">({note})</span>}
-      </dt>
-      <dd
-        className="font-mono text-[12.5px]"
-        style={{ color: value == null ? 'var(--color-text-muted)' : 'var(--color-text-primary)' }}
-      >
-        {text}
-      </dd>
-    </div>
+      {children}
+    </p>
   );
 }
