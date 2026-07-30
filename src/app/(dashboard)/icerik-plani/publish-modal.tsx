@@ -10,14 +10,26 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
-  PUBLISH_PLATFORMS, PLATFORM_COLORS, extractYouTubeId, extractInstagramShortcode,
-  type ContentPlatform, type ContentQueueItem, type PublicationInput,
+  PUBLISH_PLATFORMS, PLATFORM_COLORS, MANUAL_METRIC_FIELDS, extractYouTubeId, extractInstagramShortcode,
+  type ContentPlatform, type ContentQueueItem, type ManualMetricField, type PublicationInput,
 } from './content-queue.constants';
 import { publishContent, updatePublications } from './queue-actions';
 
-interface Row { checked: boolean; url: string; views: string; likes: string; comments: string }
+type MetricValues = Record<ManualMetricField, string>;
 
-const emptyRow: Row = { checked: false, url: '', views: '', likes: '', comments: '' };
+interface Row { checked: boolean; url: string; publishedAt: string; metrics: MetricValues }
+
+const emptyMetrics = (): MetricValues =>
+  Object.fromEntries(MANUAL_METRIC_FIELDS.map((f) => [f.key, ''])) as MetricValues;
+
+const emptyRow = (): Row => ({ checked: false, url: '', publishedAt: '', metrics: emptyMetrics() });
+
+/** Gösterim (impressions) yalnızca X'te anlamlı — izlenme ile aynı şey değil. */
+function fieldsFor(platform: ContentPlatform) {
+  return MANUAL_METRIC_FIELDS.filter((f) => f.key !== 'impressions' || platform === 'X');
+}
+
+const numOrNull = (s: string): number | null => (s.trim() ? Number(s) : null);
 
 export function PublishModal({ item, existing, onClose }: {
   item: ContentQueueItem;
@@ -34,22 +46,30 @@ export function PublishModal({ item, existing, onClose }: {
     const init: Record<string, Row> = {};
     for (const p of PUBLISH_PLATFORMS) {
       const prev = existing?.find((e) => e.platform === p.value);
-      init[p.value] = prev
-        ? {
-            checked: true,
-            url: prev.url ?? '',
-            views: prev.views != null ? String(prev.views) : '',
-            likes: prev.likes != null ? String(prev.likes) : '',
-            comments: prev.comments != null ? String(prev.comments) : '',
-          }
+      if (!prev) {
         // Pre-tick the platforms the card was planned for.
-        : { ...emptyRow, checked: !editing && item.platforms.includes(p.value) };
+        init[p.value] = { ...emptyRow(), checked: !editing && item.platforms.includes(p.value) };
+        continue;
+      }
+      const metrics = emptyMetrics();
+      for (const f of MANUAL_METRIC_FIELDS) {
+        const v = prev[f.key];
+        if (v != null) metrics[f.key] = String(v);
+      }
+      init[p.value] = { checked: true, url: prev.url ?? '', publishedAt: prev.published_at ?? '', metrics };
     }
     return init;
   });
 
   function patch(platform: string, next: Partial<Row>) {
     setRows((prev) => ({ ...prev, [platform]: { ...prev[platform], ...next } }));
+  }
+
+  function patchMetric(platform: string, key: ManualMetricField, value: string) {
+    setRows((prev) => ({
+      ...prev,
+      [platform]: { ...prev[platform], metrics: { ...prev[platform].metrics, [key]: value } },
+    }));
   }
 
   function submit() {
@@ -71,13 +91,19 @@ export function PublishModal({ item, existing, onClose }: {
         if (!externalId) { setError('Instagram gönderi linki tanınmadı.'); return; }
       }
 
+      // API platformlarının sayıları canlı çözülür — elle girilmez, null kalır.
       pubs.push({
         platform: p.value,
         url,
         external_id: externalId,
-        views: p.auto ? null : (r.views.trim() ? Number(r.views) : null),
-        likes: p.auto ? null : (r.likes.trim() ? Number(r.likes) : null),
-        comments: p.auto ? null : (r.comments.trim() ? Number(r.comments) : null),
+        views: p.auto ? null : numOrNull(r.metrics.views),
+        likes: p.auto ? null : numOrNull(r.metrics.likes),
+        comments: p.auto ? null : numOrNull(r.metrics.comments),
+        impressions: p.auto ? null : numOrNull(r.metrics.impressions),
+        shares: p.auto ? null : numOrNull(r.metrics.shares),
+        saves: p.auto ? null : numOrNull(r.metrics.saves),
+        followers_gained: p.auto ? null : numOrNull(r.metrics.followers_gained),
+        published_at: p.auto ? null : (r.publishedAt.trim() || null),
       });
     }
 
@@ -134,14 +160,34 @@ export function PublishModal({ item, existing, onClose }: {
                       style={fieldStyle}
                     />
                     {!p.auto && (
-                      <div className="grid grid-cols-3 gap-2">
-                        <input value={r.views} onChange={(e) => patch(p.value, { views: e.target.value })}
-                          placeholder="İzlenme" type="number" min="0" className={numCls} style={fieldStyle} />
-                        <input value={r.likes} onChange={(e) => patch(p.value, { likes: e.target.value })}
-                          placeholder="Beğeni" type="number" min="0" className={numCls} style={fieldStyle} />
-                        <input value={r.comments} onChange={(e) => patch(p.value, { comments: e.target.value })}
-                          placeholder="Yorum" type="number" min="0" className={numCls} style={fieldStyle} />
-                      </div>
+                      <>
+                        <div className="grid grid-cols-3 gap-2">
+                          {fieldsFor(p.value).map((f) => (
+                            <input
+                              key={f.key}
+                              value={r.metrics[f.key]}
+                              onChange={(e) => patchMetric(p.value, f.key, e.target.value)}
+                              placeholder={f.label}
+                              title={f.hint ?? f.label}
+                              type="number"
+                              min="0"
+                              className={numCls}
+                              style={fieldStyle}
+                            />
+                          ))}
+                          <input
+                            value={r.publishedAt}
+                            onChange={(e) => patch(p.value, { publishedAt: e.target.value })}
+                            title="Bu platformdaki yayın tarihi"
+                            type="date"
+                            className={numCls}
+                            style={fieldStyle}
+                          />
+                        </div>
+                        <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
+                          Boş bıraktığın alan “veri yok” sayılır, sıfır sayılmaz.
+                        </p>
+                      </>
                     )}
                   </div>
                 )}

@@ -112,6 +112,8 @@ export async function publishContent(id: string, publications: PublicationInput[
   revalidatePath('/icerik-plani');
   revalidatePath('/work-items');
   revalidatePath('/fikir-havuzu');
+  // Yayın kayıtları İçerik Bazlı performansın kaynağı — o sayfa da tazelenmeli.
+  revalidatePath('/icerik-performansi');
   return { success: true };
 }
 
@@ -135,6 +137,7 @@ export async function updatePublications(id: string, publications: PublicationIn
 
   revalidatePath('/icerik-plani');
   revalidatePath('/fikir-havuzu');
+  revalidatePath('/icerik-performansi');
   return { success: true };
 }
 

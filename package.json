@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "type-check": "tsc --noEmit",
+    "check:content-impact": "tsx scripts/check-content-impact.ts",
+    "check:publication-metrics": "tsx scripts/check-publication-metrics.ts",
+    "test": "npm run check:content-impact && npm run check:publication-metrics"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

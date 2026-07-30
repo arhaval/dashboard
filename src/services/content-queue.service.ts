@@ -94,26 +94,51 @@ export const contentQueueService = {
     const admin = createAdminClient();
     await admin.from('content_publications').delete().eq('content_queue_id', cardId);
     if (rows.length === 0) return {};
+
+    const legacy = rows.map((r) => ({
+      content_queue_id: cardId,
+      platform: r.platform,
+      url: r.url,
+      external_id: r.external_id,
+      views: r.views,
+      likes: r.likes,
+      comments: r.comments,
+    }));
+
     const { error } = await admin.from('content_publications').insert(
-      rows.map((r) => ({
-        content_queue_id: cardId,
-        platform: r.platform,
-        url: r.url,
-        external_id: r.external_id,
-        views: r.views,
-        likes: r.likes,
-        comments: r.comments,
+      legacy.map((base, i) => ({
+        ...base,
+        impressions: rows[i].impressions ?? null,
+        shares: rows[i].shares ?? null,
+        saves: rows[i].saves ?? null,
+        followers_gained: rows[i].followers_gained ?? null,
+        published_at: rows[i].published_at ?? null,
+        title: rows[i].title ?? null,
       }))
     );
-    return error ? { error: error.message } : {};
+    if (!error) return {};
+
+    // Genişletilmiş metrik kolonları (impressions/shares/saves/...) ancak
+    // 20260730_publication_impact_metrics migration'ı uygulandıktan sonra var.
+    // Uygulanmadıysa yayın kaydetmeyi tamamen bloke etmek yerine eski şemayla
+    // devam et — kullanıcı sayı girmediyse hiçbir veri kaybı olmaz.
+    if (!/column .* does not exist|Could not find the '.*' column/i.test(error.message)) {
+      return { error: error.message };
+    }
+    const { error: legacyError } = await admin.from('content_publications').insert(legacy);
+    return legacyError ? { error: legacyError.message } : {};
   },
 
+  /**
+   * `select('*')` bilinçli: yeni metrik kolonları migration'dan önce yoksa sorgu
+   * hata vermek yerine o alanları döndürmez.
+   */
   async getPublicationsForCards(cardIds: string[]): Promise<(PublicationInput & { content_queue_id: string })[]> {
     if (cardIds.length === 0) return [];
     const admin = createAdminClient();
     const { data } = await admin
       .from('content_publications')
-      .select('content_queue_id, platform, url, external_id, views, likes, comments')
+      .select('*')
       .in('content_queue_id', cardIds);
     return (data as (PublicationInput & { content_queue_id: string })[]) ?? [];
   },

@@ -91,7 +91,13 @@ export const PUBLISH_PLATFORMS: { value: ContentPlatform; label: string; auto: b
   { value: 'TWITCH',    label: 'Twitch',    auto: false },
 ];
 
-/** One platform a card was published to. */
+/**
+ * One platform a card was published to.
+ *
+ * Everything below `comments` is optional: those columns arrive with the
+ * publication-impact migration, and the fields stay undefined for API platforms
+ * (YouTube / Instagram), whose numbers are resolved live.
+ */
 export interface PublicationInput {
   platform: ContentPlatform;
   url: string | null;
@@ -100,7 +106,32 @@ export interface PublicationInput {
   views: number | null;
   likes: number | null;
   comments: number | null;
+  /**
+   * X: gösterim sayısı. A view is NOT an impression — kept apart so the two
+   * never get summed into the same total.
+   */
+  impressions?: number | null;
+  shares?: number | null;
+  saves?: number | null;
+  followers_gained?: number | null;
+  /** Platform-specific publish date (falls back to the card's published_date). */
+  published_at?: string | null;
+  /** Platform-specific title, when it differs from the card title. */
+  title?: string | null;
 }
+
+/** Elle girilen platformların metrik alanları — tek kaynak, modal bunu kullanır. */
+export const MANUAL_METRIC_FIELDS = [
+  { key: 'views',            label: 'İzlenme',  hint: 'Gerçek video izlenmesi' },
+  { key: 'impressions',      label: 'Gösterim', hint: 'X impressions — izlenme ile toplanmaz' },
+  { key: 'likes',            label: 'Beğeni',   hint: null },
+  { key: 'comments',         label: 'Yorum',    hint: null },
+  { key: 'shares',           label: 'Paylaşım', hint: 'Paylaşım / repost' },
+  { key: 'saves',            label: 'Kaydetme', hint: 'Kaydetme / bookmark' },
+  { key: 'followers_gained', label: 'Takipçi',  hint: 'Bu içerikten gelen takipçi' },
+] as const;
+
+export type ManualMetricField = (typeof MANUAL_METRIC_FIELDS)[number]['key'];
 
 /** Instagram permalinks are /p/{shortcode}/ or /reel/{shortcode}/. */
 export function extractInstagramShortcode(input: string): string | null {

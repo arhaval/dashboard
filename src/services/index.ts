@@ -20,3 +20,6 @@ export type { DaySchedule, WeekActivity } from './weekly-schedule.utils';
 export { cashFlowService } from './cash-flow.service';
 export type { ExpectedIncome, ExpectedExpense, CashFlowSummary, MonthlyPoint } from './cash-flow.service';
 export { contentQueueService } from './content-queue.service';
+export { contentImpactService } from './content-impact.service';
+export type { ImpactSources } from './content-impact.service';
+export { contentPerformanceRecommendationService } from './content-recommendation.service';

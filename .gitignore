@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# Vercel `env pull` çıktısı — service role key ve diğer secret'ları taşır.
+env.download
 
 # vercel
 .vercel
