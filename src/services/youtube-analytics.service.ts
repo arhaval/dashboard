@@ -166,15 +166,38 @@ export const youtubeAnalyticsService = {
     return { connected: Boolean(data?.refresh_token) };
   },
 
-  async getAccessToken(): Promise<string | null> {
+  /**
+   * Erişim jetonu + BAŞARISIZLIK SEBEBİ.
+   *
+   * Üç ayrı sorun aynı "bağlı değil" mesajını veriyordu ve hangisi olduğu
+   * anlaşılmıyordu. Çözümü tamamen farklı olduğu için ayrı ayrı raporlanır:
+   *   ENV_MISSING       → ortam değişkeni tanımlanmalı (deploy ayarı)
+   *   NOT_CONNECTED     → kanal hiç bağlanmamış (OAuth akışı çalıştırılmalı)
+   *   REFRESH_REJECTED  → yetki geçersiz/süresi dolmuş (yeniden bağlanmalı)
+   *
+   * Google'ın `invalid_grant` hatası genelde şu iki sebepten gelir: OAuth
+   * onay ekranı "Testing" modunda (refresh token 7 günde ölür) ya da erişim
+   * hesaptan geri çekilmiş.
+   */
+  async getAccessTokenDetailed(): Promise<{
+    token: string | null;
+    reason?: 'ENV_MISSING' | 'NOT_CONNECTED' | 'REFRESH_REJECTED';
+    detail?: string;
+  }> {
     const clientId = process.env.YOUTUBE_OAUTH_CLIENT_ID;
     const clientSecret = process.env.YOUTUBE_OAUTH_CLIENT_SECRET;
-    if (!clientId || !clientSecret) return null;
+    if (!clientId || !clientSecret) {
+      const eksik = [
+        !clientId ? 'YOUTUBE_OAUTH_CLIENT_ID' : null,
+        !clientSecret ? 'YOUTUBE_OAUTH_CLIENT_SECRET' : null,
+      ].filter(Boolean).join(', ');
+      return { token: null, reason: 'ENV_MISSING', detail: `${eksik} tanımlı değil` };
+    }
 
     const admin = createAdminClient();
     const { data } = await admin.from('youtube_oauth').select('refresh_token').eq('id', 1).maybeSingle();
     const refresh = data?.refresh_token;
-    if (!refresh) return null;
+    if (!refresh) return { token: null, reason: 'NOT_CONNECTED', detail: 'kayıtlı refresh token yok' };
 
     const res = await fetch(TOKEN_URL, {
       method: 'POST',
@@ -187,7 +210,31 @@ export const youtubeAnalyticsService = {
       }),
     });
     const token = await res.json();
-    return res.ok ? (token.access_token as string) : null;
+    if (!res.ok || !token.access_token) {
+      const detail = [token.error, token.error_description].filter(Boolean).join(': ');
+      return { token: null, reason: 'REFRESH_REJECTED', detail: detail || `HTTP ${res.status}` };
+    }
+    return { token: token.access_token as string };
+  },
+
+  async getAccessToken(): Promise<string | null> {
+    return (await this.getAccessTokenDetailed()).token;
+  },
+
+  /** Bağlantı sorununu kullanıcıya gösterilebilir tek cümleye çevir. */
+  async connectionError(): Promise<string | null> {
+    const { token, reason, detail } = await this.getAccessTokenDetailed();
+    if (token) return null;
+    switch (reason) {
+      case 'ENV_MISSING':
+        return `YouTube OAuth ayarı eksik (${detail}). Vercel ortam değişkenlerine eklenmeli.`;
+      case 'NOT_CONNECTED':
+        return 'YouTube kanalı hiç bağlanmamış. /api/youtube/oauth/start ile bağla.';
+      case 'REFRESH_REJECTED':
+        return `YouTube yetkisi geçersiz (${detail}). Yeniden bağlanman gerekiyor: /api/youtube/oauth/start`;
+      default:
+        return 'YouTube Analytics bağlı değil.';
+    }
   },
 
   /**
@@ -255,8 +302,11 @@ export const youtubeAnalyticsService = {
     };
     if (videoIds.length === 0) return base;
 
-    const accessToken = await this.getAccessToken();
-    if (!accessToken) return { ...base, notConnected: true, error: 'YouTube Analytics bağlı değil' };
+    const auth = await this.getAccessTokenDetailed();
+    if (!auth.token) {
+      return { ...base, notConnected: true, error: (await this.connectionError()) ?? 'YouTube Analytics bağlı değil' };
+    }
+    const accessToken = auth.token;
 
     const endDate = opts.endDate ?? today();
     const startDate = toDay(opts.startDate);
@@ -318,7 +368,9 @@ export const youtubeAnalyticsService = {
   async getDataThroughDate(): Promise<{ dataThroughDate: string | null; requestedEndDate: string; error?: string }> {
     const requestedEndDate = today();
     const accessToken = await this.getAccessToken();
-    if (!accessToken) return { dataThroughDate: null, requestedEndDate, error: 'YouTube Analytics bağlı değil' };
+    if (!accessToken) {
+      return { dataThroughDate: null, requestedEndDate, error: (await this.connectionError()) ?? 'YouTube Analytics bağlı değil' };
+    }
 
     const start = new Date(Date.now() - 14 * 86_400_000);
     const startDate = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
@@ -350,7 +402,7 @@ export const youtubeAnalyticsService = {
     endDate?: string
   ): Promise<{ days: { day: string; values: Record<string, number> }[]; error?: string }> {
     const accessToken = await this.getAccessToken();
-    if (!accessToken) return { days: [], error: 'YouTube Analytics bağlı değil' };
+    if (!accessToken) return { days: [], error: (await this.connectionError()) ?? 'YouTube Analytics bağlı değil' };
 
     const metrics = [
       'views', 'likes', 'comments', 'shares', 'estimatedMinutesWatched',
@@ -395,7 +447,7 @@ export const youtubeAnalyticsService = {
     endDate: string
   ): Promise<{ values: Record<string, number>; error?: string }> {
     const accessToken = await this.getAccessToken();
-    if (!accessToken) return { values: {}, error: 'YouTube Analytics bağlı değil' };
+    if (!accessToken) return { values: {}, error: (await this.connectionError()) ?? 'YouTube Analytics bağlı değil' };
 
     const url =
       `${REPORTS_URL}?ids=channel==MINE&startDate=${toDay(startDate)}&endDate=${toDay(endDate)}` +
