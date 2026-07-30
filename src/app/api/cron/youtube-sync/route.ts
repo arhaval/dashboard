@@ -8,6 +8,7 @@ import { syncYouTubeVideos } from '@/services/youtube.service';
 import { youtubeAnalyticsService } from '@/services/youtube-analytics.service';
 import { instagramService } from '@/services/instagram.service';
 import { contentQueueService } from '@/services/content-queue.service';
+import { publicationMetricsService } from '@/services/publication-metrics.service';
 import { denyCron } from '@/lib/cron-auth';
 
 export const dynamic = 'force-dynamic';
@@ -35,9 +36,17 @@ export async function GET(request: Request) {
   // published since the last run actually enters the library.
   const scripts = await contentQueueService.relinkPublishedScripts().catch(() => ({ linked: 0 }));
 
+  // Yayın bazlı metrik snapshot'ları. force=false: yalnızca yaşam döngüsüne göre
+  // zamanı gelen yayınlar ölçülür, bu yüzden günde bir çalışan cron kotayı
+  // zorlamaz. Bu adım idempotenttir — aynı sayılarla ikinci kez çalışırsa yeni
+  // satır yazmaz. Hatası diğer adımları düşürmemeli.
+  const metrics = await publicationMetricsService
+    .syncAll({ force: false })
+    .catch((e) => ({ error: e instanceof Error ? e.message : 'metrik ölçümü başarısız' }));
+
   const status = result.error ? 500 : 200;
   return Response.json(
-    { ...result, analytics, instagram, instagramMedia, scripts, at: new Date().toISOString() },
+    { ...result, analytics, instagram, instagramMedia, scripts, metrics, at: new Date().toISOString() },
     { status }
   );
 }

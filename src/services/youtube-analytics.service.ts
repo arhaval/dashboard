@@ -31,6 +31,89 @@ function monthRange(month: string): { start: string; end: string } {
   return { start, end };
 }
 
+/**
+ * Video bazında ÇEKİRDEK metrikler — bu set uzun süredir stabil, her kanalda
+ * desteklenir. Sorgu bunlarla başarısız olursa sorun metrik seti değildir.
+ */
+const VIDEO_CORE_METRICS = [
+  'views',
+  'likes',
+  'comments',
+  'shares',
+  'estimatedMinutesWatched',
+  'averageViewDuration',
+  'averageViewPercentage',
+  'subscribersGained',
+  'subscribersLost',
+  'videosAddedToPlaylists',
+  'videosRemovedFromPlaylists',
+] as const;
+
+/**
+ * Daha yeni metrikler. Kanal/rapor kombinasyonuna göre 400 dönebilir; o durumda
+ * sorgu çekirdek setle tekrarlanır ve bunlar "desteklenmiyor" işaretlenir.
+ * Metrik adı UYDURULMAZ — yalnızca dokümante edilmiş adlar denenir.
+ */
+const VIDEO_OPTIONAL_METRICS = ['engagedViews'] as const;
+
+/** Tek istekte sorulacak en fazla video (URL uzunluğu güvenli kalsın). */
+const VIDEO_BATCH = 50;
+const MAX_RETRY = 3;
+
+export interface VideoAnalyticsRow {
+  videoId: string;
+  values: Record<string, number>;
+}
+
+export interface VideoAnalyticsResult {
+  rows: VideoAnalyticsRow[];
+  /** Denendi ama API kabul etmedi. */
+  unsupportedMetrics: string[];
+  requestedMetrics: string[];
+  returnedMetrics: string[];
+  /** Kanal bağlı değil / token yok. */
+  notConnected?: boolean;
+  error?: string;
+}
+
+function today(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** ISO tarihi Analytics'in beklediği YYYY-MM-DD biçimine indir. */
+function toDay(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * Analytics raporu çek. 429 ve 5xx'te üstel geri çekilmeyle tekrar dener;
+ * 400 (geçersiz metrik) tekrar denenmez — çağıran metrik setini daraltır.
+ */
+async function fetchReport(
+  url: string,
+  accessToken: string
+): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> {
+  let wait = 500;
+  for (let attempt = 0; attempt <= MAX_RETRY; attempt += 1) {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (res.ok) return { ok: true, status: res.status, data };
+    // Geçici hatalar: bekle ve tekrar dene.
+    if ((res.status === 429 || res.status >= 500) && attempt < MAX_RETRY) {
+      await sleep(wait);
+      wait *= 2;
+      continue;
+    }
+    return { ok: false, status: res.status, data };
+  }
+  return { ok: false, status: 0, data: {} };
+}
+
 export const youtubeAnalyticsService = {
   /** Build the Google consent URL for connecting the channel. */
   authUrl(redirectUri: string, state: string): string {
@@ -152,6 +235,187 @@ export const youtubeAnalyticsService = {
     }
 
     return { video_views, shorts_views, live_views, total_likes, total_comments };
+  },
+
+  /**
+   * VIDEO BAZINDA metrikler. Videolar batch'lenir — her video için ayrı istek
+   * atmak quota ve gecikme açısından sürdürülemez.
+   *
+   * `startDate` bütün batch için ortak olmalı; en eski videonun yayın tarihi
+   * kullanılır. Analytics kümülatif rapor döndürdüğü için erken başlangıç
+   * sonucu bozmaz, yalnızca sorgu aralığını genişletir.
+   */
+  async queryVideoMetrics(
+    videoIds: string[],
+    opts: { startDate: string; endDate?: string }
+  ): Promise<VideoAnalyticsResult> {
+    const requested = [...VIDEO_CORE_METRICS, ...VIDEO_OPTIONAL_METRICS];
+    const base: VideoAnalyticsResult = {
+      rows: [], unsupportedMetrics: [], requestedMetrics: requested, returnedMetrics: [],
+    };
+    if (videoIds.length === 0) return base;
+
+    const accessToken = await this.getAccessToken();
+    if (!accessToken) return { ...base, notConnected: true, error: 'YouTube Analytics bağlı değil' };
+
+    const endDate = opts.endDate ?? today();
+    const startDate = toDay(opts.startDate);
+
+    let metrics: string[] = [...requested];
+    const unsupported: string[] = [];
+    const rows: VideoAnalyticsRow[] = [];
+
+    for (let i = 0; i < videoIds.length; i += VIDEO_BATCH) {
+      const chunk = videoIds.slice(i, i + VIDEO_BATCH);
+      const build = (m: string[]) =>
+        `${REPORTS_URL}?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}` +
+        `&metrics=${m.join(',')}&dimensions=video&filters=video==${chunk.join(',')}&maxResults=${VIDEO_BATCH}`;
+
+      let res = await fetchReport(build(metrics), accessToken);
+
+      // Metrik seti kabul edilmediyse çekirdek setle bir kez daha dene.
+      if (!res.ok && res.status === 400 && metrics.length > VIDEO_CORE_METRICS.length) {
+        unsupported.push(...VIDEO_OPTIONAL_METRICS.filter((m) => !unsupported.includes(m)));
+        metrics = [...VIDEO_CORE_METRICS];
+        res = await fetchReport(build(metrics), accessToken);
+      }
+
+      if (!res.ok) {
+        // Bir batch'in düşmesi diğerlerini düşürmez; elde olan döner.
+        const err = (res.data.error as { message?: string } | undefined)?.message;
+        return { ...base, rows, unsupportedMetrics: unsupported, returnedMetrics: metrics, error: err ?? `Analytics HTTP ${res.status}` };
+      }
+
+      // columnHeaders sırası metrics sırasını takip eder; ilk sütun 'video'.
+      const headers = ((res.data.columnHeaders ?? []) as { name: string }[]).map((h) => h.name);
+      for (const raw of (res.data.rows ?? []) as unknown[][]) {
+        const values: Record<string, number> = {};
+        let videoId = '';
+        raw.forEach((cell, idx) => {
+          const name = headers[idx];
+          if (name === 'video') videoId = String(cell);
+          else if (name) {
+            const n = Number(cell);
+            if (Number.isFinite(n)) values[name] = n;
+          }
+        });
+        if (videoId) rows.push({ videoId, values });
+      }
+    }
+
+    return { rows, unsupportedMetrics: unsupported, requestedMetrics: requested, returnedMetrics: metrics };
+  },
+
+  /**
+   * Analytics verisinin GERÇEKTEN hangi güne kadar hazır olduğu.
+   *
+   * API istenen endDate'i sessizce kırpar: bugünü isteyip dünden önceki bir
+   * güne kadar veri alabilirsin. Bunu bilmeden checkpoint'i "tamamlandı"
+   * saymak, aslında ölçülmemiş bir noktayı ölçülmüş göstermek olur.
+   *
+   * Kanal seviyesinde tek bir ucuz sorgu; sonuç bütün videolar için geçerli.
+   */
+  async getDataThroughDate(): Promise<{ dataThroughDate: string | null; requestedEndDate: string; error?: string }> {
+    const requestedEndDate = today();
+    const accessToken = await this.getAccessToken();
+    if (!accessToken) return { dataThroughDate: null, requestedEndDate, error: 'YouTube Analytics bağlı değil' };
+
+    const start = new Date(Date.now() - 14 * 86_400_000);
+    const startDate = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
+    const url =
+      `${REPORTS_URL}?ids=channel==MINE&startDate=${startDate}&endDate=${requestedEndDate}` +
+      `&metrics=views&dimensions=day&sort=day`;
+
+    const res = await fetchReport(url, accessToken);
+    if (!res.ok) {
+      const err = (res.data.error as { message?: string } | undefined)?.message;
+      return { dataThroughDate: null, requestedEndDate, error: err ?? `Analytics HTTP ${res.status}` };
+    }
+    const rows = (res.data.rows ?? []) as unknown[][];
+    const last = rows[rows.length - 1];
+    const dataThroughDate = last ? String(last[0]) : null;
+    return { dataThroughDate, requestedEndDate };
+  },
+
+  /**
+   * Tek videonun GÜNLÜK dökümü — geçmiş checkpoint'lerini yeniden kurmak için.
+   *
+   * Ortalama metrikler (averageViewDuration / averageViewPercentage) bilerek
+   * İSTENMEZ: günlük ortalamalar toplanamaz, ağırlıklı hesap gerekir. O yüzden
+   * checkpoint'in ortalama alanları ayrı bir aralık sorgusuyla doldurulur.
+   */
+  async queryVideoDaily(
+    videoId: string,
+    startDate: string,
+    endDate?: string
+  ): Promise<{ days: { day: string; values: Record<string, number> }[]; error?: string }> {
+    const accessToken = await this.getAccessToken();
+    if (!accessToken) return { days: [], error: 'YouTube Analytics bağlı değil' };
+
+    const metrics = [
+      'views', 'likes', 'comments', 'shares', 'estimatedMinutesWatched',
+      'subscribersGained', 'subscribersLost', 'videosAddedToPlaylists', 'videosRemovedFromPlaylists',
+    ];
+    const url =
+      `${REPORTS_URL}?ids=channel==MINE&startDate=${toDay(startDate)}&endDate=${endDate ?? today()}` +
+      `&metrics=${metrics.join(',')}&dimensions=day&filters=video==${videoId}&sort=day`;
+
+    const res = await fetchReport(url, accessToken);
+    if (!res.ok) {
+      const err = (res.data.error as { message?: string } | undefined)?.message;
+      return { days: [], error: err ?? `Analytics HTTP ${res.status}` };
+    }
+
+    const headers = ((res.data.columnHeaders ?? []) as { name: string }[]).map((h) => h.name);
+    const days: { day: string; values: Record<string, number> }[] = [];
+    for (const raw of (res.data.rows ?? []) as unknown[][]) {
+      const values: Record<string, number> = {};
+      let day = '';
+      raw.forEach((cell, idx) => {
+        const name = headers[idx];
+        if (name === 'day') day = String(cell);
+        else if (name) {
+          const n = Number(cell);
+          if (Number.isFinite(n)) values[name] = n;
+        }
+      });
+      if (day) days.push({ day, values });
+    }
+    return { days };
+  },
+
+  /**
+   * Bir videonun BELİRLİ ARALIK için toplu metrikleri — ortalamaların doğru
+   * (API tarafından ağırlıklandırılmış) değerini almak için. Günlük satırları
+   * toplayarak ortalama üretmek matematiksel olarak yanlış olurdu.
+   */
+  async queryVideoRange(
+    videoId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<{ values: Record<string, number>; error?: string }> {
+    const accessToken = await this.getAccessToken();
+    if (!accessToken) return { values: {}, error: 'YouTube Analytics bağlı değil' };
+
+    const url =
+      `${REPORTS_URL}?ids=channel==MINE&startDate=${toDay(startDate)}&endDate=${toDay(endDate)}` +
+      `&metrics=${VIDEO_CORE_METRICS.join(',')}&filters=video==${videoId}`;
+
+    const res = await fetchReport(url, accessToken);
+    if (!res.ok) {
+      const err = (res.data.error as { message?: string } | undefined)?.message;
+      return { values: {}, error: err ?? `Analytics HTTP ${res.status}` };
+    }
+    const headers = ((res.data.columnHeaders ?? []) as { name: string }[]).map((h) => h.name);
+    const row = ((res.data.rows ?? []) as unknown[][])[0];
+    const values: Record<string, number> = {};
+    if (row) {
+      row.forEach((cell, idx) => {
+        const n = Number(cell);
+        if (headers[idx] && Number.isFinite(n)) values[headers[idx]] = n;
+      });
+    }
+    return { values };
   },
 
   /** Current cumulative subscriber count via the Data API (no OAuth needed). */

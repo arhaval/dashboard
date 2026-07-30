@@ -16,6 +16,7 @@ import { userService } from '@/services';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { syncYouTubeVideos } from '@/services/youtube.service';
 import { videoPerformanceService } from '@/services/video-performance.service';
+import { publicationMetricsService } from '@/services/publication-metrics.service';
 import { LABEL_META, VIDEO_GENRE_LABELS, VIDEO_GENRES, type VideoGenre } from './perf.constants';
 
 async function assertAdmin(): Promise<{ ok: boolean; error?: string }> {
@@ -31,6 +32,11 @@ export async function syncVideosNow(): Promise<{ synced?: number; error?: string
 
   const result = await syncYouTubeVideos();
   if (result.error) return { error: result.error };
+
+  // Elle senkronizasyonda checkpoint durumu da yeniden değerlendirilir:
+  // force=true, yaşam döngüsü beklemesini atlar. Metrik ölçümünün hatası video
+  // senkronizasyonunu geçersiz kılmaz — bağımsız raporlanır.
+  await publicationMetricsService.syncAll({ force: true }).catch(() => null);
 
   revalidatePath('/icerik-performansi');
   return { synced: result.synced };
