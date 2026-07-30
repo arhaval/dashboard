@@ -24,10 +24,16 @@ export async function GET(request: Request) {
   // the video sync bailed early (e.g. video_performance table not yet created).
   const now = new Date();
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const analytics = await youtubeAnalyticsService.fillMonth(month).catch(() => ({ ok: false }));
+  const analytics = await youtubeAnalyticsService
+    .fillMonth(month)
+    .catch((e) => ({ ok: false, error: e instanceof Error ? e.message : 'aylık Analytics dolumu başarısız' }));
+  if (!analytics.ok) console.error('[youtube-sync] aylık Analytics:', (analytics as { error?: string }).error);
 
   // Instagram: refresh token + current-month account metrics (followers + views).
-  const instagram = await instagramService.fillMonth(month).catch(() => ({ ok: false }));
+  const instagram = await instagramService
+    .fillMonth(month)
+    .catch((e) => ({ ok: false, error: e instanceof Error ? e.message : 'aylık Instagram dolumu başarısız' }));
+  if (!instagram.ok) console.error('[youtube-sync] aylık Instagram:', (instagram as { error?: string }).error);
   // Only refresh posts linked to published content (not a daily 60-post scan).
   const instagramMedia = await instagramService.syncLinkedMedia().catch(() => ({ refreshed: 0 }));
 
@@ -42,11 +48,20 @@ export async function GET(request: Request) {
   // satır yazmaz. Hatası diğer adımları düşürmemeli.
   const metrics = await publicationMetricsService
     .syncAll({ force: false })
-    .catch((e) => ({ error: e instanceof Error ? e.message : 'metrik ölçümü başarısız' }));
+    .catch((e) => ({ outcome: 'FAILED' as const, error: e instanceof Error ? e.message : 'metrik ölçümü başarısız' }));
 
-  const status = result.error ? 500 : 200;
+  // Bir alt işlem düştüyse bunu başarı gibi göstermiyoruz.
+  const failures = [
+    result.error ? 'videoSync' : null,
+    !analytics.ok ? 'monthlyAnalytics' : null,
+    !instagram.ok ? 'monthlyInstagram' : null,
+    (metrics as { outcome?: string }).outcome === 'FAILED' ? 'publicationMetrics' : null,
+  ].filter(Boolean);
+  const outcome = failures.length === 0 ? 'SUCCESS' : result.error ? 'FAILED' : 'PARTIAL_SUCCESS';
+  const status = outcome === 'SUCCESS' ? 200 : outcome === 'PARTIAL_SUCCESS' ? 207 : 500;
+
   return Response.json(
-    { ...result, analytics, instagram, instagramMedia, scripts, metrics, at: new Date().toISOString() },
+    { outcome, failures, ...result, analytics, instagram, instagramMedia, scripts, metrics, at: new Date().toISOString() },
     { status }
   );
 }

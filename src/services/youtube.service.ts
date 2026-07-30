@@ -74,15 +74,19 @@ async function rollUpMonthlyMetrics(
         .from('social_monthly_metrics')
         .insert({ month, platform: 'YOUTUBE', followers_total: 0, ...sub });
     }
-  } catch {
-    // secondary — ignore
+  } catch (e) {
+    // İkincil iş; ana senkronizasyonu düşürmez ama SESSİZ de kalmaz.
+    console.error('[youtube-sync] abone sayısı yazılamadı:', e instanceof Error ? e.message : e);
   }
 
   // 2. per-month views/likes/comments from Analytics API (no-op if not connected)
   try {
-    await youtubeAnalyticsService.fillMonth(month);
-  } catch {
-    // Analytics not connected or transient failure — ignore
+    const r = await youtubeAnalyticsService.fillMonth(month);
+    // 23 gün boyunca fark edilmemesinin sebebi tam olarak buranın sessiz
+    // olmasıydı. Artık en azından log'a düşüyor ve sağlık kaydına yazılıyor.
+    if (!r.ok) console.error('[youtube-sync] aylık Analytics dolumu:', r.error);
+  } catch (e) {
+    console.error('[youtube-sync] aylık Analytics istisnası:', e instanceof Error ? e.message : e);
   }
 }
 

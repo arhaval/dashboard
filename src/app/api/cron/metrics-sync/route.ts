@@ -10,14 +10,16 @@
  * 8 saat olduğu için bu noktanın kaçırılmaması ancak 6 saatlik bir ritimle
  * mümkün — günlük cron ile 24s noktalarının çoğu hiç oluşmaz.
  *
- * `force: false`: hangi yayının ölçüleceğine yaşam döngüsü karar verir
- * (0–2 gün 6 saatte bir, 2–7 gün günlük, 8–30 gün 2 günde bir, sonrası
- * haftalık). Yani 6 saatlik ritim yalnızca YENİ içerikler için maliyet yaratır.
- *
+ * `force: false`: hangi yayının ölçüleceğine yaşam döngüsü karar verir.
  * İdempotenttir: aynı sayılarla ikinci kez çalışırsa yeni satır yazmaz.
+ *
+ * SESSİZ BAŞARI YOK: bir platformun iç işlemi düştüyse HTTP durumu ve gövdedeki
+ * `outcome` bunu söyler. YouTube 23 gün boyunca bozuk kalıp kimsenin fark
+ * etmemesinin sebebi tam olarak buydu.
  */
 
 import { publicationMetricsService } from '@/services/publication-metrics.service';
+import { integrationHealthService } from '@/services/integration-health.service';
 import { denyCron } from '@/lib/cron-auth';
 
 export const dynamic = 'force-dynamic';
@@ -27,14 +29,18 @@ export async function GET(request: Request) {
   const denied = denyCron(request);
   if (denied) return denied;
 
+  const at = new Date().toISOString();
+
   try {
     const metrics = await publicationMetricsService.syncAll({ force: false });
-    // Bir platformun hatası diğerini geçersiz kılmaz — ikisi de raporlanır.
-    return Response.json({ ...metrics, at: new Date().toISOString() });
+    const health = await integrationHealthService.getPlatformHealth();
+
+    // Kısmi başarı 207, tam başarısızlık 500. İzleme araçları bunu görebilsin.
+    const status = metrics.outcome === 'SUCCESS' ? 200 : metrics.outcome === 'PARTIAL_SUCCESS' ? 207 : 500;
+    return Response.json({ ...metrics, health, at }, { status });
   } catch (e) {
-    return Response.json(
-      { error: e instanceof Error ? e.message : 'Metrik ölçümü başarısız', at: new Date().toISOString() },
-      { status: 500 }
-    );
+    const error = e instanceof Error ? e.message : 'Metrik ölçümü başarısız';
+    console.error('[metrics-sync] beklenmeyen hata:', error);
+    return Response.json({ outcome: 'FAILED', error, at }, { status: 500 });
   }
 }

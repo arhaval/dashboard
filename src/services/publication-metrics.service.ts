@@ -40,11 +40,12 @@ import {
   type PublicationSnapshot,
   type SnapshotSource,
   type SourceCoverage,
+  type SourceGranularity,
 } from '@/app/(dashboard)/icerik-performansi/publication-snapshot.constants';
 import {
-  AVERAGE_METRICS,
   EMPTY_METRICS,
   METRIC_KEYS,
+  normalizeForStorage,
   type MetricKey,
   type PlatformMetrics,
 } from '@/app/(dashboard)/icerik-performansi/content-impact.constants';
@@ -57,6 +58,7 @@ import {
   IG_GRAPH_HOST,
 } from './instagram-insights.service';
 import { instagramService } from './instagram.service';
+import { integrationHealthService } from './integration-health.service';
 
 /** DB kolon adı ↔ ortak model anahtarı. Tek eşleme noktası. */
 const COLUMN_BY_METRIC: Record<MetricKey, string> = {
@@ -113,6 +115,9 @@ function rowToSnapshot(row: SnapshotRow): PublicationSnapshot {
       sourceLagSeconds: num(row.source_lag_seconds),
     },
     forcedForCheckpoint: (row.forced_for_checkpoint as CheckpointKey | null) ?? null,
+    // Kolonlar migrate edilmemişse gerçek zamanlı varsayılır (eski davranış).
+    sourceGranularity: (row.source_granularity as SourceGranularity | null) ?? 'REALTIME',
+    isBackfilled: Boolean(row.is_backfilled),
   };
 }
 
@@ -125,22 +130,28 @@ function lagSeconds(capturedAt: string, dataThroughDate: string | null): number 
 }
 
 /**
- * Metrikleri kolon değerlerine çevir.
+ * Metrikleri kolon değerlerine çevir — her metrik KENDİ depolama tipine göre.
  *
- * ORTALAMA metrikler dışındaki bütün kolonlar BIGINT'tir; kesirli bir değer
- * Postgres tarafından reddedilir ve o satırdaki DİĞER bütün metrikler de
- * kaybolur. Bir kaynak beklenmedik biçimde ondalık döndürdüğünde tek bir alan
- * yüzünden bütün ölçümü kaybetmemek için burada güvenceye alınır.
- * (Instagram'ın milisaniyelik Reels süresi tam olarak bunu yapıyordu.)
+ * "Ortalama dışındakileri yuvarla" gibi isim tabanlı bir kural kırılgandı.
+ * Karar artık katalogdaki `storage` alanından çıkıyor, böylece yeni bir oran
+ * metriği eklendiğinde yanlışlıkla tam sayıya yuvarlanamaz.
+ *
+ * Saklanamayan tek bir metrik (NaN/sonsuz) YALNIZCA kendisi null'a düşer ve
+ * gerekçesi raporlanır — bütün ölçümün kaybolmasına izin verilmez. Instagram'ın
+ * milisaniyelik Reels süresi tam olarak bunu yapıyordu.
  */
-function metricsToColumns(metrics: PlatformMetrics): Record<string, number | null> {
-  const decimalOk = new Set<MetricKey>(AVERAGE_METRICS);
-  const out: Record<string, number | null> = {};
+function metricsToColumns(
+  metrics: PlatformMetrics
+): { columns: Record<string, number | null>; notes: string[] } {
+  const columns: Record<string, number | null> = {};
+  const notes: string[] = [];
   for (const key of METRIC_KEYS) {
-    const v = metrics[key];
-    out[COLUMN_BY_METRIC[key]] = v == null || decimalOk.has(key) ? v : Math.round(v);
+    const res = normalizeForStorage(key, metrics[key]);
+    columns[COLUMN_BY_METRIC[key]] = res.value;
+    if (res.adjusted) notes.push(res.adjusted);
+    if (res.rejected) notes.push(res.rejected);
   }
-  return out;
+  return { columns, notes };
 }
 
 /** Bir kaynağın sahip OLMADIĞI metrikleri temizle — kaynaklar birbirini ezmesin. */
@@ -177,7 +188,14 @@ export interface PlatformSyncReport {
   error?: string;
 }
 
+/**
+ * Senkronizasyonun genel sonucu. HTTP 200 dönmesi "her şey yolunda" demek
+ * DEĞİLDİR — bir kaynak düştüyse bu alan onu söyler.
+ */
+export type SyncOutcome = 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILED';
+
 export interface MetricsSyncResult {
+  outcome: SyncOutcome;
   youtube: PlatformSyncReport;
   instagram: PlatformSyncReport;
 }
@@ -270,7 +288,9 @@ export const publicationMetricsService = {
     capturedAt?: string;
     coverage?: SourceCoverage;
     forcedForCheckpoint?: CheckpointKey | null;
-  }): Promise<{ written: boolean; error?: string }> {
+    sourceGranularity?: SourceGranularity;
+    isBackfilled?: boolean;
+  }): Promise<{ written: boolean; error?: string; notes?: string[] }> {
     const forced = opts.forcedForCheckpoint ?? null;
 
     if (!forced) {
@@ -288,12 +308,14 @@ export const publicationMetricsService = {
     const capturedAt = opts.capturedAt ?? new Date().toISOString();
     const coverage = opts.coverage ?? EMPTY_COVERAGE;
 
+    const { columns, notes } = metricsToColumns(opts.metrics);
     const admin = createAdminClient();
-    const { error } = await admin.from('content_publication_metric_snapshots').insert({
+
+    const core = {
       publication_id: opts.publicationId,
       source: opts.source,
       captured_at: capturedAt,
-      ...metricsToColumns(opts.metrics),
+      ...columns,
       report_start_date: coverage.reportStartDate,
       requested_end_date: coverage.requestedEndDate,
       data_through_date: coverage.dataThroughDate,
@@ -301,12 +323,32 @@ export const publicationMetricsService = {
       source_lag_seconds: coverage.sourceLagSeconds ?? lagSeconds(capturedAt, coverage.dataThroughDate),
       forced_for_checkpoint: forced,
       api_metric_availability: opts.availability ?? {},
-      raw_metadata: opts.rawMetadata ?? {},
-    });
+      // Normalizasyon bir şeyi düzelttiyse sessiz kalma.
+      raw_metadata: { ...(opts.rawMetadata ?? {}), ...(notes.length > 0 ? { storageNotes: notes } : {}) },
+    };
+    // Ölçüm kalitesi kolonları 20260730_measurement_quality_and_health ile geliyor.
+    const quality = {
+      source_granularity: opts.sourceGranularity ?? 'REALTIME',
+      is_backfilled: opts.isBackfilled ?? false,
+    };
+
+    const { error } = await admin.from('content_publication_metric_snapshots').insert({ ...core, ...quality });
+
     // Kısmi unique index duplicate'i reddederse bu bir hata değil, korumanın
     // çalışmasıdır — yarış durumunda ikinci yazım sessizce düşer.
-    if (error && /duplicate key|unique constraint/i.test(error.message)) return { written: false };
-    return error ? { written: false, error: error.message } : { written: true };
+    if (error && /duplicate key|unique constraint/i.test(error.message)) return { written: false, notes };
+
+    // Kalite kolonları henüz migrate edilmediyse ölçümü TAMAMEN kaybetmektense
+    // çekirdek alanlarla yaz. Kalite bilgisi eksik kalır ama sayılar durur.
+    if (error && /column .* does not exist|Could not find the '.*' column/i.test(error.message)) {
+      const { error: legacyError } = await admin.from('content_publication_metric_snapshots').insert(core);
+      if (legacyError && /duplicate key|unique constraint/i.test(legacyError.message)) return { written: false, notes };
+      return legacyError
+        ? { written: false, error: legacyError.message, notes }
+        : { written: true, notes: [...notes, 'ölçüm kalitesi kolonları henüz migrate edilmemiş'] };
+    }
+
+    return error ? { written: false, error: error.message, notes } : { written: true, notes };
   },
 
   // ── Senkronizasyon ────────────────────────────────────────────────────────
@@ -339,7 +381,11 @@ export const publicationMetricsService = {
       })),
     ]);
 
-    return { youtube, instagram };
+    // Hiçbir kaynak hata vermediyse SUCCESS; biri düştüyse PARTIAL, ikisi de
+    // düştüyse FAILED. Sessizce "200 OK" dönmek yok.
+    const failed = [youtube.error, instagram.error].filter(Boolean).length;
+    const outcome: SyncOutcome = failed === 0 ? 'SUCCESS' : failed === 2 ? 'FAILED' : 'PARTIAL_SUCCESS';
+    return { outcome, youtube, instagram };
   },
 
   async syncYoutube(
@@ -385,6 +431,7 @@ export const publicationMetricsService = {
     if (due.length === 0) return report;
 
     const capturedAt = now.toISOString();
+    let dataApiFailure: string | null = null;
 
     // 1. Data API tarafı — canlı sayaçlar, verisi ölçüm anına kadar geçerli.
     for (const p of due) {
@@ -413,7 +460,14 @@ export const publicationMetricsService = {
       });
       if (res.written) report.snapshotsWritten += 1;
       if (forced) report.checkpointSnapshots += 1;
+      if (res.error) dataApiFailure = res.error;
     }
+    // Data API ucunun sonucu Analytics'ten BAĞIMSIZ kaydedilir — biri düşerken
+    // diğeri çalışıyorsa platform "kopuk" değil "kısmi" görünmeli.
+    await integrationHealthService.record(
+      'YOUTUBE_DATA_API',
+      dataApiFailure ? { ok: false, error: dataApiFailure } : { ok: true, dataThroughDate: capturedAt.slice(0, 10) }
+    );
 
     // 2. Analytics tarafı — bağımsız. Hata verirse yukarıdaki veri korunur.
     const startDate = due
@@ -436,8 +490,14 @@ export const publicationMetricsService = {
     if (analytics.error) {
       report.error = analytics.error;
       report.parseIssues = issues;
-      return report; // Data API snapshot'ları yazıldı, onlar korunuyor.
+      // Analytics düştü ama Data API verisi yazıldı ve KORUNUYOR.
+      await integrationHealthService.record('YOUTUBE_ANALYTICS_API', { ok: false, error: analytics.error });
+      return report;
     }
+    await integrationHealthService.record('YOUTUBE_ANALYTICS_API', {
+      ok: true,
+      dataThroughDate: coverageProbe.dataThroughDate,
+    });
 
     const coverage: SourceCoverage = {
       reportStartDate: startDate.slice(0, 10),
@@ -497,7 +557,9 @@ export const publicationMetricsService = {
 
     const auth = await instagramService.getValidToken();
     if (!auth) {
-      report.error = 'Instagram bağlı değil';
+      report.error = 'Instagram bağlı değil — yeniden yetkilendirme gerekiyor';
+      await integrationHealthService.record('INSTAGRAM_MEDIA', { ok: false, error: report.error });
+      await integrationHealthService.record('INSTAGRAM_INSIGHTS', { ok: false, error: report.error });
       return report;
     }
 
@@ -533,6 +595,9 @@ export const publicationMetricsService = {
 
     const capturedAt = now.toISOString();
     const cache = createCapabilityCache();
+    let mediaFailure: string | null = null;
+    let insightsFailure: string | null = null;
+    let insightsSucceeded = 0;
     // Instagram insights ömür boyu (lifetime) değer döndürür: veri her zaman
     // sorgu anına kadar geçerlidir, rapor gecikmesi yoktur.
     const liveCoverage: SourceCoverage = {
@@ -564,6 +629,7 @@ export const publicationMetricsService = {
       });
       if (mediaRes.written) report.snapshotsWritten += 1;
       if (forcedMedia) report.checkpointSnapshots += 1;
+      if (mediaRes.error) mediaFailure = mediaRes.error;
 
       // 2. Insights — desteklenmeyen metrik bu medyayı düşürmez.
       const kind = toMediaKind(m.content_type);
@@ -574,7 +640,12 @@ export const publicationMetricsService = {
           if (!report[list].includes(name)) report[list].push(name);
         }
       }
-      if (insights.returnedMetrics.length === 0) continue;
+      if (insights.returnedMetrics.length === 0) {
+        // Hiç metrik gelmediyse bu bir başarısızlıktır — sessizce atlanmaz.
+        insightsFailure = insights.error ?? 'insight alınamadı';
+        continue;
+      }
+      insightsSucceeded += 1;
 
       const mapped = mapInstagramInsights(insights.values, issues);
       const availability: MetricAvailabilityMap = {};
@@ -609,7 +680,22 @@ export const publicationMetricsService = {
         forcedForCheckpoint: pendingCheckpoints(publishedOf(p), prev, 'INSTAGRAM_INSIGHTS', now)[0] ?? null,
       });
       if (res.written) report.snapshotsWritten += 1;
+      if (res.error) insightsFailure = res.error;
     }
+
+    await integrationHealthService.record(
+      'INSTAGRAM_MEDIA',
+      mediaFailure ? { ok: false, error: mediaFailure } : { ok: true, dataThroughDate: capturedAt.slice(0, 10) }
+    );
+    // Desteklenmeyen METRİK bağlantıyı kopuk göstermez: en az bir medyadan
+    // insight geldiyse uç çalışıyor demektir.
+    await integrationHealthService.record(
+      'INSTAGRAM_INSIGHTS',
+      insightsSucceeded > 0
+        ? { ok: true, dataThroughDate: capturedAt.slice(0, 10) }
+        : { ok: false, error: insightsFailure ?? 'hiçbir gönderiden insight alınamadı' }
+    );
+    if (insightsFailure && insightsSucceeded === 0) report.error = insightsFailure;
 
     report.parseIssues = issues;
     return report;
@@ -805,6 +891,9 @@ export const publicationMetricsService = {
           },
           previous: prior,
           capturedAt,
+          // Gün bazlı geçmiş rapordan kurgulandı — pencere takvim günüdür.
+          sourceGranularity: 'DAY',
+          isBackfilled: true,
           coverage: {
             reportStartDate: published.slice(0, 10),
             requestedEndDate: targetDay,

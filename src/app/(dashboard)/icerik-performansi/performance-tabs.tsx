@@ -14,6 +14,8 @@ import { ContentImpactView } from './content-impact-view';
 import type { ScoredVideo } from './perf.constants';
 import type { ScoredMedia } from './ig-perf.constants';
 import type { ContentImpactPage } from './content-impact.constants';
+import type { PlatformHealth } from './integration-health.constants';
+import { IntegrationHealthBanner } from './integration-health-banner';
 
 interface Props {
   videos: ScoredVideo[];
@@ -22,9 +24,11 @@ interface Props {
   authorsByExternalId: Record<string, string>;
   /** Sunucuda toplanmış İLK sayfa — filtre değişimini server action karşılar. */
   impactPage: ContentImpactPage;
+  /** Platform bağlantı durumları. */
+  health: PlatformHealth[];
 }
 
-export function PerformanceTabs({ videos, media, commentsEnabled, authorsByExternalId, impactPage }: Props) {
+export function PerformanceTabs({ videos, media, commentsEnabled, authorsByExternalId, impactPage, health }: Props) {
   const [mode, setMode] = useState<'content' | 'platform'>('content');
   const [tab, setTab] = useState<'youtube' | 'instagram'>('youtube');
 
@@ -40,6 +44,8 @@ export function PerformanceTabs({ videos, media, commentsEnabled, authorsByExter
 
   return (
     <div>
+      <IntegrationHealthBanner health={health} />
+
       {/* Görünüm seçimi */}
       <div
         className="mb-4 inline-flex gap-1 rounded-[var(--radius-md)] p-1"

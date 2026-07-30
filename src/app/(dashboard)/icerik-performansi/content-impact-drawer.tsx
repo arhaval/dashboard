@@ -34,7 +34,12 @@ import {
   type PublicationCheckpoint,
   type RecommendationPriority,
 } from './content-impact.constants';
-import { CHECKPOINT_LABELS } from './publication-snapshot.constants';
+import {
+  CHECKPOINT_LABELS,
+  MEASUREMENT_QUALITY_LABELS,
+  MEASUREMENT_QUALITY_TOOLTIPS,
+  type MeasurementQuality,
+} from './publication-snapshot.constants';
 import { PLATFORM_COLORS, PLATFORM_LABELS } from '../icerik-plani/content-queue.constants';
 
 const PRIORITY_META: Record<RecommendationPriority, { text: string; bg: string; color: string }> = {
@@ -284,6 +289,30 @@ function Block({ title, items }: { title: string; items: string[] }) {
   );
 }
 
+/**
+ * Ölçüm kalitesi rozeti. Yaklaşık ve kesin ölçümler görsel olarak ayrılır ama
+ * büyük uyarı kutusu kurulmaz — bilgi taşısın, ekranı boğmasın.
+ */
+const QUALITY_STYLE: Record<MeasurementQuality, { bg: string; color: string }> = {
+  EXACT_REALTIME: { bg: 'var(--color-success-muted)', color: 'var(--color-success)' },
+  APPROX_DAILY_BACKFILL: { bg: 'var(--color-warning-muted)', color: 'var(--color-warning)' },
+  LATE_MEASUREMENT: { bg: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' },
+  PARTIAL_SOURCE_DATA: { bg: 'var(--color-warning-muted)', color: 'var(--color-warning)' },
+};
+
+function QualityBadge({ quality }: { quality: MeasurementQuality }) {
+  const style = QUALITY_STYLE[quality];
+  return (
+    <span
+      className="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold"
+      style={{ backgroundColor: style.bg, color: style.color }}
+      title={MEASUREMENT_QUALITY_TOOLTIPS[quality]}
+    >
+      {MEASUREMENT_QUALITY_LABELS[quality]}
+    </span>
+  );
+}
+
 /** "Güncel" + ölçülmüş checkpoint'ler. Ölçülmemiş olan seçilemez. */
 function CheckpointTabs({ checkpoints, active, onSelect }: {
   checkpoints: PublicationCheckpoint[];
@@ -296,9 +325,7 @@ function CheckpointTabs({ checkpoints, active, onSelect }: {
       label: CHECKPOINT_LABELS[c.key],
       enabled: c.measured,
       title: c.measured
-        ? `${new Date(c.actualCapturedAt as string).toLocaleString('tr-TR')} — hedeften ${Math.round((c.delaySeconds ?? 0) / 3600)} saat sonra` +
-          `${c.isLate ? ' (gecikmeli ölçüm)' : ''}` +
-          `${c.status === 'PARTIAL' ? ` · kısmi: ${c.laggingSources.join(', ')} verisi o güne kadar hazır değildi` : ''}`
+        ? `${MEASUREMENT_QUALITY_LABELS[c.measurementQuality]} — ${MEASUREMENT_QUALITY_TOOLTIPS[c.measurementQuality]}`
         : 'Henüz oluşmadı — bu noktada ölçüm alınmamış',
     }))
   );
@@ -396,11 +423,20 @@ function PlatformCard({ pub }: { pub: PlatformPublication }) {
         <CheckpointTabs checkpoints={pub.checkpoints} active={checkpoint} onSelect={setCheckpoint} />
       )}
       {checkpoint !== 'CURRENT' && selected?.measured && (
-        <p className="mt-1 text-[10px]" style={{ color: selected.status === 'PARTIAL' ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>
-          {new Date(selected.actualCapturedAt as string).toLocaleString('tr-TR')} ölçümü
-          {selected.isLate && ' · gecikmeli ölçüm'}
-          {selected.status === 'PARTIAL' && ` · kısmi ölçüm (${selected.laggingSources.join(', ')} verisi geride)`}
-          {' · veri doluluğu %'}{Math.round(selected.dataCompleteness * 100)}
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <QualityBadge quality={selected.measurementQuality} />
+          <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
+            {new Date(selected.actualCapturedAt as string).toLocaleString('tr-TR')}
+            {selected.isLate && ` · hedeften ${Math.round((selected.delaySeconds ?? 0) / 3600)} saat sonra`}
+            {selected.status === 'PARTIAL' && ` · ${selected.laggingSources.join(', ')} verisi geride`}
+            {selected.dataThroughDate && ` · veri ${selected.dataThroughDate} tarihine kadar`}
+            {' · doluluk %'}{Math.round(selected.dataCompleteness * 100)}
+          </span>
+        </div>
+      )}
+      {checkpoint !== 'CURRENT' && selected && !selected.measured && (
+        <p className="mt-1.5 text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
+          Henüz ölçülmedi
         </p>
       )}
 

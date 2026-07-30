@@ -5,6 +5,7 @@ import { videoPerformanceService } from '@/services/video-performance.service';
 import { instagramPerformanceService } from '@/services/instagram-performance.service';
 import { ideaService } from '@/services/idea.service';
 import { contentImpactService } from '@/services/content-impact.service';
+import { integrationHealthService } from '@/services/integration-health.service';
 import { PerformanceTabs } from './performance-tabs';
 
 export const dynamic = 'force-dynamic';
@@ -29,6 +30,8 @@ export default async function IcerikPerformansiPage() {
   // çekilenleri kullanır. Client'a bütün korpus değil, YALNIZCA ilk sayfa iner;
   // filtre/sayfa değişimini fetchContentImpactPage server action'ı karşılar.
   const impactPage = await contentImpactService.getPage(undefined, { videos, media });
+  // Bağlantı sağlığı: bir platform sessizce kopmuşsa kullanıcı bunu ekranda görsün.
+  const health = await integrationHealthService.getPlatformHealth();
 
   return (
     <PageShell
@@ -41,6 +44,7 @@ export default async function IcerikPerformansiPage() {
         commentsEnabled={commentsEnabled}
         authorsByExternalId={authorsByExternalId}
         impactPage={impactPage}
+        health={health}
       />
     </PageShell>
   );

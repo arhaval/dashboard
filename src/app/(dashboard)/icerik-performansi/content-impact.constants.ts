@@ -76,6 +76,26 @@ export const EMPTY_METRICS: PlatformMetrics = {
 export type MetricUnit = 'count' | 'seconds' | 'percent';
 
 /**
+ * METRİĞİN DEPOLAMA TİPİ — kolon tipiyle metrik tipini bağlayan sözleşme.
+ *
+ * "Ortalama dışındakileri yuvarla" gibi isim tabanlı bir kural kırılgandı:
+ * yeni bir oran metriği eklendiğinde sessizce tam sayıya yuvarlanır ve veri
+ * bozulurdu. Tip artık metriğin kendi tanımında.
+ *
+ *   INTEGER_COUNT            → tam sayı adet (BIGINT)
+ *   INTEGER_DURATION_SECONDS → tam saniye (BIGINT); ms/dakika buraya çevrilir
+ *   DECIMAL_DURATION_SECONDS → ondalıklı saniye (NUMERIC) — hassasiyet korunur
+ *   DECIMAL_PERCENTAGE       → yüzde/oran (NUMERIC) — ASLA yuvarlanmaz
+ */
+export type MetricStorageType =
+  | 'INTEGER_COUNT'
+  | 'INTEGER_DURATION_SECONDS'
+  | 'DECIMAL_DURATION_SECONDS'
+  | 'DECIMAL_PERCENTAGE';
+
+export const INTEGER_STORAGE: MetricStorageType[] = ['INTEGER_COUNT', 'INTEGER_DURATION_SECONDS'];
+
+/**
  * MERKEZİ METRİK KATALOĞU — her metriğin ortak adı, birimi, kaynağı ve
  * hangi platformlarda anlamlı olduğu tek yerde tanımlıdır.
  *
@@ -88,6 +108,8 @@ export interface MetricSpec {
   /** Platform kırılımında kullanılan kısa ad. */
   short: string;
   unit: MetricUnit;
+  /** Kolon tipiyle sözleşme — yuvarlama kararı buradan çıkar, isimden değil. */
+  storage: MetricStorageType;
   /** Platform → API'deki orijinal alan adı. */
   apiNames: Partial<Record<ContentPlatform, string>>;
   /** Toplanabilir mi (cross-platform). */
@@ -98,86 +120,86 @@ export interface MetricSpec {
 
 export const METRIC_CATALOG: Record<MetricKey, MetricSpec> = {
   exposure: {
-    label: 'Toplam erişim', short: 'Erişim', unit: 'count', summable: true,
+    label: 'Toplam erişim', short: 'Erişim', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { YOUTUBE: 'statistics.viewCount', INSTAGRAM: 'insights.reach|views', X: 'impressions (manuel)' },
     note: 'Platformun ana dağıtım metriği. X’te gösterim, video platformlarında izlenme.',
   },
   views: {
-    label: 'Toplam izlenme', short: 'İzlenme', unit: 'count', summable: true,
+    label: 'Toplam izlenme', short: 'İzlenme', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { YOUTUBE: 'analytics.views | statistics.viewCount', INSTAGRAM: 'insights.views', TIKTOK: 'views (manuel)' },
     note: 'Yalnızca gerçek içerik/video izlenmesi. X gösterimi buraya GİRMEZ.',
   },
   engagedViews: {
-    label: 'Gerçek izlenme (engaged)', short: 'Engaged', unit: 'count', summable: true,
+    label: 'Gerçek izlenme (engaged)', short: 'Engaged', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { YOUTUBE: 'analytics.engagedViews' },
     note: 'YouTube’un “gerçekten izlendi” saydığı görüntülenme. Shorts’ta ham izlenmeden farklıdır, yerine kullanılamaz.',
   },
   reach: {
-    label: 'Toplam erişilen hesap', short: 'Erişilen', unit: 'count', summable: true,
+    label: 'Toplam erişilen hesap', short: 'Erişilen', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { INSTAGRAM: 'insights.reach' },
     note: 'Instagram: içeriği gören benzersiz hesap sayısı.',
   },
   impressions: {
-    label: 'Toplam gösterim', short: 'Gösterim', unit: 'count', summable: true,
+    label: 'Toplam gösterim', short: 'Gösterim', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { X: 'impressions (manuel)' },
     note: 'Gösterim bir izlenme değildir; toplam izlenmeye eklenmez.',
   },
   likes: {
-    label: 'Toplam beğeni', short: 'Beğeni', unit: 'count', summable: true,
+    label: 'Toplam beğeni', short: 'Beğeni', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { YOUTUBE: 'statistics.likeCount', INSTAGRAM: 'media.like_count' },
   },
   comments: {
-    label: 'Toplam yorum', short: 'Yorum', unit: 'count', summable: true,
+    label: 'Toplam yorum', short: 'Yorum', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { YOUTUBE: 'statistics.commentCount', INSTAGRAM: 'media.comments_count', X: 'replies (manuel)' },
   },
   shares: {
-    label: 'Toplam paylaşım', short: 'Paylaşım', unit: 'count', summable: true,
+    label: 'Toplam paylaşım', short: 'Paylaşım', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { YOUTUBE: 'analytics.shares', INSTAGRAM: 'insights.shares', X: 'repost (manuel)' },
   },
   saves: {
-    label: 'Toplam kaydetme', short: 'Kaydetme', unit: 'count', summable: true,
+    label: 'Toplam kaydetme', short: 'Kaydetme', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { INSTAGRAM: 'insights.saved', X: 'bookmark (manuel)', TIKTOK: 'saves (manuel)' },
     note: 'YouTube oynatma listesine ekleme buraya DAHİL DEĞİLDİR — farklı bir eylemdir.',
   },
   totalInteractions: {
-    label: 'Instagram toplam etkileşim', short: 'IG etkileşim', unit: 'count', summable: true,
+    label: 'Instagram toplam etkileşim', short: 'IG etkileşim', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { INSTAGRAM: 'insights.total_interactions' },
     note: 'Instagram’ın kendi toplamı. Ham etkileşim toplamına eklenirse çift sayım olur.',
   },
   watchTimeSeconds: {
-    label: 'Toplam izlenme süresi', short: 'İzlenme süresi', unit: 'seconds', summable: true,
+    label: 'Toplam izlenme süresi', short: 'İzlenme süresi', unit: 'seconds', storage: 'INTEGER_DURATION_SECONDS', summable: true,
     apiNames: { YOUTUBE: 'analytics.estimatedMinutesWatched ×60', INSTAGRAM: 'insights.ig_reels_video_view_total_time' },
   },
   averageViewDurationSeconds: {
-    label: 'Ortalama izlenme süresi', short: 'Ort. süre', unit: 'seconds', summable: false,
+    label: 'Ortalama izlenme süresi', short: 'Ort. süre', unit: 'seconds', storage: 'DECIMAL_DURATION_SECONDS', summable: false,
     apiNames: { YOUTUBE: 'analytics.averageViewDuration', INSTAGRAM: 'insights.ig_reels_avg_watch_time' },
     note: 'Ortalamadır; platformlar arası toplanamaz.',
   },
   averageViewPercentage: {
-    label: 'Ortalama izlenme yüzdesi', short: 'Ort. %', unit: 'percent', summable: false,
+    label: 'Ortalama izlenme yüzdesi', short: 'Ort. %', unit: 'percent', storage: 'DECIMAL_PERCENTAGE', summable: false,
     apiNames: { YOUTUBE: 'analytics.averageViewPercentage' },
     note: 'Ortalamadır; platformlar arası toplanamaz.',
   },
   followersGained: {
-    label: 'Toplam takipçi/abone kazanımı', short: 'Takipçi +', unit: 'count', summable: true,
+    label: 'Toplam takipçi/abone kazanımı', short: 'Takipçi +', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { YOUTUBE: 'analytics.subscribersGained', INSTAGRAM: 'insights.follows' },
     note: 'Ortak kavram: YouTube’da abone, Instagram’da takipçi.',
   },
   followersLost: {
-    label: 'Toplam takipçi/abone kaybı', short: 'Takipçi −', unit: 'count', summable: true,
+    label: 'Toplam takipçi/abone kaybı', short: 'Takipçi −', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { YOUTUBE: 'analytics.subscribersLost' },
   },
   playlistAdds: {
-    label: 'Oynatma listesine ekleme', short: 'Listeye +', unit: 'count', summable: true,
+    label: 'Oynatma listesine ekleme', short: 'Listeye +', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { YOUTUBE: 'analytics.videosAddedToPlaylists' },
     note: 'Kaydetme DEĞİLDİR — kaydetme toplamına girmez.',
   },
   playlistRemovals: {
-    label: 'Oynatma listesinden çıkarma', short: 'Listeden −', unit: 'count', summable: true,
+    label: 'Oynatma listesinden çıkarma', short: 'Listeden −', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { YOUTUBE: 'analytics.videosRemovedFromPlaylists' },
   },
   netPlaylistAdds: {
-    label: 'Net oynatma listesi ekleme', short: 'Liste net', unit: 'count', summable: true,
+    label: 'Net oynatma listesi ekleme', short: 'Liste net', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { YOUTUBE: 'added − removed' },
   },
 };
@@ -234,6 +256,49 @@ export const EXPOSURE_BASIS: Record<ContentPlatform, string> = {
   X: 'gösterim',
   TWITCH: 'izlenme',
 };
+
+/** Bir metriğin depolama tipi tam sayı mı. */
+export function isIntegerMetric(key: MetricKey): boolean {
+  return INTEGER_STORAGE.includes(METRIC_CATALOG[key].storage);
+}
+
+export interface StorageNormalizeResult {
+  value: number | null;
+  /** Değer kolon tipine uymadığı için düzeltildiyse açıklaması. */
+  adjusted?: string;
+  /** Değer hiçbir şekilde saklanamaz — null'a düşürüldü. */
+  rejected?: string;
+}
+
+/**
+ * Bir metriği KENDİ depolama tipine göre yazıma hazırla.
+ *
+ * Bu, "ortalama dışındakileri yuvarla" kuralının yerini alır: karar metriğin
+ * adından değil, katalogdaki tipinden çıkar. Yeni bir oran metriği eklendiğinde
+ * yanlışlıkla tam sayıya yuvarlanamaz.
+ *
+ * Bir metrik saklanamaz durumdaysa (sonsuz, NaN) TEK BAŞINA null'a düşer ve
+ * gerekçesi raporlanır — bütün ölçümün kaybolmasına izin verilmez.
+ */
+export function normalizeForStorage(key: MetricKey, value: number | null): StorageNormalizeResult {
+  if (value == null) return { value: null };
+  if (!Number.isFinite(value)) {
+    return { value: null, rejected: `${key}: sayı değil (${value})` };
+  }
+
+  const storage = METRIC_CATALOG[key].storage;
+  if (!INTEGER_STORAGE.includes(storage)) {
+    // Oran ve ortalama süreler ondalık kalır — yuvarlamak bilgiyi yok eder.
+    return { value };
+  }
+
+  if (Number.isInteger(value)) return { value };
+  // Milisaniyeden çevrilen toplam süreler ve nadiren ondalık dönen sayaçlar.
+  return {
+    value: Math.round(value),
+    adjusted: `${key}: ${storage} olduğu için ${value} → ${Math.round(value)}`,
+  };
+}
 
 /**
  * Bir platform bu metriği HİÇ vermiyor mu. "Veri yok" (henüz gelmedi) ile
@@ -340,6 +405,12 @@ export interface PublicationCheckpoint {
   isLate: boolean;
   /** PARTIAL: ölçüm var ama bir kaynağın verisi o güne kadar hazır değildi. */
   status: 'NOT_MEASURED' | 'PARTIAL' | 'COMPLETE';
+  /** Ölçümün ne kadar isabetli olduğu — kesin / yaklaşık / gecikmeli / kısmi. */
+  measurementQuality: 'EXACT_REALTIME' | 'APPROX_DAILY_BACKFILL' | 'LATE_MEASUREMENT' | 'PARTIAL_SOURCE_DATA';
+  sourceGranularity: 'REALTIME' | 'DAY';
+  dataThroughDate: string | null;
+  isBackfilled: boolean;
+  isSourceDataComplete: boolean;
   /** Kısmi ölçümün sebebi olan kaynaklar. */
   laggingSources: string[];
   dataCompleteness: number;

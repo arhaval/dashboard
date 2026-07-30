@@ -72,6 +72,14 @@ export const EMPTY_COVERAGE: SourceCoverage = {
   sourceLagSeconds: null,
 };
 
+/**
+ * Verinin zaman çözünürlüğü.
+ *   REALTIME — API'ye o an soruldu, değer tam o ana ait.
+ *   DAY      — günlük geçmiş raporundan kurgulandı; penceresi takvim günüdür,
+ *              yayın saatinden itibaren tam 24 saat DEĞİLDİR.
+ */
+export type SourceGranularity = 'REALTIME' | 'DAY';
+
 export interface PublicationSnapshot {
   id: string;
   publicationId: string;
@@ -83,6 +91,116 @@ export interface PublicationSnapshot {
   coverage: SourceCoverage;
   /** Dolu ise bu satır bir ölçüm noktasını belgelemek için zorla yazılmıştır. */
   forcedForCheckpoint: CheckpointKey | null;
+  sourceGranularity: SourceGranularity;
+  /** Geriye dönük kurgulandı mı — sayı gerçek, zaman penceresi yaklaşık. */
+  isBackfilled: boolean;
+}
+
+// ── Ölçüm kalitesi ───────────────────────────────────────────────────────────
+
+/**
+ * Bir ölçüm noktasının NE KADAR güvenilir olduğu.
+ *
+ * Sayıların doğruluğuyla ilgili değil — sayılar her durumda API'den gelen
+ * gerçek değerlerdir. Bu alan ZAMAN PENCERESİNİN ne kadar isabetli olduğunu
+ * söyler. Öncelik sırası aşağıdaki gibidir; en ciddi çekince kazanır.
+ */
+export type MeasurementQuality =
+  /** Kaynak verisi hedef günü kapsamıyor — bazı metrikler geride. */
+  | 'PARTIAL_SOURCE_DATA'
+  /** Gün bazlı geçmiş rapordan kurgulandı — pencere takvim günü. */
+  | 'APPROX_DAILY_BACKFILL'
+  /** Gerçek zamanlı ama noktanın toleransı dışında yakalandı. */
+  | 'LATE_MEASUREMENT'
+  /** Gerçek zamanda, tolerans içinde, eksiksiz. */
+  | 'EXACT_REALTIME';
+
+export const MEASUREMENT_QUALITY_LABELS: Record<MeasurementQuality, string> = {
+  EXACT_REALTIME: 'Kesin · Gerçek zamanlı ölçüm',
+  APPROX_DAILY_BACKFILL: 'Yaklaşık · Gün bazlı geçmiş veri',
+  LATE_MEASUREMENT: 'Gecikmeli ölçüm',
+  PARTIAL_SOURCE_DATA: 'Kısmi · Kaynak verisi geride',
+};
+
+export const MEASUREMENT_QUALITY_TOOLTIPS: Record<MeasurementQuality, string> = {
+  EXACT_REALTIME:
+    'Bu ölçüm hedef anın hemen ardından, API’ye o anda sorularak alındı.',
+  APPROX_DAILY_BACKFILL:
+    'Bu ölçüm YouTube’un günlük geçmiş raporlarından oluşturuldu. Tam yayın saatinden sonraki 24 saati değil, ilgili takvim günlerini kapsadığı için kesin zamanlı ölçümden daha yüksek olabilir.',
+  LATE_MEASUREMENT:
+    'Ölçüm alındı ama hedef anın toleransı geçtikten sonra; değerler o noktadakinden yüksek olabilir.',
+  PARTIAL_SOURCE_DATA:
+    'Kaynakların bir kısmının verisi hedef güne kadar hazır değildi. Gelen değerler gerçek, ancak eksik.',
+};
+
+/** Kesin ölçümlerle kıyaslanabilir mi. */
+export function isExactQuality(q: MeasurementQuality): boolean {
+  return q === 'EXACT_REALTIME';
+}
+
+/**
+ * Bir kıyas grubunun güven seviyesi.
+ *
+ * Kesin ve yaklaşık ölçümler aynı torbaya atılmaz: karışık bir grup ancak
+ * "orta güven" taşıyabilir, çünkü yaklaşık ölçümler yapısal olarak yüksektir
+ * ve kıyası kendi lehine bozar.
+ */
+export type ComparisonConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
+
+export const CONFIDENCE_LABELS: Record<ComparisonConfidence, string> = {
+  HIGH: 'Yüksek güven',
+  MEDIUM: 'Orta güven',
+  LOW: 'Düşük güven',
+};
+
+export interface ComparisonQuality {
+  confidence: ComparisonConfidence;
+  /** Kıyasa giren ölçümlerin kalite dağılımı. */
+  exactCount: number;
+  approxCount: number;
+  /** Neden bu güven seviyesi — kullanıcıya gösterilebilir. */
+  explanation: string;
+  /** Bu grup "kesin rekor / kesin kazanan" olarak sunulabilir mi. */
+  canClaimExactRecord: boolean;
+}
+
+/**
+ * Bir ölçüm kümesinin kıyas için güvenilirliği.
+ *
+ * Kural: yaklaşık ölçüm kesin rekor olarak SUNULMAZ. Yeterli kesin örnek yoksa
+ * yaklaşık ölçümlerin kullanılmasına izin verilir ama güven düşürülür ve sebebi
+ * açıkça söylenir.
+ */
+export function comparisonQuality(qualities: MeasurementQuality[]): ComparisonQuality {
+  const exactCount = qualities.filter(isExactQuality).length;
+  const approxCount = qualities.length - exactCount;
+
+  if (qualities.length === 0) {
+    return {
+      confidence: 'LOW', exactCount: 0, approxCount: 0,
+      explanation: 'Kıyaslanacak ölçüm yok.',
+      canClaimExactRecord: false,
+    };
+  }
+  if (approxCount === 0) {
+    return {
+      confidence: 'HIGH', exactCount, approxCount,
+      explanation: `${exactCount} ölçümün tamamı gerçek zamanlı.`,
+      canClaimExactRecord: true,
+    };
+  }
+  if (exactCount === 0) {
+    return {
+      confidence: 'LOW', exactCount, approxCount,
+      explanation: `${approxCount} ölçümün tamamı gün bazlı/eksik; kesin ölçümle kıyaslanamaz.`,
+      canClaimExactRecord: false,
+    };
+  }
+  return {
+    confidence: 'MEDIUM', exactCount, approxCount,
+    explanation: `${exactCount} kesin, ${approxCount} yaklaşık ölçüm birlikte kullanıldı; yaklaşık değerler yapısal olarak yüksektir.`,
+    canClaimExactRecord: false,
+  };
 }
 
 // ── Ölçüm noktaları ──────────────────────────────────────────────────────────
@@ -137,6 +255,16 @@ export interface CheckpointResult {
   snapshotId: string | null;
   /** Ölçüme katkı veren bütün snapshot id'leri (çok kaynaklı ölçüm). */
   snapshotIds: string[];
+  /** Bu noktanın ne kadar isabetli ölçüldüğü. */
+  measurementQuality: MeasurementQuality;
+  /** Ölçümün zaman çözünürlüğü — DAY ise pencere takvim günüdür. */
+  sourceGranularity: SourceGranularity;
+  /** Kaynak verisinin kapsadığı son gün. */
+  dataThroughDate: string | null;
+  /** Geriye dönük kurgulanmış ölçüm mü. */
+  isBackfilled: boolean;
+  /** Kaynakların tamamı hedefi kapsıyor mu. */
+  isSourceDataComplete: boolean;
   /** Hedefe bu noktanın toleransı içinde mi yakalandı. */
   isExact: boolean;
   /** Tolerans dışında yakalandı ama geçerli — kaybedilmez, işaretlenir. */
@@ -207,6 +335,11 @@ export function resolveCheckpoint(
     delaySeconds: null,
     snapshotId: null,
     snapshotIds: [],
+    measurementQuality: 'PARTIAL_SOURCE_DATA',
+    sourceGranularity: 'REALTIME',
+    dataThroughDate: null,
+    isBackfilled: false,
+    isSourceDataComplete: false,
     isExact: false,
     isLate: false,
     status: 'NOT_MEASURED',
@@ -245,6 +378,21 @@ export function resolveCheckpoint(
     const metrics = mergeLatestMetrics(group);
     const lagging = group.filter((s) => !coversTarget(s, targetMs)).map((s) => s.source);
 
+    const isBackfilled = group.some((s) => s.isBackfilled);
+    const granularity: SourceGranularity = group.some((s) => s.sourceGranularity === 'DAY') ? 'DAY' : 'REALTIME';
+    const complete = lagging.length === 0;
+
+    // Öncelik: en ciddi çekince kazanır. Kısmi veri > gün bazlı kurgu >
+    // gecikmiş ölçüm > kesin.
+    const measurementQuality: MeasurementQuality =
+      !complete ? 'PARTIAL_SOURCE_DATA'
+      : isBackfilled || granularity === 'DAY' ? 'APPROX_DAILY_BACKFILL'
+      : !isExact ? 'LATE_MEASUREMENT'
+      : 'EXACT_REALTIME';
+
+    // Ölçüme katkı verenler arasında en geride kalan kapsama tarihi.
+    const throughDates = group.map((s) => s.coverage?.dataThroughDate).filter((d): d is string => Boolean(d)).sort();
+
     return {
       key,
       targetAt,
@@ -252,9 +400,14 @@ export function resolveCheckpoint(
       delaySeconds,
       snapshotId: covering[0].id,
       snapshotIds: group.map((s) => s.id),
+      measurementQuality,
+      sourceGranularity: granularity,
+      dataThroughDate: throughDates[0] ?? null,
+      isBackfilled,
+      isSourceDataComplete: complete,
       isExact,
       isLate: !isExact,
-      status: lagging.length === 0 ? 'COMPLETE' : 'PARTIAL',
+      status: complete ? 'COMPLETE' : 'PARTIAL',
       laggingSources: [...new Set(lagging)],
       dataCompleteness: dataCompleteness(metrics, platform),
       metrics,

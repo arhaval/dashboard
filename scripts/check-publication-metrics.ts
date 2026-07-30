@@ -34,10 +34,13 @@ import {
   buildTotals,
   sumEngagements,
   EMPTY_METRICS,
+  METRIC_CATALOG,
   SUMMABLE_METRICS,
   SUPPORTED_METRICS,
+  isIntegerMetric,
   isUnsupported,
   metricsFor,
+  normalizeForStorage,
   type PlatformMetrics,
   type PlatformPublication,
 } from '../src/app/(dashboard)/icerik-performansi/content-impact.constants';
@@ -51,10 +54,18 @@ import {
   pendingCheckpoints,
   resolveCheckpoint,
   syncIntervalHours,
+  comparisonQuality,
+  isExactQuality,
   CHECKPOINT_TOLERANCE_HOURS,
   EMPTY_COVERAGE,
   type PublicationSnapshot,
 } from '../src/app/(dashboard)/icerik-performansi/publication-snapshot.constants';
+import {
+  classifyIntegrationError,
+  derivePlatformHealth,
+  nextHealth,
+  type IntegrationHealth,
+} from '../src/app/(dashboard)/icerik-performansi/integration-health.constants';
 import {
   instagramInsightsService,
   createCapabilityCache,
@@ -348,8 +359,15 @@ function snap(
     availability: {},
     coverage: { ...EMPTY_COVERAGE },
     forcedForCheckpoint: null,
+    sourceGranularity: 'REALTIME',
+    isBackfilled: false,
     ...over,
   };
+}
+
+/** Gün bazlı geçmiş rapordan kurgulanmış snapshot. */
+function snapBackfilled(id: string, capturedAt: string, metrics: Partial<PlatformMetrics> = {}): PublicationSnapshot {
+  return { ...snap(id, capturedAt, metrics), sourceGranularity: 'DAY', isBackfilled: true };
 }
 
 /** Verisi belirli bir güne kadar hazır olan snapshot. */
@@ -772,6 +790,186 @@ function pub(platform: ContentPlatform, metrics: Partial<PlatformMetrics>): Plat
   // Manuel platformlar bozulmadı
   const x = mapManualMetrics('X', { impressions: 500, likes: 1 });
   eq('regresyon: X gösterimi izlenmeye yazılmaz', [x.exposure, x.views], [500, null]);
+}
+
+// ═══ 8. ÖLÇÜM KALİTESİ ═══════════════════════════════════════════════════════
+
+{
+  const published = '2026-07-01T00:00:00.000Z';
+
+  const exact = resolveCheckpoint('EARLY_24H', published, [snap('e1', '2026-07-02T02:00:00.000Z', { views: 8000 })], 'YOUTUBE');
+  eq('kalite: gerçek zamanlı + tolerans içi → EXACT_REALTIME', exact.measurementQuality, 'EXACT_REALTIME');
+  eq('kalite: çözünürlük REALTIME', exact.sourceGranularity, 'REALTIME');
+  eq('kalite: geri doldurulmuş değil', exact.isBackfilled, false);
+  eq('kalite: kaynak verisi tam', exact.isSourceDataComplete, true);
+
+  const approx = resolveCheckpoint('EARLY_24H', published, [snapBackfilled('b1', '2026-07-02T00:00:00.000Z', { views: 12_901 })], 'YOUTUBE');
+  eq('kalite: gün bazlı geçmiş → APPROX_DAILY_BACKFILL', approx.measurementQuality, 'APPROX_DAILY_BACKFILL');
+  eq('kalite: çözünürlük DAY', approx.sourceGranularity, 'DAY');
+  eq('kalite: geri doldurulmuş işaretli', approx.isBackfilled, true);
+  eq('kalite: sayılar yine de erişilebilir', approx.metrics?.views, 12_901);
+
+  const late = resolveCheckpoint('EARLY_24H', published, [snap('l1', '2026-07-02T20:00:00.000Z', { views: 9000 })], 'YOUTUBE');
+  eq('kalite: tolerans dışı → LATE_MEASUREMENT', late.measurementQuality, 'LATE_MEASUREMENT');
+  eq('kalite: gecikmeli ölçüm kaybolmaz', late.metrics?.views, 9000);
+
+  const partial = resolveCheckpoint('EARLY_24H', published, [
+    snap('p1', '2026-07-02T02:00:00.000Z', { views: 8000 }, 'YOUTUBE_DATA_API'),
+    snapThrough('p2', '2026-07-02T02:00:00.000Z', '2026-07-01', { shares: 30 }),
+  ], 'YOUTUBE');
+  eq('kalite: kaynak geride → PARTIAL_SOURCE_DATA', partial.measurementQuality, 'PARTIAL_SOURCE_DATA');
+  eq('kalite: kısmi ölçümde kapsama tarihi taşınır', partial.dataThroughDate, '2026-07-01');
+  eq('kalite: kısmi ölçümde veri silinmez', [partial.metrics?.views, partial.metrics?.shares], [8000, 30]);
+
+  // Öncelik: kısmi veri, gün bazlı kurgudan daha ciddi bir çekince
+  const both = resolveCheckpoint('EARLY_24H', published, [
+    { ...snapBackfilled('x1', '2026-07-02T02:00:00.000Z', { views: 1 }),
+      coverage: { ...EMPTY_COVERAGE, dataThroughDate: '2026-07-01' } },
+  ], 'YOUTUBE');
+  eq('kalite: en ciddi çekince kazanır', both.measurementQuality, 'PARTIAL_SOURCE_DATA');
+
+  // ── Kıyas güveni ──────────────────────────────────────────────────────────
+  const allExact = comparisonQuality(['EXACT_REALTIME', 'EXACT_REALTIME']);
+  eq('kıyas: hepsi kesinse yüksek güven', allExact.confidence, 'HIGH');
+  eq('kıyas: kesin rekor iddia edilebilir', allExact.canClaimExactRecord, true);
+
+  const mixed = comparisonQuality(['EXACT_REALTIME', 'APPROX_DAILY_BACKFILL']);
+  eq('kıyas: karışık grup orta güven', mixed.confidence, 'MEDIUM');
+  eq('kıyas: karışık grupta kesin rekor SUNULMAZ', mixed.canClaimExactRecord, false);
+  check('kıyas: sebebi açıklanır', mixed.explanation.includes('yaklaşık'), mixed.explanation);
+
+  const allApprox = comparisonQuality(['APPROX_DAILY_BACKFILL', 'APPROX_DAILY_BACKFILL']);
+  eq('kıyas: hepsi yaklaşıksa düşük güven', allApprox.confidence, 'LOW');
+  eq('kıyas: yaklaşık ölçüm kesin rekor olamaz', allApprox.canClaimExactRecord, false);
+  check('kıyas: yaklaşık ölçüm yine de kullanılabilir', allApprox.approxCount === 2);
+
+  eq('kıyas: ölçüm yoksa düşük güven', comparisonQuality([]).confidence, 'LOW');
+  eq('kıyas: gecikmeli ölçüm kesin sayılmaz', comparisonQuality(['LATE_MEASUREMENT']).canClaimExactRecord, false);
+  eq('kalite: yalnızca EXACT_REALTIME kesindir', [
+    isExactQuality('EXACT_REALTIME'), isExactQuality('APPROX_DAILY_BACKFILL'),
+    isExactQuality('LATE_MEASUREMENT'), isExactQuality('PARTIAL_SOURCE_DATA'),
+  ], [true, false, false, false]);
+}
+
+// ═══ 9. ENTEGRASYON SAĞLIĞI ══════════════════════════════════════════════════
+
+{
+  const T = '2026-07-30T12:00:00.000Z';
+  const base = (over: Partial<IntegrationHealth> = {}): IntegrationHealth => ({
+    source: 'YOUTUBE_ANALYTICS_API', status: 'CONNECTED',
+    lastSuccessfulSyncAt: '2026-07-29T12:00:00.000Z', lastAttemptAt: null,
+    consecutiveFailureCount: 0, lastErrorCode: null, userSafeErrorMessage: null,
+    requiresReauthorization: false, lastMetricsSourceDate: '2026-07-27', ...over,
+  });
+
+  const grant = classifyIntegrationError('invalid_grant: Bad Request');
+  eq('sınıflandırma: invalid_grant yetki hatası', grant.kind, 'AUTH');
+  eq('sınıflandırma: yeniden yetkilendirme gerekir', grant.requiresReauthorization, true);
+  eq('sınıflandırma: bağlantı sorunu sayılır', grant.isConnectionIssue, true);
+  check('sınıflandırma: kullanıcı mesajı teknik detay içermez', !grant.userMessage.includes('invalid_grant'));
+
+  eq('sınıflandırma: invalid_token yetki', classifyIntegrationError('invalid_token').kind, 'AUTH');
+  eq('sınıflandırma: unauthorized yetki', classifyIntegrationError('401 Unauthorized').kind, 'AUTH');
+  eq('sınıflandırma: revoked yetki', classifyIntegrationError('Token has been revoked').kind, 'AUTH');
+  eq('sınıflandırma: izin eksikliği yetki', classifyIntegrationError('does not have permission').requiresReauthorization, true);
+
+  // EN KRİTİK: desteklenmeyen metrik bağlantıyı kopuk göstermemeli
+  const unsup = classifyIntegrationError('The Media Insights API does not support the follows metric for this media product type.');
+  eq('sınıflandırma: desteklenmeyen metrik AUTH DEĞİL', unsup.kind, 'UNSUPPORTED');
+  eq('sınıflandırma: desteklenmeyen metrik bağlantıyı bozmaz', unsup.isConnectionIssue, false);
+  eq('sınıflandırma: yeniden yetkilendirme İSTEMEZ', unsup.requiresReauthorization, false);
+
+  eq('sınıflandırma: kota geçici', classifyIntegrationError('Rate limit exceeded').kind, 'RATE_LIMIT');
+  eq('sınıflandırma: kota bağlantıyı bozmaz', classifyIntegrationError('quota exceeded').isConnectionIssue, false);
+  eq('sınıflandırma: ortam değişkeni eksik', classifyIntegrationError('YOUTUBE_OAUTH_CLIENT_ID tanımlı değil').kind, 'CONFIG');
+  eq('sınıflandırma: bilinmeyen hata geçici', classifyIntegrationError('ECONNRESET').kind, 'TRANSIENT');
+
+  const afterOk = nextHealth(base({ consecutiveFailureCount: 3, status: 'DEGRADED' }), { ok: true, at: T, dataThroughDate: '2026-07-29' });
+  eq('sağlık: başarı durumu sıfırlar', afterOk.status, 'CONNECTED');
+  eq('sağlık: başarı sayacı sıfırlar', afterOk.consecutiveFailureCount, 0);
+  eq('sağlık: başarı zamanı güncellenir', afterOk.lastSuccessfulSyncAt, T);
+
+  const one = nextHealth(base(), { ok: false, at: T, error: 'ECONNRESET' });
+  eq('sağlık: ilk sıradan hata durumu bozmaz', one.status, 'CONNECTED');
+  eq('sağlık: ilk hatada sayaç 1', one.consecutiveFailureCount, 1);
+  eq('sağlık: ilk hatada eski başarı korunur', one.lastSuccessfulSyncAt, '2026-07-29T12:00:00.000Z');
+
+  const two = nextHealth({ ...one, source: 'YOUTUBE_ANALYTICS_API' }, { ok: false, at: T, error: 'ECONNRESET' });
+  eq('sağlık: iki ardışık hata DEGRADED', two.status, 'DEGRADED');
+
+  const auth = nextHealth(base(), { ok: false, at: T, error: 'invalid_grant: Bad Request' });
+  eq('sağlık: yetki hatası İLK seferde REAUTH_REQUIRED', auth.status, 'REAUTH_REQUIRED');
+  eq('sağlık: yeniden yetkilendirme bayrağı', auth.requiresReauthorization, true);
+  eq('sağlık: yetki hatasında eski veri tarihi SİLİNMEZ', auth.lastMetricsSourceDate, '2026-07-27');
+  eq('sağlık: yetki hatasında son başarı korunur', auth.lastSuccessfulSyncAt, '2026-07-29T12:00:00.000Z');
+
+  const unsupported = nextHealth(base(), { ok: false, at: T, error: 'does not support the follows metric' });
+  eq('sağlık: desteklenmeyen metrik durumu bozmaz', unsupported.status, 'CONNECTED');
+  eq('sağlık: desteklenmeyen metrik sayacı artırmaz', unsupported.consecutiveFailureCount, 0);
+  eq('sağlık: yine de son hata kaydedilir', unsupported.lastErrorCode, 'unsupported_metric');
+
+  const reauth = derivePlatformHealth('YOUTUBE', [
+    base({ source: 'YOUTUBE_DATA_API', status: 'CONNECTED', lastSuccessfulSyncAt: T }),
+    base({ source: 'YOUTUBE_ANALYTICS_API', status: 'REAUTH_REQUIRED', requiresReauthorization: true }),
+  ], new Date(T));
+  eq('platform: bir uç yetkisiz → REAUTH_REQUIRED', reauth.status, 'REAUTH_REQUIRED');
+  check('platform: uyarı son başarılı sync’i söyler', (reauth.warning ?? '').includes('Son başarılı'), reauth.warning);
+  eq('platform: yeniden bağlanma gerekiyor', reauth.requiresReauthorization, true);
+
+  const partialYt = derivePlatformHealth('YOUTUBE', [
+    base({ source: 'YOUTUBE_DATA_API', status: 'CONNECTED', lastSuccessfulSyncAt: T }),
+    base({ source: 'YOUTUBE_ANALYTICS_API', status: 'DEGRADED', lastSuccessfulSyncAt: T }),
+  ], new Date(T));
+  eq('platform: Data OK / Analytics bozuk → DEGRADED', partialYt.status, 'DEGRADED');
+  check('platform: mesaj temel verinin geldiğini söyler', (partialYt.warning ?? '').includes('geliyor'), partialYt.warning);
+
+  const healthy = derivePlatformHealth('YOUTUBE', [
+    base({ source: 'YOUTUBE_DATA_API', lastSuccessfulSyncAt: T }),
+    base({ source: 'YOUTUBE_ANALYTICS_API', lastSuccessfulSyncAt: T }),
+  ], new Date(T));
+  eq('platform: her şey yolundaysa CONNECTED', healthy.status, 'CONNECTED');
+  eq('platform: sağlıklıyken uyarı yok', healthy.warning, null);
+
+  const stale = derivePlatformHealth('YOUTUBE', [
+    base({ source: 'YOUTUBE_DATA_API', lastSuccessfulSyncAt: '2026-07-28T12:00:00.000Z' }),
+  ], new Date(T));
+  eq('platform: 48 saattir sync yoksa DEGRADED', stale.status, 'DEGRADED');
+  check('platform: bayatlık uyarısı süreyi söyler', (stale.warning ?? '').includes('saattir'), stale.warning);
+
+  eq(
+    'platform: başka platformun sorunu buraya taşmaz',
+    derivePlatformHealth('INSTAGRAM', [base({ source: 'YOUTUBE_DATA_API', status: 'REAUTH_REQUIRED' })], new Date(T)).status,
+    'CONNECTED'
+  );
+}
+
+// ═══ 10. DEPOLAMA TİPİ SÖZLEŞMESİ ════════════════════════════════════════════
+
+{
+  eq('depolama: sayaç tam sayı tipinde', METRIC_CATALOG.views.storage, 'INTEGER_COUNT');
+  eq('depolama: toplam süre tam saniye', METRIC_CATALOG.watchTimeSeconds.storage, 'INTEGER_DURATION_SECONDS');
+  eq('depolama: ortalama süre ondalık', METRIC_CATALOG.averageViewDurationSeconds.storage, 'DECIMAL_DURATION_SECONDS');
+  eq('depolama: yüzde ondalık', METRIC_CATALOG.averageViewPercentage.storage, 'DECIMAL_PERCENTAGE');
+
+  eq('normalize: 660732.031 sn → 660732', normalizeForStorage('watchTimeSeconds', 660_732.031).value, 660_732);
+  check('normalize: yuvarlama açıklanır', Boolean(normalizeForStorage('watchTimeSeconds', 660_732.031).adjusted));
+  eq('normalize: ortalama süre ondalığını korur', normalizeForStorage('averageViewDurationSeconds', 23.745).value, 23.745);
+  eq('normalize: yüzde ASLA yuvarlanmaz', normalizeForStorage('averageViewPercentage', 67.42).value, 67.42);
+  eq('normalize: küçük oran korunur', normalizeForStorage('averageViewPercentage', 0.834).value, 0.834);
+  eq('normalize: tam sayı sayaç aynen geçer', normalizeForStorage('views', 147).value, 147);
+  eq('normalize: null null kalır', normalizeForStorage('views', null).value, null);
+  eq('normalize: gerçek 0 korunur', normalizeForStorage('views', 0).value, 0);
+
+  // Tek bozuk metrik yalnızca kendisi düşer — bütün ölçüm kaybolmaz
+  const bad = normalizeForStorage('views', Number.NaN);
+  eq('normalize: NaN null’a düşer', bad.value, null);
+  check('normalize: reddedilme sebebi raporlanır', Boolean(bad.rejected), bad);
+  eq('normalize: sonsuz da reddedilir', normalizeForStorage('views', Number.POSITIVE_INFINITY).value, null);
+  eq('normalize: bozuk metrik diğerlerini etkilemez', normalizeForStorage('likes', 42).value, 42);
+
+  eq('depolama: tam sayı sınıfı', [isIntegerMetric('views'), isIntegerMetric('watchTimeSeconds')], [true, true]);
+  eq('depolama: ondalık sınıfı',
+    [isIntegerMetric('averageViewDurationSeconds'), isIntegerMetric('averageViewPercentage')], [false, false]);
 }
 
 // ── Sonuç ────────────────────────────────────────────────────────────────────
