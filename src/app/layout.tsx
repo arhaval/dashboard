@@ -4,7 +4,7 @@
  */
 
 import type { Metadata, Viewport } from 'next';
-import { IBM_Plex_Sans, IBM_Plex_Mono, DM_Sans } from 'next/font/google';
+import { IBM_Plex_Sans, IBM_Plex_Mono, DM_Sans, Source_Serif_4 } from 'next/font/google';
 import './globals.css';
 import { ServiceWorkerRegister } from '@/components/notifications/service-worker-register';
 
@@ -27,6 +27,20 @@ const dmSans = DM_Sans({
   subsets: ['latin'],
   weight: ['500', '600', '700'],
   variable: '--font-dm-sans',
+  display: 'swap',
+});
+
+/**
+ * Miktarlar ve başlıklar için editoryal serif.
+ *
+ * Sayıları mono ile yazmak "mühendislik çıktısı" hissi veriyordu; bu ekran bir
+ * finansal rapor gibi okunmalı. Serif rakamlar hem daha resmi hem daha okunaklı.
+ * Hizalama gerektiren tablo değerleri mono kalmaya devam ediyor.
+ */
+const sourceSerif = Source_Serif_4({
+  subsets: ['latin'],
+  weight: ['400', '600'],
+  variable: '--font-source-serif',
   display: 'swap',
 });
 
@@ -71,7 +85,7 @@ export default function RootLayout({
   return (
     <html
       lang="tr"
-      className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${dmSans.variable}`}
+      className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${dmSans.variable} ${sourceSerif.variable}`}
     >
       <body className="min-h-screen antialiased">
         <ServiceWorkerRegister />

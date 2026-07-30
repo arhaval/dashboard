@@ -120,14 +120,16 @@ export interface MetricSpec {
 
 export const METRIC_CATALOG: Record<MetricKey, MetricSpec> = {
   exposure: {
-    label: 'Toplam erişim', short: 'Erişim', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
+    label: 'Toplam platform görünürlüğü', short: 'Görünürlük', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { YOUTUBE: 'statistics.viewCount', INSTAGRAM: 'insights.reach|views', X: 'impressions (manuel)' },
-    note: 'Platformun ana dağıtım metriği. X’te gösterim, video platformlarında izlenme.',
+    // "Erişim" demek yanlış çağrışım yapıyordu: bu benzersiz kişi sayısı DEĞİL.
+    note: 'Platformların ana dağıtım metriklerinin toplamıdır. Benzersiz kişi sayısı değildir; aynı kullanıcı farklı platformlarda veya tekrar izlemelerde birden fazla kez sayılabilir.',
   },
   views: {
-    label: 'Toplam izlenme', short: 'İzlenme', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
+    label: 'Toplam içerik izlenmesi', short: 'İzlenme', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
     apiNames: { YOUTUBE: 'analytics.views | statistics.viewCount', INSTAGRAM: 'insights.views', TIKTOK: 'views (manuel)' },
-    note: 'Yalnızca gerçek içerik/video izlenmesi. X gösterimi buraya GİRMEZ.',
+    // Görünürlüğün alt kümesi DEĞİLDİR: tekrar izlemeler yüzünden ondan büyük olabilir.
+    note: 'Yalnızca gerçek içerik/video izlenmesi. X gösterimi buraya girmez. Tekrar izlemeler nedeniyle platform görünürlüğünden yüksek olabilir.',
   },
   engagedViews: {
     label: 'Gerçek izlenme (engaged)', short: 'Engaged', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
@@ -162,9 +164,14 @@ export const METRIC_CATALOG: Record<MetricKey, MetricSpec> = {
     note: 'YouTube oynatma listesine ekleme buraya DAHİL DEĞİLDİR — farklı bir eylemdir.',
   },
   totalInteractions: {
-    label: 'Instagram toplam etkileşim', short: 'IG etkileşim', unit: 'count', storage: 'INTEGER_COUNT', summable: true,
+    label: 'Meta toplam etkileşim (API)', short: 'Meta toplam', unit: 'count', storage: 'INTEGER_COUNT',
+    // Meta'nın KENDİ hesapladığı toplam. Bileşenlerle (beğeni+yorum+paylaşım+
+    // kaydetme) aynı şeyi ölçtüğü için çapraz platform toplamına GİRMEZ —
+    // yalnızca Instagram platform detayında, kendi bileşenleriyle kıyaslanarak
+    // gösterilir. summable:false bunu tip seviyesinde de söyler.
+    summable: false,
     apiNames: { INSTAGRAM: 'insights.total_interactions' },
-    note: 'Instagram’ın kendi toplamı. Ham etkileşim toplamına eklenirse çift sayım olur.',
+    note: 'Meta’nın kendi hesapladığı toplam. Bileşen toplamıyla (beğeni+yorum+paylaşım+kaydetme) birebir tutmayabilir; ikisi üst üste eklenmez.',
   },
   watchTimeSeconds: {
     label: 'Toplam izlenme süresi', short: 'İzlenme süresi', unit: 'seconds', storage: 'INTEGER_DURATION_SECONDS', summable: true,
@@ -502,8 +509,14 @@ export interface RecommendedAction {
   group: ActionGroup;
 }
 
-/** Bir içerik için dönülebilecek en fazla aksiyon (§10). */
-export const MAX_ACTIONS = 4;
+/**
+ * Bir içerik için dönülebilecek en fazla aksiyon.
+ *
+ * Dörtten üçe indirildi: dördüncü aksiyon pratikte hep "veriyi tamamla" gibi
+ * ikincil bir madde oluyordu ve asıl kararı seyreltiyordu. Üç slot var —
+ * ana aksiyon, platform uyarlaması, kontrollü devam.
+ */
+export const MAX_ACTIONS = 3;
 
 export interface ContentRecommendationResult {
   observation: string[];
@@ -712,6 +725,68 @@ export function comparePlatforms(pubs: PlatformPublication[]): PlatformCompariso
     weakest: sorted.length > 1 ? rank(sorted[sorted.length - 1]) : null,
     comparable: scored.length,
   };
+}
+
+/**
+ * Bir skoru gündelik dille anlat.
+ *
+ * Eşikler skor ETİKETLERİNE değil 1,0'a (platform ortalaması) göredir: 0,84
+ * teknik olarak "AVERAGE" etiketine girse de kullanıcıya "ortalamada" demek
+ * yanıltıcı olur — ortalamanın %16 altındadır.
+ */
+export function scorePhrase(score: number): string {
+  if (score >= 1.5) return 'çok güçlü';
+  if (score >= 1.2) return 'başarılı';
+  if (score >= 0.95) return 'ortalamada';
+  if (score >= 0.7) return 'ortalamanın altında';
+  return 'belirgin zayıf';
+}
+
+/**
+ * Platformlar arasında "aynı sonucu verdi" demek için kabul edilen en fazla fark.
+ * Bunun üstünde tek kelimelik bir genel durum yanıltıcı olur.
+ */
+const VARIANCE_RATIO = 1.35;
+
+export interface VerdictHeadline {
+  /** Kullanıcıya gösterilecek ana mesaj. */
+  title: string;
+  /** Mesajı gerekçelendiren alt metin. */
+  detail: string;
+  /** Sonuç platforma göre belirgin biçimde değişiyor mu. */
+  variesByPlatform: boolean;
+}
+
+/**
+ * Genel durumu tek kelimeye sıkıştırmak yanıltıcı olabiliyor: YouTube 1,21x,
+ * Instagram 0,84x iken "Orta" demek ikisini de yanlış anlatır. Platformlar
+ * arasında ciddi fark varsa ana mesaj FARKI anlatır; genel skor etiketi
+ * kaybolmaz, alt metinde durmaya devam eder.
+ */
+export function verdictHeadline(
+  publications: PlatformPublication[],
+  verdict: OverallVerdict
+): VerdictHeadline {
+  const scored = publications
+    .filter((p): p is PlatformPublication & { score: number } => p.score != null)
+    .sort((a, b) => b.score - a.score);
+
+  const fallback = OVERALL_STATUS_META[verdict.status].text;
+  if (scored.length < 2) {
+    return { title: fallback, detail: verdict.note, variesByPlatform: false };
+  }
+
+  const best = scored[0];
+  const worst = scored[scored.length - 1];
+  const varies = worst.score > 0 && best.score / worst.score >= VARIANCE_RATIO;
+
+  const perPlatform = scored
+    .map((p) => `${PLATFORM_LABELS[p.platform]} ${scorePhrase(p.score)} (${fmtRatio(p.score)}x)`)
+    .join(', ');
+
+  return varies
+    ? { title: 'Platforma göre değişiyor', detail: `${perPlatform}.`, variesByPlatform: true }
+    : { title: fallback, detail: `${perPlatform}.`, variesByPlatform: false };
 }
 
 /**

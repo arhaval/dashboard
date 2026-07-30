@@ -15,7 +15,7 @@
  *   4     Platform metrik adapter (exposure ≠ views, isim eşlemeleri)
  *   5–6   Platform değerlendirme (en güçlü/zayıf, genel durum, skor fallback)
  *   7     Filtre / sıralama / sayfalama
- *   8     Öneri motoru (kurallar, tekilleştirme, 4 aksiyon sınırı)
+ *   8     Öneri motoru (kurallar, tekilleştirme, 3 aksiyon sınırı)
  */
 
 import {
@@ -31,6 +31,7 @@ import {
   resolveScore,
   sumEngagements,
   sumMetric,
+  verdictHeadline,
   DEFAULT_IMPACT_QUERY,
   EMPTY_METRICS,
   MAX_ACTIONS,
@@ -694,7 +695,98 @@ function fullImpact(over: Partial<ContentImpact>): ContentImpact {
   eq('R01: yayın kaydı yok', noPub.triggeredRules, ['R01_NO_PUBLICATION']);
   eq('R01: tek aksiyon', noPub.actions.map((a) => a.code), ['RECORD_PUBLICATION']);
 
-  // ── Sözleşme: sıra, tekilleştirme, 4 aksiyon sınırı ───────────────────────
+  // ── Semantik: görünürlük ile izlenme alt küme DEĞİL ───────────────────────
+  const semantics = impactFixture([
+    pub('YOUTUBE', { exposure: 40_451, views: 50_115, likes: 2098, comments: 59 }, { score: 1.21 }),
+  ]);
+  const rSem = contentPerformanceRecommendationService.evaluate(semantics);
+  check(
+    'semantik: görünürlük "platform görünürlüğü" olarak adlandırılır',
+    rSem.observation.some((o) => o.includes('Toplam platform görünürlüğü 40.451')),
+    rSem.observation
+  );
+  check(
+    'semantik: izlenme alt küme gibi sunulmaz ("bunun X kadarı" YOK)',
+    !rSem.observation.some((o) => o.includes('Bunun')),
+    rSem.observation
+  );
+  check(
+    'semantik: tekrar izleme uyarısı verilir',
+    rSem.observation.some((o) => o.includes('tekrar izlemeler nedeniyle')),
+    rSem.observation
+  );
+
+  // ── Genel durum: platform farkı varsa tek kelime yetmez ───────────────────
+  const varied = [
+    pub('YOUTUBE', { exposure: 50_115 }, { score: 1.21 }),
+    pub('INSTAGRAM', { exposure: 26_311 }, { score: 0.84 }),
+  ];
+  const vh = verdictHeadline(varied, deriveOverallStatus(varied));
+  eq('durum: fark belirginse ana mesaj farkı anlatır', vh.title, 'Platforma göre değişiyor');
+  eq('durum: platform farkı işaretlenir', vh.variesByPlatform, true);
+  check('durum: alt metin her platformu skoruyla anlatır',
+    vh.detail.includes('YouTube başarılı (1,21x)') && vh.detail.includes('Instagram ortalamanın altında (0,84x)'),
+    vh.detail);
+
+  const uniform = [
+    pub('YOUTUBE', {}, { score: 1.05 }),
+    pub('INSTAGRAM', {}, { score: 1.0 }),
+  ];
+  const vhUniform = verdictHeadline(uniform, deriveOverallStatus(uniform));
+  eq('durum: platformlar yakınsa genel etiket kalır', vhUniform.variesByPlatform, false);
+  check('durum: yakın sonuçta da skorlar gösterilir', vhUniform.detail.includes('1,05x'), vhUniform.detail);
+  eq(
+    'durum: tek platformda fark iddiası yok',
+    verdictHeadline([pub('YOUTUBE', {}, { score: 2.0 })], deriveOverallStatus([pub('YOUTUBE', {}, { score: 2.0 })])).variesByPlatform,
+    false
+  );
+
+  // ── Takipçi dönüşümü: ham sayı tek başına HIGH üretmemeli ─────────────────
+  const weakConversion = impactFixture([
+    pub('YOUTUBE', { exposure: 50_115, views: 50_115, likes: 2098, followersGained: 4 }, { score: 1.21 }),
+  ]);
+  const rWeak = contentPerformanceRecommendationService.evaluate(weakConversion);
+  const weakAction = rWeak.actions.find((a) => a.code === 'WATCH_CONVERSION' || a.code === 'FUNNEL_WORKS');
+  eq('dönüşüm: 4 abone / 50 bin izlenme HIGH üretmez', weakAction?.code, 'WATCH_CONVERSION');
+  eq('dönüşüm: düşük hacim düşük öncelik', weakAction?.priority, 'LOW');
+  check(
+    'dönüşüm: sinyal saklanmaz, izlemeye devam denir',
+    rWeak.interpretation.some((t) => t.includes('izlemeye devam et')),
+    rWeak.interpretation
+  );
+
+  const strongConversion = impactFixture([
+    pub('YOUTUBE', { exposure: 60_000, views: 60_000, likes: 3000, followersGained: 120 }, { score: 1.3 }),
+  ]);
+  const rStrong = contentPerformanceRecommendationService.evaluate(strongConversion);
+  const strongAction = rStrong.actions.find((a) => a.code === 'FUNNEL_WORKS');
+  eq('dönüşüm: yeterli hacim+oran HIGH üretir', strongAction?.priority, 'HIGH');
+  check('dönüşüm: gerekçe oranı içerir', strongAction?.reason.includes('bin izlenme başına') === true, strongAction?.reason);
+
+  // Hacim yeterli ama oran zayıf → yine kanıt sayılmaz
+  const lowRate = impactFixture([
+    pub('YOUTUBE', { exposure: 900_000, views: 900_000, likes: 5000, followersGained: 30 }, { score: 1.1 }),
+  ]);
+  eq(
+    'dönüşüm: oran düşükse hacim tek başına yetmez',
+    contentPerformanceRecommendationService.evaluate(lowRate).actions.find((a) => a.group === 'REAPPLY_FORMAT')?.code,
+    'WATCH_CONVERSION'
+  );
+
+  // ── Instagram paylaşım+kaydetme: kanıt gerekçede görünür ──────────────────
+  const igEvidence = impactFixture([
+    pub('INSTAGRAM', { exposure: 26_311, views: 35_969, likes: 1299, comments: 29, shares: 206, saves: 147 }, { score: 0.84 }),
+  ]);
+  const rIg = contentPerformanceRecommendationService.evaluate(igEvidence);
+  const carousel = rIg.actions.find((a) => a.code === 'IG_CAROUSEL');
+  check(
+    'IG: gerekçe ham sayıları gösterir',
+    carousel?.reason.includes('206 paylaşım + 147 kaydetme') === true,
+    carousel?.reason
+  );
+  check('IG: gerekçe toplamı ve payı verir', carousel?.reason.includes('353') === true, carousel?.reason);
+
+  // ── Sözleşme: sıra, tekilleştirme, 3 aksiyon sınırı ───────────────────────
   const order = { HIGH: 0, MEDIUM: 1, LOW: 2 } as const;
   const busy = impactFixture(
     [
@@ -728,6 +820,16 @@ function fullImpact(over: Partial<ContentImpact>): ContentImpact {
     'her aksiyonun gerekçesi var',
     rBusy.actions.every((a) => a.reason.trim().length > 0),
     rBusy.actions.map((a) => a.reason)
+  );
+  eq(
+    'aksiyonlar en fazla 3 (MAX_ACTIONS)',
+    MAX_ACTIONS,
+    3
+  );
+  check(
+    'aksiyonlar farklı karar slotlarından geliyor (hepsi aynı iş değil)',
+    new Set(rBusy.actions.map((a) => a.group)).size === rBusy.actions.length,
+    rBusy.actions.map((a) => a.group)
   );
   check(
     'her tetiklenen kural R ile kodlanmış',

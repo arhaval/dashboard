@@ -88,7 +88,7 @@ function PlatformRow({ pub, open, onToggle }: {
         />
         <span
           className="w-[84px] flex-shrink-0 text-[12.5px] font-semibold"
-          style={{ color: color.color, fontFamily: 'var(--font-display)' }}
+          style={{ color: color.color }}
         >
           {PLATFORM_LABELS[pub.platform]}
         </span>
@@ -96,8 +96,8 @@ function PlatformRow({ pub, open, onToggle }: {
         <span className="flex min-w-0 flex-1 items-baseline gap-2">
           {pub.score != null ? (
             <span
-              className="font-mono text-[13px] font-semibold"
-              style={{ color: label.color, fontVariantNumeric: 'tabular-nums' }}
+              className="text-[15px]"
+              style={{ color: label.color, fontFamily: 'var(--font-source-serif)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
             >
               {fmtRatio(pub.score)}×
             </span>
@@ -110,8 +110,8 @@ function PlatformRow({ pub, open, onToggle }: {
         </span>
 
         <span
-          className="flex-shrink-0 font-mono text-[13px]"
-          style={{ color: 'var(--color-text-primary)', fontVariantNumeric: 'tabular-nums' }}
+          className="flex-shrink-0 text-[15px]"
+          style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-source-serif)', fontVariantNumeric: 'tabular-nums' }}
         >
           {headline == null ? '—' : fmtCompact(headline)}
         </span>
@@ -161,6 +161,8 @@ function PlatformRow({ pub, open, onToggle }: {
           )}
 
           <MetricGrid platform={pub.platform} metrics={shown} availability={pub.availability} exposureBasis={pub.exposureBasis} />
+
+          {pub.platform === 'INSTAGRAM' && <MetaInteractionCheck metrics={shown} />}
 
           {pub.snapshotCount > 0 && (
             <p className="mt-3 text-[10.5px]" style={{ color: 'var(--color-text-muted)' }}>
@@ -218,9 +220,20 @@ function MetricGrid({ platform, metrics, availability, exposureBasis }: {
   availability: PlatformPublication['availability'];
   exposureBasis: string;
 }) {
+  // Aynı sayıyı iki farklı başlık altında göstermek bilgi değil gürültü:
+  // YouTube'da görünürlük zaten izlenmedir, o satır tekrar edilmez. Instagram'da
+  // reach ile views farklıysa ikisi de anlamlıdır, ikisi de kalır.
+  const keys = metricsFor(platform).filter((key) => {
+    // Meta toplamı kendi bölümünde, bileşenleriyle kıyaslanarak gösteriliyor.
+    if (key === 'totalInteractions') return false;
+    if (key !== 'exposure') return true;
+    const e = metrics.exposure;
+    return e != null && e !== metrics.views && e !== metrics.reach;
+  });
+
   return (
     <dl className="grid grid-cols-2 gap-x-6 sm:grid-cols-3">
-      {metricsFor(platform).map((key) => (
+      {keys.map((key) => (
         <MetricLine
           key={key}
           metricKey={key}
@@ -231,6 +244,46 @@ function MetricGrid({ platform, metrics, availability, exposureBasis }: {
         />
       ))}
     </dl>
+  );
+}
+
+/**
+ * Meta'nın kendi toplam etkileşimi ile bileşenlerin toplamı.
+ *
+ * İkisi aynı şeyi ölçer ama Meta farklı zamanlarda farklı hesaplayabilir.
+ * Birini diğerinin üstüne EKLEMİYORUZ; farkı gösterip sebebini söylüyoruz.
+ */
+function MetaInteractionCheck({ metrics }: { metrics: PlatformMetrics }) {
+  const meta = metrics.totalInteractions;
+  if (meta == null) return null;
+
+  const parts = [metrics.likes, metrics.comments, metrics.shares, metrics.saves];
+  if (parts.every((p) => p == null)) return null;
+  const components = parts.reduce<number>((sum, p) => sum + (p ?? 0), 0);
+  const diff = meta - components;
+  const missing = parts.some((p) => p == null);
+
+  return (
+    <div className="mt-3 pt-2.5" style={{ borderTop: '1px solid var(--color-border)' }}>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-[11.5px]" style={{ color: 'var(--color-text-secondary)' }}>
+          Meta toplam etkileşim (API)
+        </span>
+        <span
+          style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-source-serif)', fontSize: '13.5px', fontVariantNumeric: 'tabular-nums' }}
+        >
+          {fmtMetricValue('totalInteractions', meta)}
+        </span>
+      </div>
+      <p className="mt-1 text-[10.5px] leading-relaxed" style={{ color: diff === 0 ? 'var(--color-text-muted)' : 'var(--color-warning)' }}>
+        {diff === 0
+          ? `Bileşen toplamıyla birebir aynı (${fmtMetricValue('totalInteractions', components)}).`
+          : `Bileşen toplamı ${fmtMetricValue('totalInteractions', components)} — fark ${diff > 0 ? '+' : ''}${fmtMetricValue('totalInteractions', diff)}.` +
+            (missing
+              ? ' Bazı bileşenler gelmediği için fark beklenen bir durum.'
+              : ' Meta bu iki değeri farklı anlarda hesaplayabiliyor; üst üste eklenmez.')}
+      </p>
+    </div>
   );
 }
 
@@ -273,12 +326,16 @@ function MetricLine({ metricKey, value, supported, state, note }: {
         {note && <span className="opacity-60"> ({note})</span>}
       </dt>
       <dd
-        className="font-mono text-[12px]"
-        style={{
-          color: muted ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
-          fontVariantNumeric: 'tabular-nums',
-          fontSize: muted ? '10.5px' : undefined,
-        }}
+        style={
+          muted
+            ? { color: 'var(--color-text-muted)', fontSize: '10.5px' }
+            : {
+                color: 'var(--color-text-primary)',
+                fontFamily: 'var(--font-source-serif)',
+                fontSize: '13.5px',
+                fontVariantNumeric: 'tabular-nums lining-nums',
+              }
+        }
       >
         {text}
       </dd>

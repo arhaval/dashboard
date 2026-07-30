@@ -9,7 +9,7 @@
  * bir önerinin neden çıktığı izlenebilir.
  *
  * Çıktı sözleşmesi (§10 / §11):
- *   - en fazla MAX_ACTIONS (4) aksiyon
+ *   - en fazla MAX_ACTIONS (3) aksiyon, farklı karar slotlarından
  *   - aynı ANLAMDAKİ aksiyonlar birleştirilir (ActionGroup)
  *   - her aksiyon `reason` ile gerekçesini taşır
  *
@@ -69,6 +69,20 @@ const SHARE_HEAVY_SHARE = 0.2;
 const COMMENT_HEAVY_SHARE = 0.1;
 /** Instagram'da paylaşım+kaydetme bu payı geçerse içerik "referans" niteliğindedir. */
 const IG_SHARE_SAVE_SHARE = 0.15;
+
+// ── Dönüşüm kanıt eşikleri ───────────────────────────────────────────────────
+// Ham "pozitif takipçi" tek başına yüksek öncelikli bir aksiyon üretmemeli:
+// 4 abone hem istatistiksel gürültü olabilir hem de içeriğin değil kanalın
+// büyümesinden gelebilir. Üç koşul birden aranır: mutlak hacim, izlenme tabanı
+// ve bin izlenme başına oran.
+/** Bu kazanımın altında sonuç "sinyal" sayılır, "kanıt" değil. */
+const MIN_FOLLOWER_VOLUME = 25;
+/** Oranın anlamlı olması için gereken en az izlenme tabanı. */
+const MIN_VIEWS_FOR_CONVERSION = 5_000;
+/** Bin izlenme başına bu kazanımın üstü güçlü dönüşüm sayılır. */
+const STRONG_CONVERSION_PER_1000 = 0.5;
+/** "Fikri durdur" kararı için gereken en az skorlu platform sayısı. */
+const MIN_PLATFORMS_FOR_IDEA_VERDICT = 2;
 
 /** Video ağırlıklı platformlar — X ile kıyaslanan taraf (§RULE_X_STRONG). */
 const VIDEO_PLATFORMS: ContentPlatform[] = ['YOUTUBE', 'INSTAGRAM', 'TIKTOK'];
@@ -141,17 +155,20 @@ export const contentPerformanceRecommendationService = {
         : `${pubs.length} platformda yayınlandı: ${platformNames}.`
     );
 
+    // Görünürlük ve izlenme AYRI ölçülerdir; biri diğerinin alt kümesi değildir.
+    // Tekrar izlemeler yüzünden izlenme görünürlükten büyük olabilir, o yüzden
+    // "bunun X kadarı" gibi bir kapsama ilişkisi kurulmuyor.
     if (totals.exposure.value != null) {
       observation.push(
-        `Toplam erişim ${fmt(totals.exposure.value)} — veri kapsamı ${totals.exposure.available}/${totals.exposure.total} platform.`
+        `Toplam platform görünürlüğü ${fmt(totals.exposure.value)} — veri kapsamı ${totals.exposure.available}/${totals.exposure.total} platform.`
       );
     } else {
-      observation.push('Hiçbir platformdan erişim verisi gelmedi.');
+      observation.push('Hiçbir platformdan görünürlük verisi gelmedi.');
     }
 
     if (totals.views.value != null) {
       observation.push(
-        `Bunun ${fmt(totals.views.value)} kadarı gerçek izlenme — gösterim (X) izlenmeye dahil edilmez.`
+        `Platformlardaki toplam içerik izlenmesi ${fmt(totals.views.value)}; tekrar izlemeler nedeniyle daha yüksek olabilir.`
       );
     }
 
@@ -354,9 +371,12 @@ export const contentPerformanceRecommendationService = {
     // Bir platform açıkça tuttuysa fikir ölü değildir — o zaman sorun konu
     // seçimi değil, diğer platformlara uyarlanmasıdır (R17 / R20 devreye girer).
     // Bu yüzden "çoğunluk zayıf" sayımı tek başına yetmez.
+    // "Platformların çoğu" ifadesi EN AZ İKİ platform gerektirir: tek bir
+    // platformun ortalamanın biraz altında kalması fikri gömmek için yeterli
+    // kanıt değildir. Tek platformlu içerikte R03 zaten çapraz paylaşım öneriyor.
     const weakOnes = ranked.filter((p) => p.score < WEAK_SCORE);
     const anyStrong = ranked.some((p) => p.score > CROSS_SUCCESS_SCORE);
-    if (ranked.length > 0 && weakOnes.length * 2 > ranked.length && !anyStrong) {
+    if (ranked.length >= MIN_PLATFORMS_FOR_IDEA_VERDICT && weakOnes.length * 2 > ranked.length && !anyStrong) {
       fire('R18_ALL_PLATFORMS_WEAK');
       interpretation.push(
         `Skoru ölçülebilen ${ranked.length} platformun ${weakOnes.length} tanesi ${WEAK_SCORE}x eşiğinin altında — konu ya da sunum bu haliyle tutmamış görünüyor.`
@@ -490,7 +510,8 @@ export const contentPerformanceRecommendationService = {
         act({
           code: 'IG_CAROUSEL',
           label: 'Bilgiyi carousel / kaydedilebilir formata dönüştür',
-          reason: `Instagram paylaşım+kaydetme payı ${pct(spread / igEngagement)}.`,
+          // Kanıt doğrudan görünsün: hangi sayılardan çıktığı okunabilir olmalı.
+          reason: `${fmt(shares ?? 0)} paylaşım + ${fmt(saves ?? 0)} kaydetme = ${fmt(spread)} güçlü niyet aksiyonu; Instagram bileşen etkileşimlerinin yaklaşık ${pct(spread / igEngagement)}'i.`,
           priority: 'MEDIUM',
           group: 'IG_FORMAT',
         });
@@ -549,18 +570,47 @@ export const contentPerformanceRecommendationService = {
       }
     }
 
-    if (totals.followersGained.value != null && totals.followersGained.value > 0) {
+    // ── R13: takipçi/abone kazanımı ──────────────────────────────────────────
+    // Ham sayı tek başına kanıt değildir: 4 abone, 50.000 izlenmede zayıf bir
+    // sinyaldir. Karar ORAN ve HACİM üzerinden verilir.
+    const gained = totals.followersGained.value;
+    if (gained != null && gained > 0) {
       fire('R13_FOLLOWER_GROWTH');
-      interpretation.push(
-        `İçerik ${fmt(totals.followersGained.value)} yeni takipçi/abone getirdi — sadece izlenmedi, kalıcı kazanç bıraktı.`
-      );
-      act({
-        code: 'FUNNEL_WORKS',
-        label: 'Aynı kalıbı takipçi kazandıran içerikler için kullan',
-        reason: 'Ölçülen takipçi/abone kazanımı pozitif.',
-        priority: 'HIGH',
-        group: 'REAPPLY_FORMAT',
-      });
+      const viewBase = totals.views.value ?? totals.exposure.value;
+      const per1000 = viewBase && viewBase > 0 ? (gained / viewBase) * 1000 : null;
+      const rateText = per1000 != null ? `bin izlenme başına ${per1000.toFixed(2)}` : 'oran hesaplanamadı';
+
+      const strongEvidence =
+        per1000 != null &&
+        gained >= MIN_FOLLOWER_VOLUME &&
+        (viewBase ?? 0) >= MIN_VIEWS_FOR_CONVERSION &&
+        per1000 >= STRONG_CONVERSION_PER_1000;
+
+      if (strongEvidence) {
+        interpretation.push(
+          `İçerik ${fmt(gained)} yeni takipçi/abone getirdi (${rateText}) — dönüşüm hem hacim hem oran olarak anlamlı.`
+        );
+        act({
+          code: 'FUNNEL_WORKS',
+          label: 'Aynı kalıbı takipçi kazandıran içerikler için kullan',
+          reason: `${fmt(gained)} kazanım, ${rateText}; ${totals.followersGained.available}/${totals.followersGained.total} platformdan ölçüldü.`,
+          priority: 'HIGH',
+          group: 'REAPPLY_FORMAT',
+        });
+      } else {
+        // Kanıt yetersiz — sinyali saklamıyoruz ama yüksek öncelikli bir
+        // aksiyona da dönüştürmüyoruz.
+        interpretation.push(
+          `Pozitif dönüşüm sinyali var (${fmt(gained)} takipçi/abone, ${rateText}); veri hacmi düşük, izlemeye devam et.`
+        );
+        act({
+          code: 'WATCH_CONVERSION',
+          label: 'Dönüşümü izlemeye devam et',
+          reason: `${fmt(gained)} kazanım ölçüldü ama güçlü bir sonuç için gereken hacmin (${MIN_FOLLOWER_VOLUME} kazanım / ${fmt(MIN_VIEWS_FOR_CONVERSION)} izlenme) altında.`,
+          priority: 'LOW',
+          group: 'REAPPLY_FORMAT',
+        });
+      }
     }
 
     // ── R15: eksik veri kapsamı ──────────────────────────────────────────────
@@ -591,11 +641,40 @@ export const contentPerformanceRecommendationService = {
 const PRIORITY_ORDER: Record<RecommendationPriority, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
 
 /**
+ * Aksiyonun hangi KARAR SLOTUNA düştüğü.
+ *
+ * Üç aksiyon hakkı varken üçünün de "devam içeriği üret" olması işe yaramaz.
+ * Liste bir ana karar, bir platform uyarlaması ve bir kontrollü devam adımı
+ * taşıdığında okunabilir oluyor.
+ */
+type ActionSlot = 'MAIN' | 'ADAPT' | 'NEXT';
+
+const SLOT_OF: Record<RecommendedAction['group'], ActionSlot> = {
+  // Ne yapılacağına dair ana karar
+  REUSE_WINNER: 'MAIN',
+  FOLLOW_UP: 'MAIN',
+  REVISE_IDEA: 'MAIN',
+  STOP_IDEA: 'MAIN',
+  // İçeriği bir platforma/formata uyarlama
+  FIX_WEAK_PLATFORM: 'ADAPT',
+  DISTRIBUTE_WIDER: 'ADAPT',
+  BOOST_REACH: 'ADAPT',
+  IG_FORMAT: 'ADAPT',
+  // Kontrollü devam / doğrulama
+  REAPPLY_FORMAT: 'NEXT',
+  REVIEW: 'NEXT',
+  DATA: 'NEXT',
+};
+
+const SLOT_ORDER: ActionSlot[] = ['MAIN', 'ADAPT', 'NEXT'];
+
+/**
  * Aksiyon listesini sözleşmeye uygun hale getir:
  *   1. önceliğe göre sırala (eşitlikte tetiklenme sırası korunur)
  *   2. aynı ANLAM grubundan yalnızca en öncelikliyi bırak
  *   3. "fikri durdur" ile "fikri sürdür" aynı listede olamaz
- *   4. en fazla MAX_ACTIONS aksiyon
+ *   4. her karar slotundan en fazla bir aksiyon — çeşitlilik
+ *   5. en fazla MAX_ACTIONS aksiyon
  */
 function finalize({
   observation,
@@ -618,17 +697,27 @@ function finalize({
   const stopping = sorted.some((a) => a.group === 'STOP_IDEA');
 
   const seenGroups = new Set<ActionGroupKey>();
-  const seenCodes = new Set<string>();
-  const actions: RecommendedAction[] = [];
-
+  const eligible: RecommendedAction[] = [];
   for (const a of sorted) {
     if (stopping && (a.group === 'FOLLOW_UP' || a.group === 'REUSE_WINNER')) continue;
-    if (seenCodes.has(a.code) || seenGroups.has(a.group)) continue;
-    seenCodes.add(a.code);
+    if (seenGroups.has(a.group)) continue;
     seenGroups.add(a.group);
-    actions.push(a);
+    eligible.push(a);
+  }
+
+  // Önce her slottan en öncelikli bir aksiyon; sonra boş kalan yerler kalan
+  // en öncelikli aksiyonlarla doldurulur.
+  const actions: RecommendedAction[] = [];
+  for (const slot of SLOT_ORDER) {
+    const pick = eligible.find((a) => SLOT_OF[a.group] === slot && !actions.includes(a));
+    if (pick) actions.push(pick);
     if (actions.length === MAX_ACTIONS) break;
   }
+  for (const a of eligible) {
+    if (actions.length >= MAX_ACTIONS) break;
+    if (!actions.includes(a)) actions.push(a);
+  }
+  actions.sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
 
   return { observation, interpretation, actions, triggeredRules };
 }
