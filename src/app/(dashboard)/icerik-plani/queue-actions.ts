@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { contentQueueService } from '@/services/content-queue.service';
 import { userService, workItemService } from '@/services';
 import { notificationService } from '@/services/notification.service';
+import { publicationMetricsService } from '@/services/publication-metrics.service';
 import { deriveStage, ROLE_STAGES, CONTENT_EDITOR_ROLES } from './content-queue.constants';
 import type { PublicationInput } from './content-queue.constants';
 import type {
@@ -91,6 +92,9 @@ export async function publishContent(id: string, publications: PublicationInput[
   // video/post so it shows in İçerik Performansı without a manual re-paste.
   await contentQueueService.linkScriptToContent(publications, item.content_text);
 
+  // Yayın anındaki elle girilmiş sayılar (varsa) geçmişin başlangıç noktası olur.
+  await publicationMetricsService.recordManualEntry(id).catch(() => null);
+
   const result = await contentQueueService.updateAdmin(id, { status: 'YAYINLANDI' });
   if (result.error) return { error: result.error };
 
@@ -134,6 +138,10 @@ export async function updatePublications(id: string, publications: PublicationIn
 
   // Keep the library link current if a platform link was fixed/added.
   await contentQueueService.linkScriptToContent(publications, item.content_text);
+
+  // TikTok/X/Twitch sayılarının API karşılığı yok — geçmişin tek kaynağı bu
+  // giriş anı. Ölçüm noktası penceresindeyse o noktaya da bağlanır.
+  await publicationMetricsService.recordManualEntry(id).catch(() => null);
 
   revalidatePath('/icerik-plani');
   revalidatePath('/fikir-havuzu');

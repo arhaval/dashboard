@@ -9,6 +9,10 @@
       "schedule": "0 */6 * * *"
     },
     {
+      "path": "/api/cron/checkpoint-reminder",
+      "schedule": "15 */6 * * *"
+    },
+    {
       "path": "/api/cron/idea-reminder",
       "schedule": "0 10 * * *"
     }

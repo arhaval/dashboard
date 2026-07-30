@@ -354,6 +354,37 @@ export function metricsChanged(a: PlatformMetrics | null, b: PlatformMetrics): b
   return METRIC_KEYS.some((k) => a[k] !== b[k]);
 }
 
+// ── Ölçüm noktası hatırlatmaları ─────────────────────────────────────────────
+
+/**
+ * Şu an hangi ölçüm noktası için hatırlatma gönderilmeli.
+ *
+ * Aynı pencere mantığı `pendingCheckpoints` ile kasıtlı olarak AYNI: hatırlatma
+ * ancak snapshot'ın hâlâ yazılabileceği aralıkta anlamlıdır. Pencere kapandıktan
+ * sonra "sayıları gir" demek, girilse bile o noktaya işlenmeyecek bir veri
+ * istemek olurdu.
+ *
+ * `alreadySent` daha önce bildirilen noktalardır — cron 6 saatte bir çalıştığı
+ * için tek pencerede birden fazla bildirim gitmemeli.
+ */
+export function dueCheckpointReminders(
+  publishedAt: string | null,
+  alreadySent: CheckpointKey[],
+  now: Date = new Date()
+): CheckpointKey[] {
+  if (!publishedAt) return [];
+  const publishedMs = new Date(publishedAt).getTime();
+  if (!Number.isFinite(publishedMs)) return [];
+  const nowMs = now.getTime();
+
+  return CHECKPOINTS.filter((key) => {
+    if (alreadySent.includes(key)) return false;
+    const targetMs = publishedMs + hoursToMs(CHECKPOINT_OFFSET_HOURS[key]);
+    if (nowMs < targetMs) return false;
+    return nowMs - targetMs <= hoursToMs(CHECKPOINT_TOLERANCE_HOURS[key]);
+  });
+}
+
 // ── Yaşam döngüsüne göre senkronizasyon sıklığı ──────────────────────────────
 
 /**

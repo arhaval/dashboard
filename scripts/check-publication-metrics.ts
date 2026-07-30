@@ -42,6 +42,7 @@ import {
 } from '../src/app/(dashboard)/icerik-performansi/content-impact.constants';
 import {
   dataCompleteness,
+  dueCheckpointReminders,
   isSnapshotDue,
   mergeAvailability,
   mergeLatestMetrics,
@@ -529,6 +530,75 @@ function snapThrough(
     ['EARLY_24H']
   );
   eq('zorunlu: yayın tarihi yoksa nokta hesaplanamaz', pendingCheckpoints(null, [], SRC), []);
+
+  // ── Elle girilen platformlar da checkpoint'e girer ────────────────────────
+  // TikTok/X'in API'si yok; geçmişin tek kaynağı kullanıcının giriş anı.
+  eq(
+    'manuel: giriş nokta penceresindeyse o noktaya bağlanır',
+    pendingCheckpoints(published, [], 'MANUAL', new Date('2026-07-02T03:00:00.000Z')),
+    ['EARLY_24H']
+  );
+  eq(
+    'manuel: pencere kapandıktan sonra girilen sayı o noktaya işlenmez',
+    pendingCheckpoints(published, [], 'MANUAL', new Date('2026-07-02T18:00:00.000Z')),
+    []
+  );
+  const manualHistory = [
+    snap('m24', '2026-07-02T03:00:00.000Z', { views: 4000, likes: 90 }, 'MANUAL', { forcedForCheckpoint: 'EARLY_24H' }),
+  ];
+  const cManual = resolveCheckpoint('EARLY_24H', published, manualHistory, 'TIKTOK');
+  eq('manuel: TikTok 24s noktası çözülebiliyor', cManual.measured, true);
+  eq('manuel: girilen sayılar noktaya işleniyor', cManual.metrics?.views, 4000);
+  eq('manuel: elle giriş tam sayılır', cManual.status, 'COMPLETE');
+
+  // ── Ölçüm noktası hatırlatmaları ──────────────────────────────────────────
+  eq(
+    'hatırlatma: 24 saat dolunca gönderilir',
+    dueCheckpointReminders(published, [], new Date('2026-07-02T02:00:00.000Z')),
+    ['EARLY_24H']
+  );
+  eq(
+    'hatırlatma: nokta gelmeden gönderilmez',
+    dueCheckpointReminders(published, [], new Date('2026-07-01T20:00:00.000Z')),
+    []
+  );
+  eq(
+    'hatırlatma: aynı nokta ikinci kez gönderilmez',
+    dueCheckpointReminders(published, ['EARLY_24H'], new Date('2026-07-02T05:00:00.000Z')),
+    []
+  );
+  eq(
+    'hatırlatma: pencere kapandıysa gönderilmez (girilse bile işlenmezdi)',
+    dueCheckpointReminders(published, [], new Date('2026-07-02T20:00:00.000Z')),
+    []
+  );
+  eq(
+    'hatırlatma: 7 gün noktası ayrıca gönderilir',
+    dueCheckpointReminders(published, ['EARLY_24H'], new Date('2026-07-08T06:00:00.000Z')),
+    ['PRIMARY_7D']
+  );
+  eq(
+    'hatırlatma: 30 gün noktası ayrıca gönderilir',
+    dueCheckpointReminders(published, ['EARLY_24H', 'PRIMARY_7D'], new Date('2026-07-31T12:00:00.000Z')),
+    ['FINAL_30D']
+  );
+  eq('hatırlatma: yayın tarihi yoksa hesaplanamaz', dueCheckpointReminders(null, [], new Date()), []);
+  eq(
+    'hatırlatma: hepsi gönderildiyse boş döner',
+    dueCheckpointReminders(published, ['EARLY_24H', 'PRIMARY_7D', 'FINAL_30D'], new Date('2026-07-31T12:00:00.000Z')),
+    []
+  );
+
+  // Hatırlatma penceresi ile snapshot penceresi AYNI olmalı — biri açıkken
+  // diğeri kapalıysa kullanıcıdan işlenmeyecek veri istenmiş olur.
+  for (const t of ['2026-07-02T02:00:00.000Z', '2026-07-02T10:00:00.000Z', '2026-07-08T06:00:00.000Z']) {
+    const when = new Date(t);
+    eq(
+      `pencere tutarlılığı @ ${t.slice(0, 16)}`,
+      dueCheckpointReminders(published, [], when),
+      pendingCheckpoints(published, [], 'MANUAL', when)
+    );
+  }
 
   // ── Yaşam döngüsü ─────────────────────────────────────────────────────────
   eq('sıklık: ilk 48 saat 6 saatte bir', syncIntervalHours(10), 6);

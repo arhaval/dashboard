@@ -17,10 +17,12 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import {
   mapInstagramInsights,
   mapInstagramMetrics,
+  mapManualMetrics,
   mapYoutubeAnalytics,
   mapYoutubeMetrics,
   overlayMetrics,
   IG_WATCH_TIME_UNIT,
+  type ManualMetricRow,
   type ParseIssue,
 } from '@/app/(dashboard)/icerik-performansi/content-impact.adapter';
 import {
@@ -180,6 +182,16 @@ interface PublicationRef {
   external_id: string | null;
   published_at: string | null;
 }
+
+/** content_publications satırı, elle girilen metrik alanlarıyla birlikte. */
+interface PublicationRow extends ManualMetricRow {
+  id: string;
+  platform: string;
+  published_at?: string | null;
+}
+
+/** API entegrasyonu olan platformlar — sayıları elle girilmez. */
+const API_PLATFORMS: ContentPlatform[] = ['YOUTUBE', 'INSTAGRAM'];
 
 export const publicationMetricsService = {
   // ── Okuma ─────────────────────────────────────────────────────────────────
@@ -587,6 +599,77 @@ export const publicationMetricsService = {
 
     report.parseIssues = issues;
     return report;
+  },
+
+  /**
+   * Elle girilen platformların (TikTok / X / Twitch) sayılarını snapshot'a al.
+   *
+   * Bu platformlarda API yok — geçmişin tek kaynağı kullanıcının girdiği andır.
+   * Yayın kaydı her güncellendiğinde çağrılır; sayılar değişmediyse yeni satır
+   * yazılmaz. Kullanıcı bir ölçüm noktasının penceresi içindeyken giriyorsa
+   * satır o noktaya bağlanır, böylece "24 saatte ne yaptı" sorusu TikTok ve X
+   * için de cevaplanabilir hale gelir.
+   *
+   * Pencere kapandıktan sonra girilen sayı o noktaya İŞLENMEZ — 34. saatte
+   * girilen rakam 24 saatlik sonuç değildir.
+   */
+  async recordManualEntry(cardId: string): Promise<{ written: number; checkpoints: number }> {
+    const admin = createAdminClient();
+    const out = { written: 0, checkpoints: 0 };
+
+    const { data } = await admin
+      .from('content_publications')
+      .select('*')
+      .eq('content_queue_id', cardId);
+    const rows = (data ?? []) as (PublicationRow & { id: string })[];
+    const manual = rows.filter((r) => !API_PLATFORMS.includes(r.platform as ContentPlatform));
+    if (manual.length === 0) return out;
+
+    const { data: card } = await admin
+      .from('content_queue')
+      .select('published_date')
+      .eq('id', cardId)
+      .maybeSingle();
+
+    const snapshots = await this.getSnapshots(manual.map((r) => r.id));
+    const now = new Date();
+    const capturedAt = now.toISOString();
+
+    for (const row of manual) {
+      const platform = row.platform as ContentPlatform;
+      const metrics = mapManualMetrics(platform, row);
+      // Hiçbir sayı girilmemişse kayıt açmanın anlamı yok.
+      if (METRIC_KEYS.every((k) => metrics[k] == null)) continue;
+
+      const prev = snapshots.get(row.id) ?? [];
+      const published = row.published_at ?? (card?.published_date as string | null) ?? null;
+      const forced = pendingCheckpoints(published, prev, 'MANUAL', now)[0] ?? null;
+
+      const res = await this.writeSnapshot({
+        publicationId: row.id,
+        source: 'MANUAL',
+        metrics,
+        availability: Object.fromEntries(
+          METRIC_KEYS.filter((k) => metrics[k] != null).map((k) => [k, 'OK' as const])
+        ),
+        rawMetadata: { entry: 'elle giriş', platform },
+        previous: prev,
+        capturedAt,
+        // Kullanıcı sayıları girdiği anı raporluyor; rapor gecikmesi yok.
+        coverage: {
+          reportStartDate: null,
+          requestedEndDate: capturedAt.slice(0, 10),
+          dataThroughDate: capturedAt.slice(0, 10),
+          isSourceDataComplete: true,
+          sourceLagSeconds: 0,
+        },
+        forcedForCheckpoint: forced,
+      });
+      if (res.written) out.written += 1;
+      if (forced && res.written) out.checkpoints += 1;
+    }
+
+    return out;
   },
 
   // ── Geçmiş veri ───────────────────────────────────────────────────────────
