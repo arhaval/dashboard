@@ -703,6 +703,14 @@ export const publicationMetricsService = {
     out.publications = pubs.length;
     if (pubs.length === 0) return out;
 
+    // Bağlantı kopuksa her video için ayrı ayrı denemek aynı hatayı N kez
+    // yazdırmaktan başka işe yaramaz — bir kez kontrol et, bir kez söyle.
+    const connection = await youtubeAnalyticsService.connectionError();
+    if (connection) {
+      out.errors.push(connection);
+      return out;
+    }
+
     const { data: videoData } = await admin
       .from('video_performance')
       .select('video_id, published_at')
