@@ -50,7 +50,11 @@ import {
   toNumber,
 } from '../src/app/(dashboard)/icerik-performansi/content-impact.adapter';
 import { contentPerformanceRecommendationService } from '../src/services/content-recommendation.service';
-import type { ContentPlatform } from '../src/app/(dashboard)/icerik-plani/content-queue.constants';
+import {
+  fromLocalDateTimeInput,
+  toLocalDateTimeInput,
+  type ContentPlatform,
+} from '../src/app/(dashboard)/icerik-plani/content-queue.constants';
 
 let passed = 0;
 const failures: string[] = [];
@@ -361,6 +365,30 @@ function fullImpact(over: Partial<ContentImpact>): ContentImpact {
   );
 
   eq('contentCode: uuid → 8 haneli kod', contentCode('49dc4725-5b9a-4d85-8d06-06c7191a160c'), '49DC4725');
+}
+
+// ═══ 6b. Yayın anı dönüşümü — saat kaymamalı ════════════════════════════════
+// Ölçüm noktaları (24 saat / 7 gün / 30 gün) yayın ANINA göre hesaplanıyor.
+// Tarayıcı yerel saat verir, veritabanı UTC saklar; gidiş-dönüş girilen saati
+// aynen korumalı, yoksa "24 saat" ölçümü yanlış anı ölçer.
+
+{
+  const local = '2026-08-01T21:00';
+  const stored = fromLocalDateTimeInput(local);
+  check('yayın anı: yerel giriş ISO ana çevrilir', typeof stored === 'string' && stored.endsWith('Z'), stored);
+  eq('yayın anı: gidiş-dönüş saati korur', toLocalDateTimeInput(stored), local);
+  eq('yayın anı: girilen saat gerçekten 21:00', stored ? new Date(stored).getHours() : null, 21);
+
+  eq('yayın anı: boş giriş null', fromLocalDateTimeInput('   '), null);
+  eq('yayın anı: geçersiz giriş null', fromLocalDateTimeInput('bugün'), null);
+  eq('yayın anı: null değer boş girdi', toLocalDateTimeInput(null), '');
+
+  // Saatsiz eski kayıtlar da okunabilmeli (gece yarısına düşerler).
+  eq(
+    'yayın anı: saatsiz kayıt gece yarısı olur',
+    toLocalDateTimeInput(new Date(2026, 7, 1, 0, 0).toISOString()),
+    '2026-08-01T00:00'
+  );
 }
 
 // ═══ 7. Filtre / sıralama / sayfalama ════════════════════════════════════════

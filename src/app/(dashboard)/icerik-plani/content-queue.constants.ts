@@ -114,7 +114,11 @@ export interface PublicationInput {
   shares?: number | null;
   saves?: number | null;
   followers_gained?: number | null;
-  /** Platform-specific publish date (falls back to the card's published_date). */
+  /**
+   * Yayın ANI — tarih + saat, ISO/UTC olarak saklanır (TIMESTAMPTZ).
+   * Ölçüm noktaları (24 saat / 7 gün / 30 gün) buna göre hesaplandığı için saat
+   * önemlidir. Boşsa kartın published_date'ine düşer.
+   */
   published_at?: string | null;
   /** Platform-specific title, when it differs from the card title. */
   title?: string | null;
@@ -132,6 +136,34 @@ export const MANUAL_METRIC_FIELDS = [
 ] as const;
 
 export type ManualMetricField = (typeof MANUAL_METRIC_FIELDS)[number]['key'];
+
+// ── Yayın anı ⇄ <input type="datetime-local"> dönüşümü ──────────────────────
+// Tarayıcı yerel saat verir/bekler, veritabanı UTC saklar. Dönüşüm tek yerde
+// olsun ki bir tarafta saat kayması olmasın.
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+/** Saklanan ISO anı → datetime-local girdisinin beklediği yerel "YYYY-MM-DDTHH:mm". */
+export function toLocalDateTimeInput(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/**
+ * datetime-local değeri → saklanacak ISO an.
+ * Değer yerel saat olarak yorumlanır (Date yapıcısının zonesuz string davranışı),
+ * böylece "01.08.2026 21:00" girişi gerçekten 21:00'i işaret eder.
+ */
+export function fromLocalDateTimeInput(local: string): string | null {
+  const s = local.trim();
+  if (!s) return null;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
 
 /** Instagram permalinks are /p/{shortcode}/ or /reel/{shortcode}/. */
 export function extractInstagramShortcode(input: string): string | null {

@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   PUBLISH_PLATFORMS, PLATFORM_COLORS, MANUAL_METRIC_FIELDS, extractYouTubeId, extractInstagramShortcode,
+  toLocalDateTimeInput, fromLocalDateTimeInput,
   type ContentPlatform, type ContentQueueItem, type ManualMetricField, type PublicationInput,
 } from './content-queue.constants';
 import { publishContent, updatePublications } from './queue-actions';
@@ -56,7 +57,12 @@ export function PublishModal({ item, existing, onClose }: {
         const v = prev[f.key];
         if (v != null) metrics[f.key] = String(v);
       }
-      init[p.value] = { checked: true, url: prev.url ?? '', publishedAt: prev.published_at ?? '', metrics };
+      init[p.value] = {
+        checked: true,
+        url: prev.url ?? '',
+        publishedAt: toLocalDateTimeInput(prev.published_at),
+        metrics,
+      };
     }
     return init;
   });
@@ -103,7 +109,7 @@ export function PublishModal({ item, existing, onClose }: {
         shares: p.auto ? null : numOrNull(r.metrics.shares),
         saves: p.auto ? null : numOrNull(r.metrics.saves),
         followers_gained: p.auto ? null : numOrNull(r.metrics.followers_gained),
-        published_at: p.auto ? null : (r.publishedAt.trim() || null),
+        published_at: p.auto ? null : fromLocalDateTimeInput(r.publishedAt),
       });
     }
 
@@ -175,17 +181,32 @@ export function PublishModal({ item, existing, onClose }: {
                               style={fieldStyle}
                             />
                           ))}
+                        </div>
+
+                        {/*
+                          Yayın anı kendi satırında: ölçüm noktaları (24 saat /
+                          7 gün / 30 gün) buna göre hesaplandığı için SAAT de
+                          gerekiyor — gece yarısı varsayımı 24 saatlik ölçümü
+                          gerçek 24. saatten önce kapatıyordu.
+                        */}
+                        <label className="block">
+                          <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
+                            Yayın anı — {p.label} (saatiyle)
+                          </span>
                           <input
                             value={r.publishedAt}
                             onChange={(e) => patch(p.value, { publishedAt: e.target.value })}
-                            title="Bu platformdaki yayın tarihi"
-                            type="date"
-                            className={numCls}
+                            title="Bu platformda gerçekten yayınlandığı tarih ve saat"
+                            type="datetime-local"
+                            className={`${numCls} mt-1`}
                             style={fieldStyle}
                           />
-                        </div>
-                        <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
-                          Boş bıraktığın alan “veri yok” sayılır, sıfır sayılmaz.
+                        </label>
+
+                        <p className="text-[10px] leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
+                          Boş bıraktığın sayı alanı “veri yok” sayılır, sıfır sayılmaz.
+                          Yayın anını boş bırakırsan kartın yayın günü (gece yarısı) kullanılır —
+                          bu da 24 saatlik ölçümü kaydırır, o yüzden saati gir.
                         </p>
                       </>
                     )}
