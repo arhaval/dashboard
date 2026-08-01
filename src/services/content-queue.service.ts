@@ -90,11 +90,34 @@ export const contentQueueService = {
   },
 
   /** Replace a card's publication rows (one per platform it went out on). */
+  /**
+   * Bir kartın yayın satırlarını güncelle.
+   *
+   * ÖNEMLİ — neden sil-yeniden-yarat DEĞİL:
+   * content_publication_metric_snapshots bu satırlara ON DELETE CASCADE ile
+   * bağlı. Eskiden bu fonksiyon kartın bütün satırlarını silip yeniden
+   * yaratıyordu; yani ölçüm noktalarını (24 saat / 7 gün / 30 gün) biriktirmek
+   * için modalı her açıp kaydedişte o kartın BÜTÜN ölçüm geçmişi siliniyordu.
+   * Tam olarak toplanmak istenen veri, toplama hareketiyle yok oluyordu.
+   *
+   * Artık UNIQUE(content_queue_id, platform) üzerinden upsert yapılıyor: satır
+   * kimliği korunur, snapshot'lar bağlı kalır. Yalnızca gerçekten kaldırılan
+   * platformların satırı silinir — o platformun geçmişinin gitmesi doğrudur,
+   * çünkü artık o yayın yok.
+   */
   async savePublications(cardId: string, rows: PublicationInput[]): Promise<{ error?: string }> {
     const admin = createAdminClient();
-    await admin.from('content_publications').delete().eq('content_queue_id', cardId);
+
+    // Artık işaretli olmayan platformların satırları (ve geçmişleri) gider.
+    const keep = rows.map((r) => r.platform);
+    const removal = admin.from('content_publications').delete().eq('content_queue_id', cardId);
+    const { error: delError } = keep.length > 0
+      ? await removal.not('platform', 'in', `(${keep.join(',')})`)
+      : await removal;
+    if (delError) return { error: delError.message };
     if (rows.length === 0) return {};
 
+    const now = new Date().toISOString();
     const legacy = rows.map((r) => ({
       content_queue_id: cardId,
       platform: r.platform,
@@ -103,9 +126,11 @@ export const contentQueueService = {
       views: r.views,
       likes: r.likes,
       comments: r.comments,
+      updated_at: now,
     }));
 
-    const { error } = await admin.from('content_publications').insert(
+    const onConflict = 'content_queue_id,platform';
+    const { error } = await admin.from('content_publications').upsert(
       legacy.map((base, i) => ({
         ...base,
         impressions: rows[i].impressions ?? null,
@@ -114,7 +139,8 @@ export const contentQueueService = {
         followers_gained: rows[i].followers_gained ?? null,
         published_at: rows[i].published_at ?? null,
         title: rows[i].title ?? null,
-      }))
+      })),
+      { onConflict }
     );
     if (!error) return {};
 
@@ -125,7 +151,9 @@ export const contentQueueService = {
     if (!/column .* does not exist|Could not find the '.*' column/i.test(error.message)) {
       return { error: error.message };
     }
-    const { error: legacyError } = await admin.from('content_publications').insert(legacy);
+    const { error: legacyError } = await admin
+      .from('content_publications')
+      .upsert(legacy, { onConflict });
     return legacyError ? { error: legacyError.message } : {};
   },
 

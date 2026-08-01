@@ -538,6 +538,58 @@ export function dueCheckpointReminders(
   });
 }
 
+/** Hatırlatma hesabına giren tek bir yayın. */
+export interface ReminderAnchor<P extends string = string> {
+  platform: P;
+  /** Bu yayının kendi yayın anı; yoksa kartın yayın günü. */
+  publishedAt: string | null;
+  /** Sayıları hâlâ girilmemiş mi — bildirimin asıl sebebi. */
+  awaitingEntry: boolean;
+}
+
+export interface DueReminder<P extends string = string> {
+  checkpoint: CheckpointKey;
+  /** Penceresi ŞU AN açık olan ve sayısı beklenen platformlar. */
+  pendingPlatforms: P[];
+}
+
+/**
+ * Bir kartın hatırlatmaları — her yayın KENDİ yayın anına göre değerlendirilir.
+ *
+ * Neden kartın yayın günü yetmiyor: kart günü saat taşımaz (gece yarısı sayılır),
+ * elle girilen yayınların `published_at`'i ise saat taşır. İkisi ayrı hesaplanınca
+ * bildirim penceresi ile snapshot penceresi kayıyordu — kullanıcıya "sayıları
+ * şimdi gir" deniyor, girdiği sayı ise ölçüm noktasına işlenmiyordu.
+ *
+ * Örnek: TikTok 01.08 21:00'de yayınlandı, kart günü 01.08.
+ *   kart günü baz   → bildirim 02.08 03:00–11:00   (snapshot yazılamaz)
+ *   yayın anı baz   → bildirim 02.08 21:00–03.08 05:00 ✓ (snapshot yazılabilir)
+ *
+ * Kartta hiç yayın yoksa (ya da hepsi API'liyse) çağıran taraf kart gününü tek
+ * anchor olarak verir; davranış eskisi gibi kalır.
+ */
+export function dueRemindersForCard<P extends string>(
+  anchors: ReminderAnchor<P>[],
+  alreadySent: CheckpointKey[],
+  now: Date = new Date()
+): DueReminder<P>[] {
+  const byCheckpoint = new Map<CheckpointKey, P[]>();
+
+  for (const anchor of anchors) {
+    for (const key of dueCheckpointReminders(anchor.publishedAt, alreadySent, now)) {
+      const pending = byCheckpoint.get(key) ?? [];
+      if (anchor.awaitingEntry && !pending.includes(anchor.platform)) pending.push(anchor.platform);
+      byCheckpoint.set(key, pending);
+    }
+  }
+
+  // Sıra sabit kalsın — aynı girdi aynı çıktıyı versin.
+  return CHECKPOINTS.filter((k) => byCheckpoint.has(k)).map((checkpoint) => ({
+    checkpoint,
+    pendingPlatforms: byCheckpoint.get(checkpoint) ?? [],
+  }));
+}
+
 // ── Yaşam döngüsüne göre senkronizasyon sıklığı ──────────────────────────────
 
 /**

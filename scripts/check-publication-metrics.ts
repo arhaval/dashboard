@@ -47,6 +47,7 @@ import {
 import {
   dataCompleteness,
   dueCheckpointReminders,
+  dueRemindersForCard,
   isSnapshotDue,
   mergeAvailability,
   mergeLatestMetrics,
@@ -644,6 +645,73 @@ function snapThrough(
     dueCheckpointReminders(published, ['EARLY_24H', 'PRIMARY_7D', 'FINAL_30D'], new Date('2026-07-31T12:00:00.000Z')),
     []
   );
+
+  // ── Kart bazlı hatırlatma: her yayın KENDİ saatine göre ───────────────────
+  // Kartın yayın günü saat taşımaz (gece yarısı sayılır), elle girilen yayının
+  // published_at'i taşır. Kart gününe göre hesaplanınca bildirim penceresi
+  // snapshot penceresinden kayıyordu: kullanıcıya "gir" deniyor, girdiği sayı
+  // ölçüm noktasına işlenmiyordu.
+  {
+    const cardDay = '2026-08-01';                 // gece yarısı = 00:00Z
+    const tiktokAt = '2026-08-01T18:00:00.000Z';  // TR 21:00
+    const anchor = (over: Partial<{ publishedAt: string | null; awaitingEntry: boolean }> = {}) => [
+      { platform: 'TIKTOK' as const, publishedAt: tiktokAt, awaitingEntry: true, ...over },
+    ];
+
+    // Kart gününe göre 24 saat DOLMUŞ görünen an — ama TikTok'un 24 saati dolmadı.
+    const cardWouldFire = dueCheckpointReminders(cardDay, [], new Date('2026-08-02T00:30:00.000Z'));
+    eq('kart günü baz: bu anda bildirim gönderirdi', cardWouldFire, ['EARLY_24H']);
+    eq(
+      'yayın anı baz: aynı anda bildirim GÖNDERİLMEZ (snapshot yazılamazdı)',
+      dueRemindersForCard(anchor(), [], new Date('2026-08-02T00:30:00.000Z')),
+      []
+    );
+
+    // Gerçek 24. saatten sonra: bildirim gider ve bekleyen platform adıyla gider.
+    eq(
+      'yayın anı baz: gerçek 24. saatte bildirim gider',
+      dueRemindersForCard(anchor(), [], new Date('2026-08-02T19:00:00.000Z')),
+      [{ checkpoint: 'EARLY_24H', pendingPlatforms: ['TIKTOK'] }]
+    );
+
+    // Sayılar girilmişse nokta yine bildirilir ama "şunu gir" listesi boş kalır.
+    eq(
+      'sayılar girilmişse bekleyen platform listesi boş',
+      dueRemindersForCard(anchor({ awaitingEntry: false }), [], new Date('2026-08-02T19:00:00.000Z')),
+      [{ checkpoint: 'EARLY_24H', pendingPlatforms: [] }]
+    );
+
+    // Yayının kendi anı yoksa kart gününe düşer — eski davranış korunur.
+    eq(
+      'yayın anı yoksa kart gününe düşer',
+      dueRemindersForCard(anchor({ publishedAt: cardDay }), [], new Date('2026-08-02T00:30:00.000Z')),
+      [{ checkpoint: 'EARLY_24H', pendingPlatforms: ['TIKTOK'] }]
+    );
+
+    // Farklı saatlerde yayınlanmış iki platform, her biri kendi penceresinde.
+    const two = [
+      { platform: 'X' as const, publishedAt: '2026-08-01T06:00:00.000Z', awaitingEntry: true },
+      { platform: 'TIKTOK' as const, publishedAt: tiktokAt, awaitingEntry: true },
+    ];
+    eq(
+      'iki platform: yalnızca penceresi açık olan listelenir',
+      dueRemindersForCard(two, [], new Date('2026-08-02T07:00:00.000Z')),
+      [{ checkpoint: 'EARLY_24H', pendingPlatforms: ['X'] }]
+    );
+
+    eq('gönderilmiş nokta tekrar edilmez', dueRemindersForCard(anchor(), ['EARLY_24H'], new Date('2026-08-02T19:00:00.000Z')), []);
+    eq('anchor yoksa boş döner', dueRemindersForCard([], [], new Date()), []);
+
+    // Bildirim, snapshot'ın yazılabileceği pencereyle BİREBİR aynı kalmalı.
+    for (const t of ['2026-08-02T19:00:00.000Z', '2026-08-03T01:00:00.000Z', '2026-08-08T19:00:00.000Z']) {
+      const when = new Date(t);
+      eq(
+        `kart bazlı pencere tutarlılığı @ ${t.slice(0, 16)}`,
+        dueRemindersForCard(anchor(), [], when).map((d) => d.checkpoint),
+        pendingCheckpoints(tiktokAt, [], 'MANUAL', when)
+      );
+    }
+  }
 
   // Hatırlatma penceresi ile snapshot penceresi AYNI olmalı — biri açıkken
   // diğeri kapalıysa kullanıcıdan işlenmeyecek veri istenmiş olur.

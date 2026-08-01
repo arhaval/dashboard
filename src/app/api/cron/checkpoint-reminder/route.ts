@@ -18,9 +18,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationService } from '@/services/notification.service';
 import { denyCron } from '@/lib/cron-auth';
 import {
-  dueCheckpointReminders,
+  dueRemindersForCard,
   CHECKPOINT_LABELS,
   type CheckpointKey,
+  type ReminderAnchor,
 } from '@/app/(dashboard)/icerik-performansi/publication-snapshot.constants';
 import { PLATFORM_LABELS, type ContentPlatform } from '@/app/(dashboard)/icerik-plani/content-queue.constants';
 
@@ -52,12 +53,21 @@ export async function GET(request: Request) {
   const cardIds = cards.map((c) => c.id);
 
   const [{ data: pubRows }, { data: sentRows }] = await Promise.all([
-    admin.from('content_publications').select('content_queue_id, platform, views, likes, impressions').in('content_queue_id', cardIds),
+    admin.from('content_publications').select('content_queue_id, platform, published_at, views, likes, impressions').in('content_queue_id', cardIds),
     admin.from('content_checkpoint_reminders').select('content_queue_id, checkpoint').in('content_queue_id', cardIds),
   ]);
 
-  const pubsByCard = new Map<string, { platform: string; views: number | null; likes: number | null; impressions: number | null }[]>();
-  for (const p of (pubRows ?? []) as { content_queue_id: string; platform: string; views: number | null; likes: number | null; impressions: number | null }[]) {
+  type PubRow = {
+    content_queue_id: string;
+    platform: string;
+    published_at: string | null;
+    views: number | null;
+    likes: number | null;
+    impressions: number | null;
+  };
+
+  const pubsByCard = new Map<string, PubRow[]>();
+  for (const p of (pubRows ?? []) as PubRow[]) {
     const arr = pubsByCard.get(p.content_queue_id) ?? [];
     arr.push(p);
     pubsByCard.set(p.content_queue_id, arr);
@@ -78,16 +88,24 @@ export async function GET(request: Request) {
     // Hiç platform kaydı yoksa hatırlatacak bir ölçüm de yok.
     if (pubs.length === 0) continue;
 
-    const due = dueCheckpointReminders(card.published_date, sentByCard.get(card.id) ?? [], now);
+    // Her elle-giriş yayını KENDİ yayın anına göre değerlendirilir; kartın günü
+    // yalnızca o yayının kendi anı yoksa (ve hiç elle-giriş yoksa) kullanılır.
+    // Aksi halde bildirim penceresi snapshot penceresiyle kayıyor ve kullanıcı
+    // sayıları tam da işlenmeyecek saatte giriyordu.
+    const manual = pubs.filter((p) => MANUAL_PLATFORMS.includes(p.platform as ContentPlatform));
+    const anchors: ReminderAnchor<ContentPlatform>[] = manual.length > 0
+      ? manual.map((p) => ({
+          platform: p.platform as ContentPlatform,
+          publishedAt: p.published_at ?? card.published_date,
+          awaitingEntry: p.views == null && p.likes == null && p.impressions == null,
+        }))
+      // Yalnızca API'li platformlar: hatırlatma bilgilendirme amaçlı, kart günü yeterli.
+      : [{ platform: 'YOUTUBE' as ContentPlatform, publishedAt: card.published_date, awaitingEntry: false }];
+
+    const due = dueRemindersForCard(anchors, sentByCard.get(card.id) ?? [], now);
     if (due.length === 0) continue;
 
-    // Sayısı hâlâ girilmemiş elle-giriş platformları — bildirimin asıl sebebi.
-    const pending = pubs
-      .filter((p) => MANUAL_PLATFORMS.includes(p.platform as ContentPlatform))
-      .filter((p) => p.views == null && p.likes == null && p.impressions == null)
-      .map((p) => p.platform as ContentPlatform);
-
-    for (const key of due) {
+    for (const { checkpoint: key, pendingPlatforms: pending } of due) {
       // Önce kaydı yaz: bildirim gitse de gitmese de bu nokta bildirilmiş sayılır,
       // aksi halde push başarısız olduğunda her 6 saatte bir tekrar denenir.
       const { error } = await admin.from('content_checkpoint_reminders').insert({
