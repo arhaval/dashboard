@@ -10,6 +10,7 @@ import {
   type ContentStage,
   type CreateContentQueueInput,
   type UpdateContentQueueInput,
+  toPublicationInput,
   type PublicationInput,
 } from '@/app/(dashboard)/icerik-plani/content-queue.constants';
 
@@ -168,7 +169,13 @@ export const contentQueueService = {
       .from('content_publications')
       .select('*')
       .in('content_queue_id', cardIds);
-    return (data as (PublicationInput & { content_queue_id: string })[]) ?? [];
+
+    // Projeksiyon TEK yerde (toPublicationInput): çağıran taraf alan seçmesin,
+    // yoksa yeni bir metrik eklendiğinde orada düşer ve kayıtta silinir.
+    return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+      ...toPublicationInput(row),
+      content_queue_id: row.content_queue_id as string,
+    }));
   },
 
   /**

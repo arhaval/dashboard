@@ -28,10 +28,10 @@ export default async function IcerikPlaniPage() {
   const publishedIds = items.filter((i) => i.status === 'YAYINLANDI').map((i) => i.id);
   const pubRows = await contentQueueService.getPublicationsForCards(publishedIds);
   const publicationsByCard: Record<string, PublicationInput[]> = {};
-  for (const r of pubRows) {
-    (publicationsByCard[r.content_queue_id] ??= []).push({
-      platform: r.platform, url: r.url, external_id: r.external_id, views: r.views, likes: r.likes, comments: r.comments,
-    });
+  for (const { content_queue_id, ...pub } of pubRows) {
+    // Alan seçmiyoruz: servis zaten tam PublicationInput döndürüyor. Burada
+    // elle liste yazmak paylaşım/kaydetme/takipçi/yayın anını düşürüyordu.
+    (publicationsByCard[content_queue_id] ??= []).push(pub);
   }
 
   const desc = canEdit

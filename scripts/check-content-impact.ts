@@ -53,6 +53,8 @@ import { contentPerformanceRecommendationService } from '../src/services/content
 import {
   fromLocalDateTimeInput,
   toLocalDateTimeInput,
+  toPublicationInput,
+  MANUAL_METRIC_FIELDS,
   type ContentPlatform,
 } from '../src/app/(dashboard)/icerik-plani/content-queue.constants';
 
@@ -382,6 +384,47 @@ function fullImpact(over: Partial<ContentImpact>): ContentImpact {
   eq('yayın anı: boş giriş null', fromLocalDateTimeInput('   '), null);
   eq('yayın anı: geçersiz giriş null', fromLocalDateTimeInput('bugün'), null);
   eq('yayın anı: null değer boş girdi', toLocalDateTimeInput(null), '');
+
+  // Yayın kaydı okunurken HİÇBİR alan düşmemeli. Düştüğünde modal onu boş
+  // gösteriyor, kullanıcının sonraki kaydı da boş yazıp veriyi siliyordu.
+  const dbRow = {
+    id: '496bd63c-a3a8-4377-ae6f-6b44384086ba',
+    content_queue_id: 'e55e5c9c-cf5d-41b1-8170-d2dd91238d68',
+    platform: 'TIKTOK',
+    url: null,
+    external_id: null,
+    views: 6352,
+    likes: 164,
+    comments: 12,
+    impressions: null,
+    shares: 4,
+    saves: 18,
+    followers_gained: 6,
+    published_at: '2026-08-01T18:00:00+00:00',
+    title: null,
+    created_at: '2026-08-01T23:29:02.970078+00:00',
+    updated_at: '2026-08-02T18:18:32.683+00:00',
+  };
+  eq('yayın kaydı: bütün alanlar korunur', toPublicationInput(dbRow), {
+    platform: 'TIKTOK',
+    url: null,
+    external_id: null,
+    views: 6352,
+    likes: 164,
+    comments: 12,
+    impressions: null,
+    shares: 4,
+    saves: 18,
+    followers_gained: 6,
+    published_at: '2026-08-01T18:00:00+00:00',
+    title: null,
+  });
+  check(
+    'yayın kaydı: modalın beklediği her alan var',
+    MANUAL_METRIC_FIELDS.every((f) => f.key in toPublicationInput(dbRow)),
+    MANUAL_METRIC_FIELDS.map((f) => f.key)
+  );
+  eq('yayın kaydı: gerçek 0 korunur, null null kalır', toPublicationInput({ platform: 'X', shares: 0, saves: null }).shares, 0);
 
   // Saatsiz eski kayıtlar da okunabilmeli (gece yarısına düşerler).
   eq(

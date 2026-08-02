@@ -124,6 +124,33 @@ export interface PublicationInput {
   title?: string | null;
 }
 
+/**
+ * Veritabanı satırı → PublicationInput.
+ *
+ * Alan listesi bilerek TİPİN HEMEN YANINDA: bu eşleme sayfa içinde elle
+ * yazıldığında yeni eklenen metrikler (paylaşım, kaydetme, takipçi, yayın anı)
+ * sessizce düşüyordu — modal onları boş gösteriyor, sonraki kayıt da boş
+ * yazıp veriyi siliyordu. Tek yerden geçince yeni bir alan eklemek yeterli.
+ */
+export function toPublicationInput(row: Record<string, unknown>): PublicationInput {
+  const num = (v: unknown): number | null => (v == null || v === '' ? null : Number(v));
+  const str = (v: unknown): string | null => (v == null ? null : String(v));
+  return {
+    platform: row.platform as ContentPlatform,
+    url: str(row.url),
+    external_id: str(row.external_id),
+    views: num(row.views),
+    likes: num(row.likes),
+    comments: num(row.comments),
+    impressions: num(row.impressions),
+    shares: num(row.shares),
+    saves: num(row.saves),
+    followers_gained: num(row.followers_gained),
+    published_at: str(row.published_at),
+    title: str(row.title),
+  };
+}
+
 /** Elle girilen platformların metrik alanları — tek kaynak, modal bunu kullanır. */
 export const MANUAL_METRIC_FIELDS = [
   { key: 'views',            label: 'İzlenme',  hint: 'Gerçek video izlenmesi' },
