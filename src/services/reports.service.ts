@@ -4,6 +4,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import { tr } from '@/lib/i18n';
 import type { MetricsPlatform, SocialMonthlyMetrics, TransactionType } from '@/types';
 
 // Helper to get previous month in YYYY-MM format
@@ -227,13 +228,7 @@ function generateInsights(
 
   // Best platform
   if (fastestGrowing) {
-    const platformNames: Record<MetricsPlatform, string> = {
-      TWITCH:    'Twitch',
-      KICK:      'Kick',
-      YOUTUBE:   'YouTube',
-      INSTAGRAM: 'Instagram',
-      X:         'X',
-    };
+    const platformNames = tr.social.platforms;
     sentences.push(
       `En hızlı büyüyen platform ${platformNames[fastestGrowing.platform]} oldu (+${fastestGrowing.growth.toLocaleString('tr-TR')} takipçi).`
     );
@@ -266,13 +261,7 @@ function generateInsights(
   const suggestions: string[] = [];
 
   if (declining) {
-    const platformNames: Record<MetricsPlatform, string> = {
-      TWITCH:    'Twitch',
-      KICK:      'Kick',
-      YOUTUBE:   'YouTube',
-      INSTAGRAM: 'Instagram',
-      X:         'X',
-    };
+    const platformNames = tr.social.platforms;
     suggestions.push(
       `${platformNames[declining.platform]} platformunda takipçi kaybı yaşanıyor, içerik stratejisi gözden geçirilmeli.`
     );

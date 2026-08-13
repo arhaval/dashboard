@@ -35,7 +35,7 @@ export const TRANSACTION_TYPES: readonly TransactionType[] = ['INCOME', 'EXPENSE
 
 export const PAYMENT_STATUSES: readonly PaymentStatus[] = ['PENDING', 'PAID', 'CANCELLED'] as const;
 
-export const METRICS_PLATFORMS: readonly MetricsPlatform[] = ['TWITCH', 'YOUTUBE', 'INSTAGRAM', 'X', 'KICK'] as const;
+export const METRICS_PLATFORMS: readonly MetricsPlatform[] = ['TWITCH', 'YOUTUBE', 'INSTAGRAM', 'X', 'KICK', 'TIKTOK', 'WEBSITE'] as const;
 
 // =============================================================================
 // Status Transitions (business logic)
@@ -143,6 +143,19 @@ export const GOAL_METRICS_BY_PLATFORM: Record<MetricsPlatform, { key: string; la
     { key: 'avg_viewers', label: 'Ort. İzleyici' },
     { key: 'live_views', label: 'Canlı İzlenme' },
     { key: 'total_stream_time_minutes', label: 'Yayın Süresi (dk)' },
+  ],
+  TIKTOK: [
+    { key: 'followers_total', label: 'Takipçi' },
+    { key: 'views', label: 'Görüntülenme' },
+    { key: 'likes', label: 'Beğeni' },
+    { key: 'shares', label: 'Paylaşım' },
+    { key: 'saves', label: 'Kaydetme' },
+  ],
+  // Web sitesinin takipçisi yok; hedefler ziyaret ve okunma üzerinden.
+  WEBSITE: [
+    { key: 'visitors', label: 'Tekil Ziyaretçi' },
+    { key: 'page_views', label: 'Sayfa Görüntüleme' },
+    { key: 'avg_session_seconds', label: 'Ort. Oturum (sn)' },
   ],
 } as const;
 

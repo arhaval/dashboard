@@ -170,7 +170,7 @@ export interface SocialStatFilters {
 // Monthly Social Metrics Types (v2)
 // =============================================================================
 
-export type MetricsPlatform = 'TWITCH' | 'YOUTUBE' | 'INSTAGRAM' | 'X' | 'KICK';
+export type MetricsPlatform = 'TWITCH' | 'YOUTUBE' | 'INSTAGRAM' | 'X' | 'KICK' | 'TIKTOK' | 'WEBSITE';
 
 // Base fields for all platforms
 export interface SocialMonthlyMetricsBase {
@@ -286,6 +286,10 @@ export interface CreateSocialMonthlyMetricsInput {
   replies?: number;
   profile_visits?: number;
   total_engagement_rate?: number;
+  // Web sitesi — takipçisi yok, ölçüsü ziyaret ve okunma.
+  visitors?: number;
+  page_views?: number;
+  avg_session_seconds?: number;
 }
 
 // Growth data for dashboard

@@ -16,6 +16,9 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { getPlatformLabel, getPlatformBadgeClass } from '@/lib/utils';
+// Erişim alanı tek kaynakta: grafikteki çizgi ile aylık özetteki cümle aynı
+// sayıyı anlatsın.
+import { MAIN_METRIC } from './social-monthly.constants';
 import type { SocialMonthlyMetrics, MetricsPlatform } from '@/types';
 
 interface TrendChartsProps {
@@ -37,14 +40,6 @@ const MONTH_LABELS: Record<string, string> = {
   '12': 'Ara',
 };
 
-// Platform-specific main metric key
-const MAIN_METRIC: Record<MetricsPlatform, { key: string; label: string }> = {
-  TWITCH:    { key: 'live_views',   label: 'Canlı İzlenme'       },
-  KICK:      { key: 'live_views',   label: 'Canlı İzlenme'       },
-  YOUTUBE:   { key: 'video_views',  label: 'Video Görüntülenme'  },
-  INSTAGRAM: { key: 'views',        label: 'Görüntülenme'        },
-  X:         { key: 'impressions',  label: 'Gösterim'            },
-};
 
 function formatMonthLabel(month: string): string {
   const parts = month.split('-');
@@ -80,7 +75,7 @@ function buildPlatformData(
   }));
 }
 
-const PLATFORMS: MetricsPlatform[] = ['TWITCH', 'YOUTUBE', 'INSTAGRAM', 'X'];
+const PLATFORMS: MetricsPlatform[] = ['INSTAGRAM', 'YOUTUBE', 'TIKTOK', 'X', 'TWITCH', 'KICK', 'WEBSITE'];
 
 export function TrendCharts({ trendData }: TrendChartsProps) {
   if (trendData.length === 0) {

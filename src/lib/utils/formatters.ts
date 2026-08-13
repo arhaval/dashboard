@@ -124,6 +124,8 @@ export function getPlatformBadgeClass(platform: MetricsPlatform): string {
     YOUTUBE:   'bg-red-500/10 text-red-400',
     INSTAGRAM: 'bg-pink-500/10 text-pink-400',
     X:         'bg-blue-500/10 text-blue-400',
+    TIKTOK:    'bg-cyan-500/10 text-cyan-400',
+    WEBSITE:   'bg-amber-500/10 text-amber-400',
   };
   return map[platform];
 }

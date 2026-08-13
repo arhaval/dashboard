@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/idea-reminder",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/monthly-entry-reminder",
+      "schedule": "0 7 * * *"
     }
   ]
 }

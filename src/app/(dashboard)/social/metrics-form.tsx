@@ -12,17 +12,21 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { tr } from '@/lib/i18n';
 import { upsertSocialMetrics, parseChannelMonthlyCSV } from './metrics-actions';
+import {
+  MONTHLY_FIELDS,
+  MONTHLY_PLATFORMS,
+  MONTHLY_PLATFORM_LABELS,
+  PLATFORMS_WITHOUT_FOLLOWERS,
+  type MonthlyPlatform,
+} from './social-monthly.constants';
 import type { MetricsPlatform, CreateSocialMonthlyMetricsInput } from '@/types';
 
 // ── Platform options ──────────────────────────────────────────────────────────
 
-const PLATFORM_OPTIONS: { value: MetricsPlatform; label: string }[] = [
-  { value: 'TWITCH',    label: tr.social.platforms.TWITCH    },
-  { value: 'KICK',      label: tr.social.platforms.KICK      },
-  { value: 'YOUTUBE',   label: tr.social.platforms.YOUTUBE   },
-  { value: 'INSTAGRAM', label: tr.social.platforms.INSTAGRAM },
-  { value: 'X',         label: tr.social.platforms.X         },
-];
+const PLATFORM_OPTIONS: { value: MonthlyPlatform; label: string }[] = MONTHLY_PLATFORMS.map((p) => ({
+  value: p,
+  label: MONTHLY_PLATFORM_LABELS[p],
+}));
 
 function getPreviousMonth(): string {
   const now = new Date();
@@ -32,52 +36,9 @@ function getPreviousMonth(): string {
 
 // ── Field definitions ─────────────────────────────────────────────────────────
 
-interface FieldConfig {
-  name: string;
-  label: string;
-  type: 'number' | 'decimal';
-  /** CSV'den gelen veri hangi key'e karşılık gelir */
-  csvKey?: string;
-}
-
-const PLATFORM_FIELDS: Record<MetricsPlatform, FieldConfig[]> = {
-  TWITCH: [
-    { name: 'total_stream_time_minutes', label: tr.metricsForm.totalStreamTime, type: 'number',  csvKey: 'total_stream_time_minutes' },
-    { name: 'avg_viewers',               label: tr.metricsForm.avgViewers,       type: 'number',  csvKey: 'avg_viewers'               },
-    { name: 'peak_viewers',              label: tr.metricsForm.peakViewers,      type: 'number',  csvKey: 'peak_viewers'               },
-    { name: 'unique_viewers',            label: tr.metricsForm.uniqueViewers,    type: 'number'                                        },
-    { name: 'live_views',                label: tr.metricsForm.liveViews,        type: 'number',  csvKey: 'live_views'                 },
-    { name: 'unique_chatters',           label: tr.metricsForm.uniqueChatters,   type: 'number'                                        },
-    { name: 'subs_total',                label: tr.metricsForm.subsTotal,        type: 'number'                                        },
-  ],
-  KICK: [
-    { name: 'followers_total',           label: tr.metricsForm.followersTotal,   type: 'number'                                        },
-    { name: 'peak_viewers',              label: tr.metricsForm.peakViewers,      type: 'number',  csvKey: 'peak_viewers'               },
-    { name: 'avg_viewers',               label: tr.metricsForm.avgViewers,       type: 'number',  csvKey: 'avg_viewers'                },
-    { name: 'live_views',                label: tr.metricsForm.liveViews,        type: 'number',  csvKey: 'live_views'                 },
-    { name: 'total_stream_time_minutes', label: tr.metricsForm.totalStreamTime,  type: 'number',  csvKey: 'total_stream_time_minutes'  },
-  ],
-  // YouTube: abone/izlenme/beğeni/yorum cron ile otomatik dolar.
-  // Elle sadece canlı izleyici (ort/zirve) girilir.
-  YOUTUBE: [
-    { name: 'avg_live_viewers',   label: tr.metricsForm.avgLiveViewers,    type: 'number'                                 },
-    { name: 'peak_live_viewers',  label: tr.metricsForm.peakLiveViewers,   type: 'number'                                 },
-  ],
-  INSTAGRAM: [
-    { name: 'views',    label: tr.metricsForm.views,    type: 'number', csvKey: 'impressions'     },
-    { name: 'likes',    label: tr.metricsForm.likes,    type: 'number', csvKey: 'likes'           },
-    { name: 'comments', label: tr.metricsForm.comments, type: 'number', csvKey: 'comments'        },
-    { name: 'saves',    label: tr.metricsForm.saves,    type: 'number', csvKey: 'saves'           },
-    { name: 'shares',   label: tr.metricsForm.shares,   type: 'number', csvKey: 'shares'          },
-  ],
-  X: [
-    { name: 'impressions',    label: tr.metricsForm.impressions,    type: 'number',  csvKey: 'impressions'    },
-    { name: 'likes',          label: tr.metricsForm.likes,          type: 'number',  csvKey: 'likes'          },
-    { name: 'replies',        label: tr.metricsForm.replies,        type: 'number',  csvKey: 'replies'        },
-    { name: 'shares',         label: tr.metricsForm.retweets,       type: 'number',  csvKey: 'retweets'       },
-    { name: 'profile_visits', label: tr.metricsForm.profileVisits,  type: 'number',  csvKey: 'profile_visits' },
-  ],
-};
+// Alan listesi social-monthly.constants'ta — form ve "eksik giriş" hesabı aynı
+// listeyi okur, yoksa yeni bir alan eklendiğinde biri diğerini görmez.
+const PLATFORM_FIELDS = MONTHLY_FIELDS;
 
 // ── CSV dosya bırakma alanı ───────────────────────────────────────────────────
 
@@ -204,11 +165,11 @@ export function MetricsForm() {
   const [success, setSuccess] = useState(false);
 
   const [month, setMonth]   = useState(getPreviousMonth());
-  const [platform, setPlatform] = useState<MetricsPlatform>('TWITCH');
+  const [platform, setPlatform] = useState<MonthlyPlatform>('INSTAGRAM');
   const [followersTotal, setFollowersTotal] = useState('');
   const [platformFields, setPlatformFields] = useState<Record<string, string>>({});
 
-  const handlePlatformChange = (newPlatform: MetricsPlatform) => {
+  const handlePlatformChange = (newPlatform: MonthlyPlatform) => {
     setPlatform(newPlatform);
     setPlatformFields({});
     setFollowersTotal('');
@@ -284,12 +245,18 @@ export function MetricsForm() {
   };
 
   const currentFields = PLATFORM_FIELDS[platform];
-  // Kick'in "followers_total" alanı zaten üst kısımda gösterildiğinden listeyi filtrele
-  const visibleFields = platform === 'KICK'
-    ? currentFields.filter(f => f.name !== 'followers_total')
-    : currentFields;
+  // Formda YALNIZCA elle girilen alanlar görünür: API'den gelen bir alanı
+  // kullanıcıya yazdırmak otomatik değeri ezme riski. Doluluk hesabı yine de
+  // hepsine bakar — otomatik alan boş kalıyorsa sorun entegrasyondadır ve
+  // "eksik giriş" haritasında ayrıca gösterilir.
+  // followers_total zaten üstteki ayrı kutuda.
+  const visibleFields = currentFields.filter(
+    (f) => f.source === 'MANUAL' && f.name !== 'followers_total'
+  );
 
   const isYouTube = platform === 'YOUTUBE';
+  // Web sitesinin takipçisi yok.
+  const hasFollowers = !PLATFORMS_WITHOUT_FOLLOWERS.includes(platform);
 
   return (
     <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
@@ -341,7 +308,7 @@ export function MetricsForm() {
               </Select>
             </div>
 
-            {!isYouTube && (
+            {!isYouTube && hasFollowers && (
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]">
                   {tr.metricsForm.followersTotal}

@@ -21,6 +21,9 @@ import { MonthlyNotes } from './monthly-notes';
 import { GoalProgress } from './goal-progress';
 import { PlatformDetailCards } from './platform-details';
 import { GrowthReport } from './growth-report';
+import { MonthlyOverview } from './monthly-overview';
+import { EntryStatus } from './entry-status';
+import { socialSummaryService } from '@/services/social-summary.service';
 
 function getCurrentMonth(): string {
   const now = new Date();
@@ -79,6 +82,9 @@ export default async function SocialPage() {
 
   const latestFollowers = await socialMetricsService.getLatestFollowers();
 
+  // Sayıdan önce SONUÇ: ne yaptın / nasıl gitti / nerede yükseliyorsun.
+  const { summary, completeness } = await socialSummaryService.getOverview(activeMonth);
+
   return (
     <PageShell
       title={tr.pages.social.title}
@@ -87,6 +93,11 @@ export default async function SocialPage() {
       {/* Platform follower summary — original logos, latest counts */}
       <div className="mb-6">
         <PlatformSummary followers={latestFollowers} />
+      </div>
+
+      {/* Aylık özet — rakamlardan önce düz Türkçe sonuç */}
+      <div className="mb-6">
+        <MonthlyOverview summary={summary} percent={completeness.percent} />
       </div>
 
       {/* Monthly Growth Report */}
@@ -122,11 +133,14 @@ export default async function SocialPage() {
             />
           </div>
 
-          {/* Manual Entry */}
-          <div className="mb-6">
-            <YouTubeConnect connected={ytStatus.connected} />
-            <InstagramConnect connected={igStatus.connected} username={igStatus.username} />
-            <MetricsForm />
+          {/* Veri girişi: önce NE EKSİK, hemen altında giriş formu */}
+          <div className="mb-6 grid gap-4 lg:grid-cols-2">
+            <EntryStatus completeness={completeness} />
+            <div>
+              <YouTubeConnect connected={ytStatus.connected} />
+              <InstagramConnect connected={igStatus.connected} username={igStatus.username} />
+              <MetricsForm />
+            </div>
           </div>
 
           {/* Platform History */}

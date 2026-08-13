@@ -44,6 +44,17 @@ const SUMMARY_METRICS: Record<MetricsPlatform, MetricDef[]> = {
     { label: 'Ort. İzleyici', key: 'avg_viewers' },
     { label: 'Canlı İzlenme', key: 'live_views' },
   ],
+  TIKTOK: [
+    { label: 'Takipçi', key: 'followers_total' },
+    { label: 'Görüntülenme', key: 'views' },
+    { label: 'Beğeni', key: 'likes' },
+  ],
+  // Web sitesinin takipçisi yok; ölçüsü ziyaret.
+  WEBSITE: [
+    { label: 'Tekil Ziyaretçi', key: 'visitors' },
+    { label: 'Sayfa Görüntüleme', key: 'page_views' },
+    { label: 'Ort. Oturum', key: 'avg_session_seconds' },
+  ],
 };
 
 // Additional metrics shown when expanded
@@ -76,6 +87,13 @@ const DETAIL_METRICS: Record<MetricsPlatform, MetricDef[]> = {
     { label: 'Zirve İzleyici', key: 'peak_viewers' },
     { label: 'Yayın Süresi', key: 'total_stream_time_minutes', format: 'hours' },
   ],
+  TIKTOK: [
+    { label: 'Yorum', key: 'comments' },
+    { label: 'Kaydetme', key: 'saves' },
+    { label: 'Paylaşım', key: 'shares' },
+  ],
+  // Özet zaten üç alanın hepsini gösteriyor; açılınca ek metrik yok.
+  WEBSITE: [],
 };
 
 function getVal(metrics: SocialMonthlyMetrics | undefined, key: string): number {

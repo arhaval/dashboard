@@ -188,6 +188,8 @@ export const tr = {
       INSTAGRAM: 'Instagram',
       X: 'X',
       KICK: 'Kick',
+      TIKTOK: 'TikTok',
+      WEBSITE: 'Web Sitesi',
     },
     fields: {
       platform: 'Platform',
