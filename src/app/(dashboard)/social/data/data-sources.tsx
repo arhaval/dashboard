@@ -8,8 +8,8 @@
  * günlük akışta lazım olmuyorlar ve yanlışlıkla tetiklenmeleri istenmiyor.
  */
 
-import { getPlatformBadgeClass } from '@/lib/utils';
-import { MONTHLY_PLATFORMS, MONTHLY_PLATFORM_LABELS, type MonthlyPlatform } from '../social-monthly.constants';
+import { MONTHLY_PLATFORMS, type MonthlyPlatform } from '../social-monthly.constants';
+import { PlatformTag } from '../social-ui';
 
 /** API entegrasyonu olan platformlar. */
 const AUTOMATIC: MonthlyPlatform[] = ['YOUTUBE', 'INSTAGRAM'];
@@ -53,9 +53,7 @@ export function DataSources({ statuses }: { statuses: SourceStatus[] }) {
               className="flex items-center gap-2 rounded-[var(--radius-sm)] px-2.5 py-2"
               style={{ backgroundColor: 'var(--color-surface-sunken)', border: '1px solid var(--color-border)' }}
             >
-              <span className={`rounded px-1.5 py-0.5 text-[11px] font-bold ${getPlatformBadgeClass(platform)}`}>
-                {MONTHLY_PLATFORM_LABELS[platform]}
-              </span>
+              <PlatformTag platform={platform} strong />
 
               <div className="ml-auto text-right">
                 {automatic ? (

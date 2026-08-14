@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import { Check, Plug, Sparkles, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getPlatformBadgeClass } from '@/lib/utils';
+import { PlatformTag } from '../social-ui';
 import { monthLabel, type MonthCompleteness, type PlatformCompleteness } from '../social-monthly.constants';
 import { CompletionWizard } from './completion-wizard';
 
@@ -76,9 +76,7 @@ function PlatformLine({ p }: { p: PlatformCompleteness }) {
       className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[var(--radius-sm)] px-2.5 py-2"
       style={{ backgroundColor: 'var(--color-surface-sunken)', border: '1px solid var(--color-border)' }}
     >
-      <span className={`rounded px-1.5 py-0.5 text-[11px] font-bold ${getPlatformBadgeClass(p.platform)}`}>
-        {p.label}
-      </span>
+      <PlatformTag platform={p.platform} strong />
 
       <span
         className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"

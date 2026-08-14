@@ -14,7 +14,7 @@ import { useMemo, useState } from 'react';
 import {
   CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
-import { getPlatformBadgeClass } from '@/lib/utils';
+import { Amount, Figure, MicroLabel, PlatformTag } from '../social-ui';
 import {
   ANALYTICS_METRICS,
   MONTHLY_PLATFORMS,
@@ -90,11 +90,12 @@ export function AnalyticsExplorer({ rows, currentYear }: { rows: MetricRow[]; cu
                 setPlatform(p);
                 setMetricKey(ANALYTICS_METRICS[p][0].key);
               }}
-              className={`rounded-[var(--radius-sm)] px-2.5 py-1 text-[11.5px] font-bold transition-opacity ${
-                active ? '' : 'opacity-45 hover:opacity-80'
-              } ${getPlatformBadgeClass(p)}`}
+              className="rounded-[var(--radius-sm)] px-2.5 py-1.5 transition-colors"
+              style={active
+                ? { backgroundColor: 'var(--color-bg-tertiary)', border: '1px solid var(--color-border-hover)' }
+                : { border: '1px solid transparent' }}
             >
-              {MONTHLY_PLATFORM_LABELS[p]}
+              <PlatformTag platform={p} muted={!active} strong={active} />
             </button>
           );
         })}
@@ -120,22 +121,24 @@ export function AnalyticsExplorer({ rows, currentYear }: { rows: MetricRow[]; cu
         className="rounded-[var(--radius-md)] p-4"
         style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)' }}
       >
-        <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-            {MONTHLY_PLATFORM_LABELS[platform]} · {activeMetric.label}
-          </h3>
-          {latest != null && (
-            <span className="font-mono text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
-              son ay {full(latest)}
-            </span>
-          )}
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <MicroLabel>{MONTHLY_PLATFORM_LABELS[platform]} · {activeMetric.label}</MicroLabel>
+            <div className="mt-1.5">
+              <Amount tone={latest == null ? 'var(--color-text-muted)' : undefined}>
+                {latest == null ? '—' : full(latest)}
+              </Amount>
+            </div>
+            <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+              son ay
+            </p>
+          </div>
           {changePct != null && (
-            <span
-              className="font-mono text-[12px]"
-              style={{ color: changePct >= 0 ? 'var(--color-success)' : 'var(--color-error)' }}
-              title="Seçili aralığın başından sonuna değişim"
-            >
-              {changePct >= 0 ? '+' : ''}{changePct}% aralık boyunca
+            <span title="Seçili aralığın başından sonuna değişim">
+              <Figure tone={changePct >= 0 ? 'var(--color-success)' : 'var(--color-error)'}>
+                {changePct >= 0 ? '+' : ''}{changePct}%
+              </Figure>
+              <span className="ml-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>aralık boyunca</span>
             </span>
           )}
         </div>
@@ -257,12 +260,10 @@ function ComparisonTable({
                 {metrics.map((m) => {
                   const value = readMetric(byMonth.get(month), platform, m.key);
                   return (
-                    <td
-                      key={m.key}
-                      className="px-3.5 py-2 text-right font-mono text-[12.5px]"
-                      style={{ color: value == null ? 'var(--color-text-muted)' : 'var(--color-text-primary)' }}
-                    >
-                      {value == null ? '—' : full(value)}
+                    <td key={m.key} className="px-3.5 py-2 text-right">
+                      <Figure tone={value == null ? 'var(--color-text-muted)' : undefined}>
+                        {value == null ? '—' : full(value)}
+                      </Figure>
                     </td>
                   );
                 })}

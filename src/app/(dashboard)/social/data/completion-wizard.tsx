@@ -15,7 +15,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Check, Plug, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getPlatformBadgeClass } from '@/lib/utils';
+import { PlatformTag } from '../social-ui';
 import { monthLabel, type MonthCompleteness, type PlatformCompleteness } from '../social-monthly.constants';
 import { saveMissingMetrics } from './wizard-actions';
 
@@ -86,9 +86,7 @@ export function CompletionWizard({
         ) : step ? (
           <>
             <div className="mb-3 flex items-center gap-2">
-              <span className={`rounded px-2 py-0.5 text-[12px] font-bold ${getPlatformBadgeClass(step.platform)}`}>
-                {step.label}
-              </span>
+              <PlatformTag platform={step.platform} strong />
               <span className="text-[11.5px]" style={{ color: 'var(--color-text-muted)' }}>
                 {step.pendingManualFields.length} alan eksik
               </span>

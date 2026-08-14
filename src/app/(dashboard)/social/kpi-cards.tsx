@@ -1,17 +1,24 @@
 /**
- * 4 ana KPI kartı — ekranın ilk satırı, 10 saniyelik cevabın çekirdeği.
+ * 4 ana KPI — ekranın karar sayıları.
  *
- * Eksik veri varsa yüzde GÖSTERİLMEZ; onun yerine "Eksik veri var" uyarısı
- * çıkar. Eksik kapsamla üretilen yüzde, düşüş gibi görünen bir kapsam
- * değişikliğidir — yanıltır.
+ * Sayfadaki TEK kutulu blok bunlar: her bölüm çerçeveli olunca hiçbiri öne
+ * çıkmıyordu. Miktarlar serif + tabular-nums (İçerik Performansı ile aynı
+ * sistem), etiketler sans.
+ *
+ * Eksik veri varsa yüzde GÖSTERİLMEZ; kapsam değişikliğini düşüş gibi sunmak
+ * yanıltır. Onun yerine kaç platformdan veri geldiği yazar.
  */
 
-import { AlertTriangle, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { compact, full, type Kpi } from './social-overview.constants';
+import { Amount, MicroLabel } from './social-ui';
 
 export function KpiCards({ kpis }: { kpis: Kpi[] }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div
+      className="grid gap-px overflow-hidden rounded-[var(--radius-md)] sm:grid-cols-2 xl:grid-cols-4"
+      style={{ backgroundColor: 'var(--color-border)', border: '1px solid var(--color-border)' }}
+    >
       {kpis.map((kpi) => <KpiCard key={kpi.key} kpi={kpi} />)}
     </div>
   );
@@ -25,37 +32,35 @@ function KpiCard({ kpi }: { kpi: Kpi }) {
   const fmtValue = kpi.key === 'followers' ? full : compact;
 
   return (
-    <div
-      className="rounded-[var(--radius-md)] p-4"
-      style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)' }}
-    >
-      <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>
-        {kpi.label}
-      </p>
+    <div className="p-4" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
+      <MicroLabel>{kpi.label}</MicroLabel>
 
-      <p className="mt-1.5 text-[26px] font-semibold leading-none" style={{ color: 'var(--color-text-primary)' }}>
-        {kpi.value == null ? '—' : fmtValue(kpi.value)}
-      </p>
+      <div className="mt-2">
+        <Amount tone={kpi.value == null ? 'var(--color-text-muted)' : undefined}>
+          {kpi.value == null ? '—' : fmtValue(kpi.value)}
+        </Amount>
+      </div>
 
-      <div className="mt-2 min-h-[18px]">
+      <div className="mt-2 min-h-[16px]">
         {kpi.delta != null ? (
-          <span className="inline-flex items-center gap-1 text-[12px]" style={{ color: deltaColor }}>
+          <span
+            className="inline-flex items-center gap-1 text-[11.5px]"
+            style={{ color: deltaColor, fontVariantNumeric: 'tabular-nums' }}
+          >
             <Arrow className="h-3.5 w-3.5" />
             {positive ? '+' : '−'}{fmtValue(Math.abs(kpi.delta))}
-            {kpi.percent != null && <span style={{ opacity: 0.75 }}>· %{Math.abs(kpi.percent)}</span>}
-            <span style={{ color: 'var(--color-text-muted)' }}>bu ay</span>
+            {kpi.percent != null && <span style={{ opacity: 0.7 }}>%{Math.abs(kpi.percent)}</span>}
           </span>
         ) : kpi.value != null ? (
-          <span className="text-[12px]" style={{ color: 'var(--color-text-muted)' }}>
-            geçen ayla kıyaslanamıyor
+          <span className="text-[11.5px]" style={{ color: 'var(--color-text-muted)' }}>
+            kıyas yok
           </span>
         ) : null}
       </div>
 
       {kpi.hasGaps && (
-        <p className="mt-1.5 inline-flex items-center gap-1 text-[11px]" style={{ color: 'var(--color-warning)' }}>
-          <AlertTriangle className="h-3 w-3" />
-          Eksik veri var ({kpi.reporting}/{kpi.expected} platform)
+        <p className="mt-1 text-[10.5px]" style={{ color: 'var(--color-warning)' }}>
+          {kpi.reporting}/{kpi.expected} platformdan veri
         </p>
       )}
     </div>
