@@ -12,6 +12,9 @@ import {
   monthCompleteness,
   monthLabel,
   previousMonth,
+  readMetric,
+  ANALYTICS_METRICS,
+  DERIVED_ENGAGEMENT,
   MONTHLY_PLATFORMS,
   type MonthlyPlatform,
 } from '../src/app/(dashboard)/social/social-monthly.constants';
@@ -258,6 +261,31 @@ eq('takip edilen platform sayısı', MONTHLY_PLATFORMS.length, 7);
   check('içgörü: en güçlü tür yer alır', insights.some((i) => i.subject.includes('Hikayesi')), insights);
   check('içgörü: eksik veri uyarısı', insights.some((i) => i.title === 'Dikkat'), insights);
   eq('içgörü: deterministik', buildInsights({ platforms: rows, topGenre: { label: 'Oyuncu/Takım Hikayesi', avgViews: 44643 }, missingPlatforms: ['TikTok'] }), insights);
+}
+
+// ── 6b. Analiz: grafiklenebilir metrikler ───────────────────────────────────
+
+{
+  for (const p of MONTHLY_PLATFORMS) {
+    check(`analiz: ${p} için metrik tanımlı`, ANALYTICS_METRICS[p].length > 0, ANALYTICS_METRICS[p]);
+  }
+
+  const igRow = { platform: 'INSTAGRAM', followers_total: 10482, views: 1544155, likes: 66273, comments: 3752, saves: 0 };
+  eq('analiz: düz kolon okunur', readMetric(igRow, 'INSTAGRAM', 'views'), 1544155);
+  eq('analiz: 0 girilmemiş sayılır', readMetric(igRow, 'INSTAGRAM', 'saves'), null);
+  eq('analiz: olmayan kolon null', readMetric(igRow, 'INSTAGRAM', 'shares'), null);
+  eq('analiz: satır yoksa null', readMetric(undefined, 'INSTAGRAM', 'views'), null);
+
+  // X'te "Etkileşim" tek kolon değil, toplam.
+  const xRow = { platform: 'X', likes: 9900, replies: 120, shares: 152 };
+  eq('analiz: türetilmiş etkileşim toplanır', readMetric(xRow, 'X', DERIVED_ENGAGEMENT), 9900 + 120 + 152);
+  eq('analiz: etkileşim verisi yoksa null', readMetric({ platform: 'X' }, 'X', DERIVED_ENGAGEMENT), null);
+
+  // Twitch etkileşim raporlamaz — türetilmiş metrik uydurulmamalı.
+  eq('analiz: raporlamayan platformda etkileşim null', readMetric({ platform: 'TWITCH', live_views: 500 }, 'TWITCH', DERIVED_ENGAGEMENT), null);
+
+  // YouTube grafiğinde abone alanı doğru kolondan gelmeli.
+  eq('analiz: YouTube abonesi', readMetric({ platform: 'YOUTUBE', subscribers_total: 29800 }, 'YOUTUBE', 'subscribers_total'), 29800);
 }
 
 // ── 7. Ay seçimi ────────────────────────────────────────────────────────────

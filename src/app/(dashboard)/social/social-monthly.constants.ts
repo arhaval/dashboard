@@ -191,6 +191,104 @@ export function expectedFields(platform: MonthlyPlatform): MonthlyField[] {
   ];
 }
 
+// ── Analiz ekranında grafiklenebilir metrikler ──────────────────────────────
+
+/**
+ * Türetilmiş metrik: tek kolon değil, ENGAGEMENT_FIELDS toplamı.
+ * X'te "Etkileşim" böyle bir metrik (beğeni + yanıt + retweet).
+ */
+export const DERIVED_ENGAGEMENT = '__engagement__';
+
+export interface AnalyticsMetric {
+  key: string;
+  label: string;
+}
+
+/**
+ * Analiz ekranında çizilebilecek metrikler.
+ *
+ * Doluluk listesinden (MONTHLY_FIELDS) neden ayrı: o liste "ay kapanması için
+ * ZORUNLU olan" alanları tanımlar. Burada ise "grafiği çizilebilen" alanlar var
+ * — Shorts izlenme, canlı izlenme gibi zorunlu olmayan ama takip edilen
+ * kolonlar da dahil. Etiketler yine tek kaynaktan (tr.metricsForm).
+ */
+export const ANALYTICS_METRICS: Record<MonthlyPlatform, AnalyticsMetric[]> = {
+  INSTAGRAM: [
+    { key: 'followers_total', label: tr.metricsForm.followersTotal },
+    { key: 'views',           label: tr.metricsForm.views },
+    { key: 'likes',           label: tr.metricsForm.likes },
+    { key: 'comments',        label: tr.metricsForm.comments },
+    { key: 'saves',           label: tr.metricsForm.saves },
+    { key: 'shares',          label: tr.metricsForm.shares },
+  ],
+  YOUTUBE: [
+    { key: 'subscribers_total', label: tr.metricsForm.subscribersTotal },
+    { key: 'video_views',       label: tr.metricsForm.videoViews },
+    { key: 'shorts_views',      label: tr.metricsForm.shortsViews },
+    { key: 'live_views',        label: tr.metricsForm.liveViews },
+    { key: 'total_likes',       label: tr.metricsForm.totalLikes },
+    { key: 'total_comments',    label: tr.metricsForm.totalComments },
+  ],
+  TIKTOK: [
+    { key: 'followers_total', label: tr.metricsForm.followersTotal },
+    { key: 'views',           label: tr.metricsForm.views },
+    { key: 'likes',           label: tr.metricsForm.likes },
+    { key: 'comments',        label: tr.metricsForm.comments },
+    { key: 'saves',           label: tr.metricsForm.saves },
+    { key: 'shares',          label: tr.metricsForm.shares },
+  ],
+  X: [
+    { key: 'followers_total',    label: tr.metricsForm.followersTotal },
+    { key: 'impressions',        label: tr.metricsForm.impressions },
+    { key: DERIVED_ENGAGEMENT,   label: 'Etkileşim' },
+  ],
+  TWITCH: [
+    { key: 'followers_total',           label: tr.metricsForm.followersTotal },
+    { key: 'live_views',                label: tr.metricsForm.liveViews },
+    { key: 'avg_viewers',               label: tr.metricsForm.avgViewers },
+    { key: 'unique_viewers',            label: tr.metricsForm.uniqueViewers },
+    { key: 'unique_chatters',           label: tr.metricsForm.uniqueChatters },
+    { key: 'total_stream_time_minutes', label: tr.metricsForm.totalStreamTime },
+  ],
+  KICK: [
+    { key: 'followers_total', label: tr.metricsForm.followersTotal },
+    { key: 'live_views',      label: tr.metricsForm.liveViews },
+    { key: 'avg_viewers',     label: tr.metricsForm.avgViewers },
+  ],
+  WEBSITE: [
+    { key: 'visitors',            label: 'Tekil Ziyaretçi' },
+    { key: 'page_views',          label: 'Sayfa Görüntüleme' },
+    { key: 'avg_session_seconds', label: 'Ort. Oturum Süresi' },
+  ],
+};
+
+/** Bir satırdan metrik değerini oku (türetilmiş metrikler dahil). */
+export function readMetric(
+  row: Record<string, unknown> | undefined,
+  platform: MonthlyPlatform,
+  metricKey: string
+): number | null {
+  if (!row) return null;
+
+  const toNum = (v: unknown): number | null => {
+    if (v == null || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+
+  if (metricKey !== DERIVED_ENGAGEMENT) return toNum(row[metricKey]);
+
+  let sum = 0;
+  let has = false;
+  for (const f of ENGAGEMENT_FIELDS[platform]) {
+    const v = toNum(row[f]);
+    if (v == null) continue;
+    sum += v;
+    has = true;
+  }
+  return has ? sum : null;
+}
+
 // ── Doluluk ─────────────────────────────────────────────────────────────────
 
 /**

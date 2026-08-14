@@ -1,17 +1,13 @@
 /**
  * ANALİZ — "neden böyle oldu?"
  *
- * Salt okunur. Yönetim işlemi (düzenleme/silme/giriş) burada yok; onlar Veri
- * Merkezi'ne ait.
- *
- * Faz 2'de tek grafik + platform/metrik/aralık seçicisine dönüşecek; şu an
- * mevcut çalışan grafikler taşındı, hiçbir işlev kaybolmadı.
+ * Tek grafik, üç seçici (platform / aralık / metrik). Salt okunur: düzenleme
+ * ve silme burada yok, onlar Veri Merkezi'ne ait.
  */
 
 import { redirect } from 'next/navigation';
 import { socialMetricsService, userService } from '@/services';
-import { TrendCharts } from '../trend-charts';
-import { PlatformHistory } from '../platform-history';
+import { AnalyticsExplorer, type MetricRow } from './analytics-explorer';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,12 +16,9 @@ export default async function SocialAnalyticsPage() {
   if (!currentUser) redirect('/login');
   if (currentUser.role !== 'ADMIN') redirect('/social');
 
-  const trendData = await socialMetricsService.getTrendData();
+  // Bütün geçmiş tek seferde gelir; aralık filtresi istemcide, böylece seçici
+  // değiştikçe sunucuya gidilmez.
+  const rows = (await socialMetricsService.getTrendData()) as unknown as MetricRow[];
 
-  return (
-    <div className="flex flex-col gap-6">
-      <TrendCharts trendData={trendData} />
-      <PlatformHistory isReadOnly />
-    </div>
-  );
+  return <AnalyticsExplorer rows={rows} currentYear={new Date().getFullYear()} />;
 }
