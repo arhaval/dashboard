@@ -333,7 +333,7 @@ export function MetricsForm() {
             >
               📊 Abone, video/Shorts/canlı izlenme, beğeni ve yorum <strong>cron ile her gün otomatik</strong> dolar
               (İçerik Performansı senkronundan). Sen sadece aşağıdaki <strong>canlı izleyici</strong> alanlarını gir.
-              Canlı yayınlar "Video İzlenme"ye dahil edilmez — ayrı sayılır.
+              Canlı yayınlar &quot;Video İzlenme&quot;ye dahil edilmez — ayrı sayılır.
             </div>
           )}
 

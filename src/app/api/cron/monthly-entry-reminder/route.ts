@@ -91,9 +91,13 @@ export async function GET(request: Request) {
 
   await notificationService.notify({
     roles: ['ADMIN'],
-    title: `📈 ${monthLabel(month)} verisi eksik (%${completeness.percent})`,
-    body: `${missingFieldCount} alan boş. ${lines.join(' — ')}`,
-    url: '/social',
+    title: `📈 ${monthLabel(month)} raporu hazır değil`,
+    body:
+      `${completeness.filled}/${completeness.total} metrik toplandı. ` +
+      `${missingFieldCount} alanı tamamlayarak raporu kapat. ${lines.join(' — ')}`,
+    // Doğrudan o ayın Veri Merkezi'ne: bildirime dokunan kişi ay seçmek
+    // zorunda kalmasın.
+    url: `/social/data?month=${month}`,
     // Ay başına tek etiket: cihazda üst üste yığılmaz, her gün üstüne yazar.
     tag: `monthly-entry-${month}`,
   });

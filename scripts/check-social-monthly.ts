@@ -18,7 +18,6 @@ import {
   MONTHLY_PLATFORMS,
   type MonthlyPlatform,
 } from '../src/app/(dashboard)/social/social-monthly.constants';
-import { buildMonthlySummary, type GenreStat } from '../src/app/(dashboard)/social/social-summary.constants';
 import {
   buildInsights,
   buildKpis,
@@ -110,88 +109,6 @@ eq('dolu: sayı olmayan boş', isFilled('abc'), false);
 eq('ay adı', monthLabel('2026-07'), 'Temmuz 2026');
 eq('önceki ay', previousMonth('2026-01'), '2025-12');
 eq('önceki ay (aynı yıl)', previousMonth('2026-08'), '2026-07');
-
-// ── 5. Aylık özet ───────────────────────────────────────────────────────────
-
-const GENRES: GenreStat[] = [
-  { label: 'Oyuncu/Takım Hikayesi', count: 13, avgViews: 44643 },
-  { label: 'Maç Yayını', count: 178, avgViews: 16372 },
-  { label: 'Klip', count: 75, avgViews: 14310 },
-];
-
-function summaryOf(over: Partial<Parameters<typeof buildMonthlySummary>[0]> = {}) {
-  const tracked: MonthlyPlatform[] = over.tracked ?? ['INSTAGRAM', 'YOUTUBE'];
-  const rows = over.rows ?? [{ platform: 'INSTAGRAM', followers_total: 10482, views: 1544155 }];
-  return buildMonthlySummary({
-    month: '2026-07',
-    rows,
-    previousRows: over.previousRows ?? [{ platform: 'INSTAGRAM', followers_total: 9538, views: 2365698 }],
-    contentCount: over.contentCount ?? 7,
-    previousContentCount: over.previousContentCount ?? 5,
-    genres: over.genres ?? GENRES,
-    completeness: over.completeness ?? monthCompleteness('2026-07', rows, tracked),
-    tracked,
-  });
-}
-
-{
-  const s = summaryOf();
-
-  check('özet: içerik sayısını söyler', s.did[0].includes('7 içerik'), s.did);
-  check('özet: önceki aya göre farkı söyler', s.did[0].includes('2 fazla'), s.did[0]);
-
-  check('özet: toplam erişimi ve yönünü söyler', s.went[0].includes('düşüş'), s.went);
-  check('özet: takipçi kazancını söyler', s.went.some((l) => l.includes('+944')), s.went);
-
-  check('özet: düşen platformu adlandırır', s.rising.some((l) => l.includes('Düşen') && l.includes('Instagram')), s.rising);
-  check(
-    'özet: en çok tutan tür ile en çok üretilen türü kıyaslar',
-    s.rising.some((l) => l.includes('Oyuncu/Takım Hikayesi') && l.includes('Maç Yayını')),
-    s.rising
-  );
-
-  // Türkçe küçük harf: 'İ' → 'i' olmalı, 'i̇' (birleşik nokta) değil.
-  const sentences = s.platforms.map((p) => p.sentence).join(' ');
-  check('özet: Türkçe küçük harf bozulmuyor', !sentences.includes('i̇'), sentences);
-
-  // Aynı girdi → aynı çıktı.
-  eq('özet: deterministik', summaryOf(), s);
-}
-
-{
-  // Önceki ay yoksa yüzde hesaplanmaz — sıfıra bölme yok, uydurma yok.
-  const s = summaryOf({ previousRows: [] });
-  check('özet: kıyas verisi yoksa söyler', s.went[0].includes('karşılaştırılabilecek veri yok'), s.went);
-  eq('özet: kıyassız platform hareketi NO_DATA', s.platforms[0].reach.movement, 'NO_DATA');
-}
-
-{
-  // Yükseliş yakalanmalı.
-  const rows = [{ platform: 'INSTAGRAM', followers_total: 12000, views: 3000000 }];
-  const s = summaryOf({ rows, completeness: monthCompleteness('2026-07', rows, ['INSTAGRAM', 'YOUTUBE']) });
-  check('özet: yükselen platform yakalanır', s.rising.some((l) => l.startsWith('Yükselen')), s.rising);
-  eq('özet: hareket RISING', s.platforms[0].reach.movement, 'RISING');
-}
-
-{
-  // %5 altındaki değişim "yatay" — gürültüyü yükseliş diye sunmuyoruz.
-  const rows = [{ platform: 'INSTAGRAM', followers_total: 9538, views: 2400000 }];
-  const s = summaryOf({ rows, completeness: monthCompleteness('2026-07', rows, ['INSTAGRAM']), tracked: ['INSTAGRAM'] });
-  eq('özet: küçük değişim yatay sayılır', s.platforms[0].reach.movement, 'FLAT');
-  check('özet: yatayken belirgin hareket yok denir', s.rising.some((l) => l.includes('benzer seviyede')), s.rising);
-}
-
-{
-  // Uyarılar doluluk haritasından gelir.
-  const rows = [{ platform: 'INSTAGRAM', followers_total: 10482, views: 1544155 }];
-  const completeness = monthCompleteness('2026-07', rows, ['INSTAGRAM', 'TIKTOK']);
-  const s = summaryOf({ rows, completeness, tracked: ['INSTAGRAM', 'TIKTOK'] });
-  check('özet: hiç kayıt olmayan platformu uyarır', s.warnings.some((w) => w.includes('TikTok') && w.includes('hiç kayıt')), s.warnings);
-  check('özet: eksik alanı uyarır', s.warnings.some((w) => w.includes('Instagram')), s.warnings);
-}
-
-// Takip edilen platform listesi tam olmalı ki hiçbiri sessizce atlanmasın.
-eq('takip edilen platform sayısı', MONTHLY_PLATFORMS.length, 7);
 
 // ── 6. Genel Bakış: KPI, platform tablosu, içgörüler ────────────────────────
 

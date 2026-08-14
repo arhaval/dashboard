@@ -9,7 +9,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { socialMetricsService } from '@/services';
 import { METRICS_PLATFORMS } from '@/constants';
-import type { CreateSocialMonthlyMetricsInput, CreateSocialGoalInput, MetricsPlatform } from '@/types';
+import type { CreateSocialMonthlyMetricsInput, CreateSocialGoalInput } from '@/types';
 
 interface ActionResult {
   success: boolean;
