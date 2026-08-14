@@ -111,6 +111,48 @@ export const MONTHLY_FIELDS: Record<MonthlyPlatform, MonthlyField[]> = {
 export const PLATFORMS_WITHOUT_FOLLOWERS: MonthlyPlatform[] = ['WEBSITE'];
 
 /**
+ * Platformun TAKİPÇİ alanı. YouTube aboneyi ayrı kolonda tutar; web sitesinin
+ * takipçisi yoktur. KPI toplamı ve platform tablosu bu eşlemeyi kullanır —
+ * yoksa YouTube toplamda hep 0 görünürdü.
+ */
+export const FOLLOWER_FIELD: Record<MonthlyPlatform, string | null> = {
+  TWITCH: 'followers_total',
+  KICK: 'followers_total',
+  YOUTUBE: 'subscribers_total',
+  INSTAGRAM: 'followers_total',
+  X: 'followers_total',
+  TIKTOK: 'followers_total',
+  WEBSITE: null,
+};
+
+/**
+ * Platformun ETKİLEŞİM alanları — toplandığında "toplam etkileşim" verir.
+ * Yayın platformlarında (Twitch/Kick) standart bir etkileşim ölçüsü yok;
+ * web sitesinde de yok. Boş liste "bu platform etkileşim raporlamıyor" demek,
+ * sıfır demek değil.
+ */
+export const ENGAGEMENT_FIELDS: Record<MonthlyPlatform, string[]> = {
+  TWITCH: [],
+  KICK: [],
+  YOUTUBE: ['total_likes', 'total_comments'],
+  INSTAGRAM: ['likes', 'comments', 'saves', 'shares'],
+  X: ['likes', 'replies', 'shares'],
+  TIKTOK: ['likes', 'comments', 'saves', 'shares'],
+  WEBSITE: [],
+};
+
+/** Canlı izlenme raporlayan platformlar. */
+export const LIVE_VIEW_FIELD: Record<MonthlyPlatform, string | null> = {
+  TWITCH: 'live_views',
+  KICK: 'live_views',
+  YOUTUBE: 'live_views',
+  INSTAGRAM: null,
+  X: null,
+  TIKTOK: null,
+  WEBSITE: null,
+};
+
+/**
  * Platformun ERİŞİM ölçüsü — "bu ay kaç kişiye ulaştım" sorusunun cevabı.
  * Trend grafiği, aylık özet ve karşılaştırma aynı alanı kullanır ki grafikte
  * gördüğün sayı ile özette okuduğun sayı aynı şeyi anlatsın.

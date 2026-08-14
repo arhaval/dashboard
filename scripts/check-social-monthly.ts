@@ -16,6 +16,12 @@ import {
   type MonthlyPlatform,
 } from '../src/app/(dashboard)/social/social-monthly.constants';
 import { buildMonthlySummary, type GenreStat } from '../src/app/(dashboard)/social/social-summary.constants';
+import {
+  buildInsights,
+  buildKpis,
+  buildPlatformRows,
+} from '../src/app/(dashboard)/social/social-overview.constants';
+import { resolveMonth } from '../src/app/(dashboard)/social/month.utils';
 
 let passed = 0;
 const failures: string[] = [];
@@ -183,6 +189,89 @@ function summaryOf(over: Partial<Parameters<typeof buildMonthlySummary>[0]> = {}
 
 // Takip edilen platform listesi tam olmalı ki hiçbiri sessizce atlanmasın.
 eq('takip edilen platform sayısı', MONTHLY_PLATFORMS.length, 7);
+
+// ── 6. Genel Bakış: KPI, platform tablosu, içgörüler ────────────────────────
+
+{
+  const july = [
+    { platform: 'INSTAGRAM', followers_total: 10482, views: 1544155, likes: 66273, comments: 3752, saves: 2864, shares: 13855 },
+    { platform: 'YOUTUBE', subscribers_total: 29800, video_views: 15843, total_likes: 900, total_comments: 40, live_views: 5000 },
+  ];
+  const june = [
+    { platform: 'INSTAGRAM', followers_total: 9538, views: 2365698, likes: 147356, comments: 3116, saves: 7758, shares: 21695 },
+    { platform: 'YOUTUBE', subscribers_total: 29535, video_views: 23000, total_likes: 1200, total_comments: 60, live_views: 8000 },
+  ];
+  const tracked: MonthlyPlatform[] = ['INSTAGRAM', 'YOUTUBE', 'TIKTOK'];
+  const kpis = buildKpis(july, june, tracked);
+  const byKey = Object.fromEntries(kpis.map((k) => [k.key, k]));
+
+  // YouTube takipçisi subscribers_total'da — toplama girmezse KPI hep eksik çıkardı.
+  eq('KPI: takipçi YouTube abonesini içerir', byKey.followers.value, 10482 + 29800);
+  eq('KPI: takipçi artışı', byKey.followers.delta, (10482 + 29800) - (9538 + 29535));
+
+  // TikTok verisi yok → toplam olduğundan düşük, işaretlenmeli.
+  eq('KPI: eksik veri işaretlenir', byKey.views.hasGaps, true);
+  eq('KPI: raporlayan/beklenen', [byKey.views.reporting, byKey.views.expected], [2, 3]);
+
+  // Twitch/Kick etkileşim raporlamaz → beklenen platform sayısına girmez;
+  // aksi halde "eksik veri" uyarısı hiç dolmayacak bir alan için kalırdı.
+  const withStream = buildKpis(july, june, ['INSTAGRAM', 'YOUTUBE', 'TWITCH', 'KICK']);
+  eq(
+    'KPI: etkileşim raporlamayan platform beklenmez',
+    withStream.find((k) => k.key === 'engagement')!.expected,
+    2
+  );
+  // TikTok etkileşim raporlar — beklenenlere girer.
+  eq('KPI: TikTok etkileşime dahil', byKey.engagement.expected, 3);
+
+  // Canlı izlenmeyi yalnızca YouTube veriyor (IG/TikTok raporlamaz).
+  eq('KPI: canlı izlenme yalnız ilgili platformlardan', byKey.liveViews.value, 5000);
+
+  // Kapsam iki ay arasında tutmuyorsa yüzde ÜRETİLMEZ.
+  const lopsided = buildKpis(july, [june[0]], tracked);
+  const lopsidedViews = lopsided.find((k) => k.key === 'views')!;
+  eq('KPI: kapsam tutmuyorsa yüzde üretilmez', lopsidedViews.percent, null);
+  eq('KPI: kapsam tutmuyorsa fark üretilmez', lopsidedViews.delta, null);
+  check('KPI: değer yine de gösterilir', lopsidedViews.value != null, lopsidedViews.value);
+
+  // ── Platform tablosu ──
+  const rows = buildPlatformRows(july, june, tracked);
+  const ig = rows.find((r) => r.platform === 'INSTAGRAM')!;
+  eq('tablo: Instagram düşüşte', ig.status, 'DOWN');
+  eq('tablo: takipçi değişimi', ig.followersDelta, 944);
+  eq('tablo: etkileşim toplamı', ig.engagement, 66273 + 3752 + 2864 + 13855);
+
+  const tiktok = rows.find((r) => r.platform === 'TIKTOK')!;
+  eq('tablo: verisi olmayan platform MISSING', tiktok.status, 'MISSING');
+  eq('tablo: veri yoksa sıfır değil null', [tiktok.followers, tiktok.views, tiktok.engagement], [null, null, null]);
+
+  const yt = rows.find((r) => r.platform === 'YOUTUBE')!;
+  eq('tablo: YouTube takipçisi abone alanından', yt.followers, 29800);
+
+  // ── İçgörüler ──
+  const insights = buildInsights({
+    platforms: rows,
+    topGenre: { label: 'Oyuncu/Takım Hikayesi', avgViews: 44643 },
+    missingPlatforms: ['TikTok'],
+  });
+  check('içgörü: en fazla 4 satır', insights.length <= 4, insights.length);
+  check('içgörü: en güçlü tür yer alır', insights.some((i) => i.subject.includes('Hikayesi')), insights);
+  check('içgörü: eksik veri uyarısı', insights.some((i) => i.title === 'Dikkat'), insights);
+  eq('içgörü: deterministik', buildInsights({ platforms: rows, topGenre: { label: 'Oyuncu/Takım Hikayesi', avgViews: 44643 }, missingPlatforms: ['TikTok'] }), insights);
+}
+
+// ── 7. Ay seçimi ────────────────────────────────────────────────────────────
+
+{
+  const available = ['2026-05', '2026-06', '2026-07', '2026-08'];
+  const now = new Date(2026, 7, 15); // 15 Ağustos 2026
+
+  eq('ay: varsayılan kapanmış son ay', resolveMonth(undefined, available, now), '2026-07');
+  eq('ay: geçerli istek korunur', resolveMonth('2026-05', available, now), '2026-05');
+  eq('ay: bozuk istek yok sayılır', resolveMonth('abc', available, now), '2026-07');
+  eq('ay: hiç veri yoksa içinde bulunulan ay', resolveMonth(undefined, [], now), '2026-08');
+  eq('ay: yalnızca içinde bulunulan ay varsa o', resolveMonth(undefined, ['2026-08'], now), '2026-08');
+}
 
 // ── Sonuç ───────────────────────────────────────────────────────────────────
 

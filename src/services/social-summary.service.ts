@@ -21,10 +21,25 @@ import {
   type GenreStat,
   type MonthlySummary,
 } from '@/app/(dashboard)/social/social-summary.constants';
+import {
+  buildInsights,
+  buildKpis,
+  buildPlatformRows,
+  type Insight,
+  type Kpi,
+  type PlatformRow,
+} from '@/app/(dashboard)/social/social-overview.constants';
 
 type MetricRow = { platform: string; [column: string]: unknown };
 
 export interface MonthlyOverview {
+  /** Genel Bakış'ın 4 kartı. */
+  kpis: Kpi[];
+  /** Tek platform tablosu. */
+  platformRows: PlatformRow[];
+  /** "Bu Ay Ne Oldu?" — en fazla 4 satır. */
+  insights: Insight[];
+  /** Uzun anlatım — Veri Merkezi'nde bağlam olarak kullanılır. */
   summary: MonthlySummary;
   completeness: MonthCompleteness;
 }
@@ -100,7 +115,20 @@ export const socialSummaryService = {
       tracked,
     });
 
-    return { summary, completeness };
+    const platformRows = buildPlatformRows(rows, previousRows, tracked);
+    const topGenre = [...genres].sort((a, b) => b.avgViews - a.avgViews)[0] ?? null;
+
+    return {
+      kpis: buildKpis(rows, previousRows, tracked),
+      platformRows,
+      insights: buildInsights({
+        platforms: platformRows,
+        topGenre: topGenre ? { label: topGenre.label, avgViews: topGenre.avgViews } : null,
+        missingPlatforms: completeness.platforms.filter((p) => p.missing).map((p) => p.label),
+      }),
+      summary,
+      completeness,
+    };
   },
 };
 
