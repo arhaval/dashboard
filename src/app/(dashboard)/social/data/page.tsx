@@ -1,11 +1,13 @@
 /**
  * VERİ MERKEZİ — "neyi tamamlamam gerekiyor?"
  *
- * Sistemin yönetim ekranı: eksik veri, veri kaynakları, hedefler, ay notu ve
- * manuel giriş burada toplanır. Genel Bakış ve Analiz bunlardan arınmış kalır.
+ * Sistemin yönetim ekranı. Sıra bilinçli:
+ *   1. Ayın tamamlanma durumu + tek birincil aksiyon (Eksik Verileri Tamamla)
+ *   2. Veri kaynakları (otomatik gelenler neden gelmiyor)
+ *   3. Hedefler ve ay notu
+ *   4. Gelişmiş işlemler (kapalı) — manuel form, CSV, geçmişi doldur
  *
- * Faz 3-4'te adım adım "Eksik Verileri Tamamla" sihirbazı ve Veri Kaynakları
- * bölümü eklenecek; şu an mevcut çalışan araçlar taşındı.
+ * Genel Bakış ve Analiz bu araçlardan arınmış kalır.
  */
 
 import { redirect } from 'next/navigation';
@@ -13,14 +15,17 @@ import { socialMetricsService, userService } from '@/services';
 import { socialSummaryService } from '@/services/social-summary.service';
 import { youtubeAnalyticsService } from '@/services/youtube-analytics.service';
 import { instagramService } from '@/services/instagram.service';
+import { integrationHealthService } from '@/services/integration-health.service';
 import { MonthPicker } from '../month-picker';
-import { EntryStatus } from '../entry-status';
 import { MetricsForm } from '../metrics-form';
 import { YouTubeConnect } from '../youtube-connect';
 import { InstagramConnect } from '../instagram-connect';
 import { GoalProgress } from '../goal-progress';
 import { MonthlyNotes } from '../monthly-notes';
 import { resolveMonth } from '../month.utils';
+import { CompletionPanel } from './completion-panel';
+import { DataSources, type SourceStatus } from './data-sources';
+import { AdvancedTools } from './advanced-tools';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,13 +42,31 @@ export default async function SocialDataPage({
   const available = await socialMetricsService.getAvailableMonths();
   const month = resolveMonth(requested, available);
 
-  const [{ completeness }, goals, note, ytStatus, igStatus] = await Promise.all([
+  const [{ completeness }, goals, note, ytStatus, igStatus, health] = await Promise.all([
     socialSummaryService.getOverview(month),
     socialMetricsService.getGoalProgress(month),
     socialMetricsService.getNoteForMonth(month),
     youtubeAnalyticsService.getStatus(),
     instagramService.getStatus(),
+    // Son senkron zamanı ve bağlantı uyarıları mevcut sağlık servisinden.
+    integrationHealthService.getPlatformHealth().catch(() => []),
   ]);
+
+  const healthOf = (platform: string) => health.find((h) => h.platform === platform);
+  const sources: SourceStatus[] = [
+    {
+      platform: 'YOUTUBE',
+      connected: ytStatus.connected,
+      lastSyncAt: healthOf('YOUTUBE')?.lastSuccessfulSyncAt ?? null,
+      detail: healthOf('YOUTUBE')?.warning ?? null,
+    },
+    {
+      platform: 'INSTAGRAM',
+      connected: igStatus.connected,
+      lastSyncAt: healthOf('INSTAGRAM')?.lastSuccessfulSyncAt ?? null,
+      detail: healthOf('INSTAGRAM')?.warning ?? null,
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-5">
@@ -54,7 +77,9 @@ export default async function SocialDataPage({
         <MonthPicker month={month} available={available} />
       </div>
 
-      <EntryStatus completeness={completeness} />
+      <CompletionPanel completeness={completeness} />
+
+      <DataSources statuses={sources} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div id="hedefler">
@@ -63,11 +88,13 @@ export default async function SocialDataPage({
         <MonthlyNotes month={month} initialNotes={note?.notes || ''} isAdmin />
       </div>
 
-      <div>
-        <YouTubeConnect connected={ytStatus.connected} />
-        <InstagramConnect connected={igStatus.connected} username={igStatus.username} />
-        <MetricsForm />
-      </div>
+      <AdvancedTools>
+        <div className="flex flex-col gap-4">
+          <YouTubeConnect connected={ytStatus.connected} />
+          <InstagramConnect connected={igStatus.connected} username={igStatus.username} />
+          <MetricsForm />
+        </div>
+      </AdvancedTools>
     </div>
   );
 }
