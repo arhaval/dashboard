@@ -56,9 +56,27 @@ export async function GET(request: Request) {
     return Response.json({ sent: 0, error: error.message }, { status: 500 });
   }
 
-  const completeness = monthCompleteness(month, (rows ?? []) as { platform: string }[], MONTHLY_PLATFORMS);
+  // Ay elle "tamamlandı" işaretlendiyse hatırlatma gönderilmez: geçmişe dönük
+  // alınamayan veri için sonsuza kadar sormanın anlamı yok.
+  const { data: closure } = await admin
+    .from('social_month_closures')
+    .select('month')
+    .eq('month', month)
+    .maybeSingle();
+
+  const completeness = monthCompleteness(
+    month,
+    (rows ?? []) as { platform: string }[],
+    MONTHLY_PLATFORMS,
+    Boolean(closure)
+  );
   if (completeness.isComplete) {
-    return Response.json({ sent: 0, month, reason: 'Tüm alanlar dolu', percent: 100 });
+    return Response.json({
+      sent: 0,
+      month,
+      reason: completeness.isManuallyClosed ? 'Ay elle tamamlandı işaretlendi' : 'Tüm alanlar dolu',
+      percent: completeness.percent,
+    });
   }
 
   // Önce kaydı yaz: bildirim gitse de gitmese de bugün bildirilmiş sayılır,

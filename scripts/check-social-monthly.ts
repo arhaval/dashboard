@@ -23,7 +23,7 @@ import {
   buildKpis,
   buildPlatformRows,
 } from '../src/app/(dashboard)/social/social-overview.constants';
-import { resolveMonth } from '../src/app/(dashboard)/social/month.utils';
+import { resolveMonth, selectableMonths } from '../src/app/(dashboard)/social/month.utils';
 
 let passed = 0;
 const failures: string[] = [];
@@ -216,6 +216,37 @@ eq('önceki ay (aynı yıl)', previousMonth('2026-08'), '2026-07');
   eq('ay: bozuk istek yok sayılır', resolveMonth('abc', available, now), '2026-07');
   eq('ay: hiç veri yoksa içinde bulunulan ay', resolveMonth(undefined, [], now), '2026-08');
   eq('ay: yalnızca içinde bulunulan ay varsa o', resolveMonth(undefined, ['2026-08'], now), '2026-08');
+
+  // Seçim listesi KESİNTİSİZ olmalı: hiç veri girilmemiş bir ay listede
+  // görünmezse o aya gidip "tamamlandı" işaretlemek imkânsız olurdu.
+  eq(
+    'ay listesi: aradaki boş aylar da seçilebilir',
+    selectableMonths(['2026-05', '2026-08'], now),
+    ['2026-05', '2026-06', '2026-07', '2026-08']
+  );
+  eq('ay listesi: içinde bulunulan aya kadar gider', selectableMonths(['2026-06'], now).at(-1), '2026-08');
+  eq('ay listesi: yıl sınırını geçer', selectableMonths(['2025-11'], new Date(2026, 0, 5)), ['2025-11', '2025-12', '2026-01']);
+  eq('ay listesi: hiç veri yoksa bu ay', selectableMonths([], now), ['2026-08']);
+}
+
+// ── 8. Ayı elle tamamlandı işaretleme ───────────────────────────────────────
+
+{
+  const rows = [{ platform: 'INSTAGRAM', followers_total: 10482, views: 1544155 }];
+  const tracked: MonthlyPlatform[] = ['INSTAGRAM', 'TIKTOK'];
+
+  const open = monthCompleteness('2026-06', rows, tracked);
+  check('kapatılmamış ay tamamlanmamış', !open.isComplete, open.isComplete);
+  eq('kapatılmamış ay elle kapalı değil', open.isManuallyClosed, false);
+
+  const closed = monthCompleteness('2026-06', rows, tracked, true);
+  eq('kapatılan ay tamamlanmış sayılır (hatırlatma susar)', closed.isComplete, true);
+  eq('kapatılan ay elle kapalı işaretlenir', closed.isManuallyClosed, true);
+
+  // Kapatmak veriyi doldurmuş SAYMAZ: yüzde gerçeği söylemeye devam eder.
+  eq('kapatmak yüzdeyi şişirmez', closed.percent, open.percent);
+  eq('kapatmak eksik listesini gizlemez', closed.incompletePlatforms, open.incompletePlatforms);
+  eq('kapatmak alan sayımını değiştirmez', [closed.filled, closed.total], [open.filled, open.total]);
 }
 
 // ── Sonuç ───────────────────────────────────────────────────────────────────

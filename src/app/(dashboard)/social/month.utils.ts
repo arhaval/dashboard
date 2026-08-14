@@ -10,6 +10,32 @@ export function currentMonthKey(now: Date = new Date()): string {
 }
 
 /**
+ * Seçilebilir ayların KESİNTİSİZ listesi (eskiden yeniye).
+ *
+ * Neden kayıtlardan türetmiyoruz: bir ayda hiç veri girilmemişse o ay
+ * social_monthly_metrics'te yoktur ve listede görünmezdi — yani hiç
+ * girilmemiş bir aya gidip "tamamlandı" işaretlemek imkânsızdı. Aralık,
+ * bilinen en eski aydan içinde bulunulan aya kadar doldurulur.
+ */
+export function selectableMonths(available: string[], now: Date = new Date()): string[] {
+  const current = currentMonthKey(now);
+  const known = [...available].sort();
+  const start = known[0] ?? current;
+
+  const out: string[] = [];
+  let [year, month] = start.split('-').map(Number);
+  // Güvenlik freni: bozuk bir başlangıç sonsuz döngüye dönüşmesin.
+  for (let i = 0; i < 240; i += 1) {
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+    out.push(key);
+    if (key >= current) break;
+    month += 1;
+    if (month > 12) { month = 1; year += 1; }
+  }
+  return out;
+}
+
+/**
  * URL'den gelen ayı doğrula ve kullanılacak ayı seç.
  *
  * - Geçerli bir `?month=` verilmişse ona saygı duyulur (paylaşılan link,

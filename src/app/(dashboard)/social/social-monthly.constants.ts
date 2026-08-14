@@ -331,11 +331,17 @@ export interface MonthCompleteness {
   platforms: PlatformCompleteness[];
   filled: number;
   total: number;
-  /** 0-100 arası tamamlanma yüzdesi. */
+  /** 0-100 arası tamamlanma yüzdesi (gerçek doluluk — kapatma bunu değiştirmez). */
   percent: number;
   /** Eksiği olan platformlar. */
   incompletePlatforms: MonthlyPlatform[];
+  /**
+   * Ay kapandı mı — ya bütün alanlar dolu, ya da elle "tamamlandı" işaretlendi.
+   * Hatırlatma ve uyarılar buna bakar.
+   */
   isComplete: boolean;
+  /** Elle kapatıldı mı — "her şey dolu" ile "daha fazlası beklenmiyor" farklı. */
+  isManuallyClosed: boolean;
 }
 
 /**
@@ -347,7 +353,9 @@ export interface MonthCompleteness {
 export function monthCompleteness(
   month: string,
   rows: { platform: string; [column: string]: unknown }[],
-  tracked: MonthlyPlatform[] = MONTHLY_PLATFORMS
+  tracked: MonthlyPlatform[] = MONTHLY_PLATFORMS,
+  /** Ay elle "tamamlandı" işaretlendiyse daha fazla veri istenmez. */
+  manuallyClosed = false
 ): MonthCompleteness {
   const byPlatform = new Map(rows.map((r) => [r.platform, r]));
 
@@ -381,9 +389,11 @@ export function monthCompleteness(
     platforms,
     filled,
     total,
+    // Yüzde GERÇEK doluluğu gösterir; kapatmak veriyi doldurmuş saymaz.
     percent: total === 0 ? 0 : Math.round((filled / total) * 100),
     incompletePlatforms: platforms.filter((p) => p.filled < p.total).map((p) => p.platform),
-    isComplete: total > 0 && filled === total,
+    isComplete: manuallyClosed || (total > 0 && filled === total),
+    isManuallyClosed: manuallyClosed,
   };
 }
 

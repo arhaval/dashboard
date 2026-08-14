@@ -76,18 +76,34 @@ export const socialSummaryService = {
     }));
   },
 
+  /**
+   * Ay elle "tamamlandı" işaretlenmiş mi.
+   * Tablo migration'dan önce yoksa hata değil, kapatılmamış sayılır.
+   */
+  async isMonthClosed(month: string): Promise<boolean> {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('social_month_closures')
+      .select('month')
+      .eq('month', month)
+      .maybeSingle();
+    if (error) return false;
+    return Boolean(data);
+  },
+
   /** Bir ayın Genel Bakış verisi + doluluk haritası. */
   async getOverview(
     month: string,
     tracked: MonthlyPlatform[] = MONTHLY_PLATFORMS
   ): Promise<MonthlyOverview> {
-    const [rows, previousRows, genres] = await Promise.all([
+    const [rows, previousRows, genres, closed] = await Promise.all([
       this.getRows(month),
       this.getRows(previousMonth(month)),
       this.getGenreStats(),
+      this.isMonthClosed(month),
     ]);
 
-    const completeness = monthCompleteness(month, rows, tracked);
+    const completeness = monthCompleteness(month, rows, tracked, closed);
     const platformRows = buildPlatformRows(rows, previousRows, tracked);
     const topGenre = [...genres].sort((a, b) => b.avgViews - a.avgViews)[0] ?? null;
 

@@ -10,14 +10,15 @@
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { monthLabel } from './social-monthly.constants';
+import { selectableMonths } from './month.utils';
 
 export function MonthPicker({ month, available }: { month: string; available: string[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
 
-  // Eskiden yeniye sıralı liste — komşuları bulmak için.
-  const months = [...new Set([...available, month])].sort();
+  // Kesintisiz aralık: hiç veri girilmemiş bir ay da seçilebilsin.
+  const months = [...new Set([...selectableMonths(available), month])].sort();
   const index = months.indexOf(month);
   const older = index > 0 ? months[index - 1] : null;
   const newer = index >= 0 && index < months.length - 1 ? months[index + 1] : null;
@@ -37,12 +38,26 @@ export function MonthPicker({ month, available }: { month: string; available: st
       <Arrow onClick={() => go(older)} disabled={!older} label="Önceki ay">
         <ChevronLeft className="h-4 w-4" />
       </Arrow>
-      <span
-        className="min-w-[7.5rem] px-1 text-center text-[12.5px] font-semibold"
-        style={{ color: 'var(--color-text-primary)' }}
+
+      {/*
+        Oklara ek olarak doğrudan seçim: adım adım gitmek uzun listede yoruyor
+        ve bir ay atlanamadığında sıkışma hissi veriyordu. Seçim listesi her
+        zaman bütün ayları gösterir.
+      */}
+      <select
+        value={month}
+        onChange={(e) => go(e.target.value)}
+        aria-label="Ay seç"
+        className="cursor-pointer rounded-[var(--radius-sm)] px-1 py-0.5 text-center text-[12.5px] font-semibold outline-none"
+        style={{ backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: 'none', minWidth: '7.5rem' }}
       >
-        {monthLabel(month)}
-      </span>
+        {[...months].reverse().map((m) => (
+          <option key={m} value={m} style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
+            {monthLabel(m)}
+          </option>
+        ))}
+      </select>
+
       <Arrow onClick={() => go(newer)} disabled={!newer} label="Sonraki ay">
         <ChevronRight className="h-4 w-4" />
       </Arrow>

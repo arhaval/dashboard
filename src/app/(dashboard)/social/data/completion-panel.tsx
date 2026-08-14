@@ -8,18 +8,34 @@
  * çözüm elle girmek değil, bağlantıyı düzeltmektir.
  */
 
-import { useState } from 'react';
-import { Check, Plug, Sparkles, TriangleAlert } from 'lucide-react';
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { Check, Lock, LockOpen, Plug, Sparkles, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlatformTag } from '../social-ui';
 import { monthLabel, type MonthCompleteness, type PlatformCompleteness } from '../social-monthly.constants';
 import { CompletionWizard } from './completion-wizard';
+import { closeMonth, reopenMonth } from './closure-actions';
 
 export function CompletionPanel({ completeness }: { completeness: MonthCompleteness }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const { filled, total, percent, platforms, month, isComplete } = completeness;
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, start] = useTransition();
+  const { filled, total, percent, platforms, month, isComplete, isManuallyClosed } = completeness;
 
   const manualPending = platforms.reduce((s, p) => s + p.pendingManualFields.length, 0);
+
+  function toggleClosure() {
+    setError(null);
+    start(async () => {
+      const res = isManuallyClosed
+        ? await reopenMonth(month)
+        : await closeMonth(month, 'Geçmişe dönük veri alınamıyor');
+      if (!res.success) setError(res.error ?? 'İşlem başarısız');
+      else router.refresh();
+    });
+  }
 
   return (
     <section
@@ -33,19 +49,42 @@ export function CompletionPanel({ completeness }: { completeness: MonthCompleten
           </h3>
           <p className="mt-0.5 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
             {filled} / {total} alan tamamlandı
-            <span className="ml-2 font-mono" style={{ color: percent === 100 ? 'var(--color-success)' : 'var(--color-warning)' }}>
+            <span
+              className="ml-2 font-mono"
+              style={{ color: percent === 100 ? 'var(--color-success)' : 'var(--color-warning)', fontVariantNumeric: 'tabular-nums' }}
+            >
               %{percent}
             </span>
           </p>
+          {isManuallyClosed && (
+            <p className="mt-1 inline-flex items-center gap-1 text-[11.5px]" style={{ color: 'var(--color-success)' }}>
+              <Lock className="h-3 w-3" />
+              Bu ay tamamlandı işaretlendi — eksik veri sorulmuyor.
+            </p>
+          )}
         </div>
 
-        {manualPending > 0 && (
-          <Button type="button" onClick={() => setOpen(true)}>
-            <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-            Eksik Verileri Tamamla ({manualPending})
+        <div className="flex flex-wrap items-center gap-2">
+          {manualPending > 0 && !isManuallyClosed && (
+            <Button type="button" onClick={() => setOpen(true)}>
+              <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+              Eksik Verileri Tamamla ({manualPending})
+            </Button>
+          )}
+
+          {/* Veri artık alınamıyorsa ayı kapatmanın tek yolu bu — aksi halde
+              hatırlatma olmayacak bir veri için sonsuza kadar sorardı. */}
+          <Button type="button" variant="secondary" onClick={toggleClosure} disabled={isPending}>
+            {isManuallyClosed ? (
+              <><LockOpen className="mr-1.5 h-3.5 w-3.5" /> Ayı Yeniden Aç</>
+            ) : (
+              <><Lock className="mr-1.5 h-3.5 w-3.5" /> Bu Ayı Tamamlandı İşaretle</>
+            )}
           </Button>
-        )}
+        </div>
       </div>
+
+      {error && <p className="mt-2 text-[12px]" style={{ color: 'var(--color-error)' }}>{error}</p>}
 
       <div className="mt-3 h-2 w-full overflow-hidden rounded-full" style={{ backgroundColor: 'var(--color-surface-sunken)' }}>
         <div
