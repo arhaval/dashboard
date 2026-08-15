@@ -153,6 +153,7 @@ export const GOAL_METRICS_BY_PLATFORM: Record<MetricsPlatform, { key: string; la
   ],
   // Web sitesinin takipçisi yok; hedefler ziyaret ve okunma üzerinden.
   WEBSITE: [
+    { key: 'members_total', label: 'Toplam Üye' },
     { key: 'visitors', label: 'Tekil Ziyaretçi' },
     { key: 'page_views', label: 'Sayfa Görüntüleme' },
     { key: 'avg_session_seconds', label: 'Ort. Oturum (sn)' },

@@ -68,8 +68,9 @@ export function toInputValue(field: Pick<MonthlyField, 'unit'>, stored: number):
 /**
  * Platform başına aylık alanlar.
  *
- * `followers_total` ayrı tutulur (formda da ayrı bir kutu) — web sitesi hariç
- * her platformda var, o yüzden alan listelerinde tekrarlanmaz.
+ * Genel `followers_total` alanı listelerde tekrarlanmaz; kendi takipçi alanını
+ * (YouTube abone, web sitesi üye) listeleyen platformlar onu kendi adıyla
+ * tanımlar — bkz. FOLLOWER_FIELD.
  */
 export const MONTHLY_FIELDS: Record<MonthlyPlatform, MonthlyField[]> = {
   TWITCH: [
@@ -121,16 +122,21 @@ export const MONTHLY_FIELDS: Record<MonthlyPlatform, MonthlyField[]> = {
     { name: 'shares',         label: tr.metricsForm.retweets,      type: 'number', source: 'MANUAL', csvKey: 'retweets' },
     { name: 'profile_visits', label: tr.metricsForm.profileVisits, type: 'number', source: 'MANUAL', csvKey: 'profile_visits' },
   ],
-  // Web sitesinin takipçisi yok; ölçüsü ziyaret ve okunma.
+  // Sitenin takipçisi yok, ÜYESİ var — takipçinin karşılığı o.
   WEBSITE: [
+    { name: 'members_total',       label: 'Toplam Üye',                 type: 'number', source: 'MANUAL' },
     { name: 'visitors',            label: 'Tekil Ziyaretçi',            type: 'number', source: 'MANUAL' },
     { name: 'page_views',          label: 'Sayfa Görüntüleme',          type: 'number', source: 'MANUAL' },
     { name: 'avg_session_seconds', label: 'Ort. Oturum Süresi (saniye)', type: 'number', source: 'MANUAL' },
   ],
 };
 
-/** Takipçi alanı olmayan platformlar — doluluk hesabında aranmaz. */
-export const PLATFORMS_WITHOUT_FOLLOWERS: MonthlyPlatform[] = ['WEBSITE'];
+/**
+ * Takipçi alanı olmayan platformlar — doluluk hesabında genel takipçi alanı
+ * aranmaz. Web sitesi burada DEĞİL: onun karşılığı üye sayısı ve kendi alan
+ * listesinde duruyor.
+ */
+export const PLATFORMS_WITHOUT_FOLLOWERS: MonthlyPlatform[] = [];
 
 /**
  * Platformun TAKİPÇİ alanı. YouTube aboneyi ayrı kolonda tutar; web sitesinin
@@ -144,7 +150,7 @@ export const FOLLOWER_FIELD: Record<MonthlyPlatform, string | null> = {
   INSTAGRAM: 'followers_total',
   X: 'followers_total',
   TIKTOK: 'followers_total',
-  WEBSITE: null,
+  WEBSITE: 'members_total',
 };
 
 /**
@@ -195,9 +201,8 @@ export const MAIN_METRIC: Record<MonthlyPlatform, { key: string; label: string }
  * bırakılır (form da göndermez), o yüzden onu "eksik" saymak yanlış uyarı olur.
  */
 function listsFollowersItself(platform: MonthlyPlatform): boolean {
-  return MONTHLY_FIELDS[platform].some(
-    (f) => f.name === 'followers_total' || f.name === 'subscribers_total'
-  );
+  const own = FOLLOWER_FIELD[platform];
+  return own != null && MONTHLY_FIELDS[platform].some((f) => f.name === own);
 }
 
 /**
@@ -288,6 +293,7 @@ export const ANALYTICS_METRICS: Record<MonthlyPlatform, AnalyticsMetric[]> = {
     { key: 'total_stream_time_minutes', label: 'Yayın Süresi (saat)', factor: 1 / 60 },
   ],
   WEBSITE: [
+    { key: 'members_total',       label: 'Toplam Üye' },
     { key: 'visitors',            label: 'Tekil Ziyaretçi' },
     { key: 'page_views',          label: 'Sayfa Görüntüleme' },
     { key: 'avg_session_seconds', label: 'Ort. Oturum Süresi' },

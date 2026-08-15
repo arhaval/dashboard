@@ -59,8 +59,11 @@ eq('dolu: sayı olmayan boş', isFilled('abc'), false);
   );
 
   const web = expectedFields('WEBSITE').map((f) => f.name);
-  check('Web sitesinin takipçisi yok', !web.includes('followers_total'), web);
-  eq('Web sitesi alanları', web, ['visitors', 'page_views', 'avg_session_seconds']);
+  // Sitenin takipçisi yok; karşılığı üye sayısı. Genel followers_total
+  // sorulmamalı, yoksa hiç dolmayacak bir alan ayı sonsuza dek eksik tutardı.
+  check('Web sitesinde genel takipçi alanı sorulmaz', !web.includes('followers_total'), web);
+  eq('Web sitesi alanları', web, ['members_total', 'visitors', 'page_views', 'avg_session_seconds']);
+  eq('Web sitesi üye sayısı grafiklenebilir', ANALYTICS_METRICS.WEBSITE[0].key, 'members_total');
 
   const ig = expectedFields('INSTAGRAM').map((f) => f.name);
   eq('Instagram takipçiyle başlar', ig[0], 'followers_total');
@@ -148,6 +151,17 @@ eq('önceki ay (aynı yıl)', previousMonth('2026-08'), '2026-07');
 
   // Canlı izlenmeyi yalnızca YouTube veriyor (IG/TikTok raporlamaz).
   eq('KPI: canlı izlenme yalnız ilgili platformlardan', byKey.liveViews.value, 5000);
+
+  // Web sitesi üyeleri "Toplam Takipçi"ye girer — sahip olunan kitle aynı
+  // kartta toplanır. Site takibe alınmamışsa KPI'ı etkilemez.
+  const withSite = buildKpis(
+    [...july, { platform: 'WEBSITE', members_total: 1200, visitors: 8000 }],
+    [...june, { platform: 'WEBSITE', members_total: 1000, visitors: 7000 }],
+    ['INSTAGRAM', 'YOUTUBE', 'WEBSITE']
+  );
+  const siteFollowers = withSite.find((k) => k.key === 'followers')!;
+  eq('KPI: site üyeleri takipçi toplamına girer', siteFollowers.value, 10482 + 29800 + 1200);
+  eq('KPI: site üye artışı sayılır', siteFollowers.delta, (10482 + 29800 + 1200) - (9538 + 29535 + 1000));
 
   // Kapsam iki ay arasında tutmuyorsa yüzde ÜRETİLMEZ.
   const lopsided = buildKpis(july, [june[0]], tracked);

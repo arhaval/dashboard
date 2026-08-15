@@ -290,6 +290,7 @@ export interface CreateSocialMonthlyMetricsInput {
   visitors?: number;
   page_views?: number;
   avg_session_seconds?: number;
+  members_total?: number;
 }
 
 // Growth data for dashboard
