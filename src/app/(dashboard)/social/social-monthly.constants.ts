@@ -35,13 +35,34 @@ export const MONTHLY_PLATFORM_LABELS: Record<MonthlyPlatform, string> = {
 /** Verinin kaynağı: otomatik gelen alan eksikse sorun ENTEGRASYONDADIR. */
 export type FieldSource = 'API' | 'MANUAL';
 
+/**
+ * Alanın GİRİŞ birimi, depolama biriminden farklı olabilir.
+ *
+ * Yayın süresi veritabanında DAKİKA tutulur (kolon adı da öyle, mevcut veri de),
+ * ama Twitch ve Kick panellerinde SAAT olarak gösteriliyor. Kullanıcının
+ * ekranında gördüğü sayıyı elle 60'a bölmesini istemek hata kaynağı.
+ */
+export type FieldUnit = 'COUNT' | 'HOURS_STORED_AS_MINUTES';
+
 export interface MonthlyField {
   name: string;
   label: string;
   type: 'number' | 'decimal';
   source: FieldSource;
+  /** Girişte kullanılan birim. Belirtilmezse ham sayı. */
+  unit?: FieldUnit;
   /** CSV'den gelen veri hangi anahtara karşılık gelir. */
   csvKey?: string;
+}
+
+/** Kullanıcının girdiği değeri saklanacak değere çevir. */
+export function toStoredValue(field: Pick<MonthlyField, 'unit'>, input: number): number {
+  return field.unit === 'HOURS_STORED_AS_MINUTES' ? Math.round(input * 60) : Math.round(input);
+}
+
+/** Saklanan değeri kullanıcının gördüğü birime çevir. */
+export function toInputValue(field: Pick<MonthlyField, 'unit'>, stored: number): number {
+  return field.unit === 'HOURS_STORED_AS_MINUTES' ? Math.round((stored / 60) * 10) / 10 : stored;
 }
 
 /**
@@ -52,7 +73,7 @@ export interface MonthlyField {
  */
 export const MONTHLY_FIELDS: Record<MonthlyPlatform, MonthlyField[]> = {
   TWITCH: [
-    { name: 'total_stream_time_minutes', label: tr.metricsForm.totalStreamTime, type: 'number', source: 'MANUAL', csvKey: 'total_stream_time_minutes' },
+    { name: 'total_stream_time_minutes', label: 'Toplam Yayın Süresi (saat)', type: 'number', source: 'MANUAL', unit: 'HOURS_STORED_AS_MINUTES', csvKey: 'total_stream_time_minutes' },
     { name: 'avg_viewers',               label: tr.metricsForm.avgViewers,      type: 'number', source: 'MANUAL', csvKey: 'avg_viewers' },
     { name: 'peak_viewers',              label: tr.metricsForm.peakViewers,     type: 'number', source: 'MANUAL', csvKey: 'peak_viewers' },
     { name: 'unique_viewers',            label: tr.metricsForm.uniqueViewers,   type: 'number', source: 'MANUAL' },
@@ -64,8 +85,9 @@ export const MONTHLY_FIELDS: Record<MonthlyPlatform, MonthlyField[]> = {
     { name: 'followers_total',           label: tr.metricsForm.followersTotal,  type: 'number', source: 'MANUAL' },
     { name: 'peak_viewers',              label: tr.metricsForm.peakViewers,     type: 'number', source: 'MANUAL', csvKey: 'peak_viewers' },
     { name: 'avg_viewers',               label: tr.metricsForm.avgViewers,      type: 'number', source: 'MANUAL', csvKey: 'avg_viewers' },
+    { name: 'unique_viewers',            label: tr.metricsForm.uniqueViewers,   type: 'number', source: 'MANUAL' },
     { name: 'live_views',                label: tr.metricsForm.liveViews,       type: 'number', source: 'MANUAL', csvKey: 'live_views' },
-    { name: 'total_stream_time_minutes', label: tr.metricsForm.totalStreamTime, type: 'number', source: 'MANUAL', csvKey: 'total_stream_time_minutes' },
+    { name: 'total_stream_time_minutes', label: 'Toplam Yayın Süresi (saat)',   type: 'number', source: 'MANUAL', unit: 'HOURS_STORED_AS_MINUTES', csvKey: 'total_stream_time_minutes' },
   ],
   // Abone/izlenme/beğeni/yorum cron ile otomatik dolar; elle sadece canlı
   // izleyici girilir.
@@ -202,6 +224,11 @@ export const DERIVED_ENGAGEMENT = '__engagement__';
 export interface AnalyticsMetric {
   key: string;
   label: string;
+  /**
+   * Gösterim çarpanı. Yayın süresi dakika saklanır ama saat olarak okunur;
+   * grafik ve tablo aynı readMetric'ten geçtiği için ikisi de tutarlı olur.
+   */
+  factor?: number;
 }
 
 /**
@@ -246,14 +273,19 @@ export const ANALYTICS_METRICS: Record<MonthlyPlatform, AnalyticsMetric[]> = {
     { key: 'followers_total',           label: tr.metricsForm.followersTotal },
     { key: 'live_views',                label: tr.metricsForm.liveViews },
     { key: 'avg_viewers',               label: tr.metricsForm.avgViewers },
+    { key: 'peak_viewers',              label: tr.metricsForm.peakViewers },
     { key: 'unique_viewers',            label: tr.metricsForm.uniqueViewers },
     { key: 'unique_chatters',           label: tr.metricsForm.uniqueChatters },
-    { key: 'total_stream_time_minutes', label: tr.metricsForm.totalStreamTime },
+    { key: 'subs_total',                label: tr.metricsForm.subsTotal },
+    { key: 'total_stream_time_minutes', label: 'Yayın Süresi (saat)', factor: 1 / 60 },
   ],
   KICK: [
-    { key: 'followers_total', label: tr.metricsForm.followersTotal },
-    { key: 'live_views',      label: tr.metricsForm.liveViews },
-    { key: 'avg_viewers',     label: tr.metricsForm.avgViewers },
+    { key: 'followers_total',           label: tr.metricsForm.followersTotal },
+    { key: 'live_views',                label: tr.metricsForm.liveViews },
+    { key: 'avg_viewers',               label: tr.metricsForm.avgViewers },
+    { key: 'peak_viewers',              label: tr.metricsForm.peakViewers },
+    { key: 'unique_viewers',            label: tr.metricsForm.uniqueViewers },
+    { key: 'total_stream_time_minutes', label: 'Yayın Süresi (saat)', factor: 1 / 60 },
   ],
   WEBSITE: [
     { key: 'visitors',            label: 'Tekil Ziyaretçi' },
@@ -276,7 +308,14 @@ export function readMetric(
     return Number.isFinite(n) && n > 0 ? n : null;
   };
 
-  if (metricKey !== DERIVED_ENGAGEMENT) return toNum(row[metricKey]);
+  if (metricKey !== DERIVED_ENGAGEMENT) {
+    const raw = toNum(row[metricKey]);
+    if (raw == null) return null;
+    // Gösterim çarpanı (örn. dakika → saat). Grafik ve tablo aynı yerden
+    // geçtiği için ikisi de aynı birimi gösterir.
+    const factor = ANALYTICS_METRICS[platform].find((m) => m.key === metricKey)?.factor;
+    return factor ? Math.round(raw * factor * 10) / 10 : raw;
+  }
 
   let sum = 0;
   let has = false;

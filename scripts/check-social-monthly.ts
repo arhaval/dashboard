@@ -13,6 +13,8 @@ import {
   monthLabel,
   previousMonth,
   readMetric,
+  toInputValue,
+  toStoredValue,
   ANALYTICS_METRICS,
   DERIVED_ENGAGEMENT,
   MONTHLY_PLATFORMS,
@@ -227,6 +229,47 @@ eq('önceki ay (aynı yıl)', previousMonth('2026-08'), '2026-07');
   eq('ay listesi: içinde bulunulan aya kadar gider', selectableMonths(['2026-06'], now).at(-1), '2026-08');
   eq('ay listesi: yıl sınırını geçer', selectableMonths(['2025-11'], new Date(2026, 0, 5)), ['2025-11', '2025-12', '2026-01']);
   eq('ay listesi: hiç veri yoksa bu ay', selectableMonths([], now), ['2026-08']);
+}
+
+// ── 7b. Birim çevrimi: yayın süresi saat girilir, dakika saklanır ───────────
+
+{
+  const kick = expectedFields('KICK');
+  const streamTime = kick.find((f) => f.name === 'total_stream_time_minutes')!;
+  check('Kick: yayın süresi saat biriminde', streamTime.unit === 'HOURS_STORED_AS_MINUTES', streamTime);
+  check('Kick: etiket saat diyor', streamTime.label.includes('saat'), streamTime.label);
+  check('Kick: benzersiz izleyici soruluyor', kick.some((f) => f.name === 'unique_viewers'), kick.map((f) => f.name));
+
+  eq('çevrim: 42 saat → 2520 dakika', toStoredValue(streamTime, 42), 2520);
+  eq('çevrim: 2520 dakika → 42 saat', toInputValue(streamTime, 2520), 42);
+  eq('çevrim: buçuklu saat', toStoredValue(streamTime, 10.5), 630);
+
+  // Birimsiz alanlar dokunulmadan geçmeli.
+  const followers = kick.find((f) => f.name === 'followers_total')!;
+  eq('çevrim: sayı alanı değişmez', toStoredValue(followers, 1659), 1659);
+  eq('çevrim: sayı alanı geri de değişmez', toInputValue(followers, 1659), 1659);
+
+  // Analizde de saat okunmalı — grafik ve tablo aynı readMetric'ten geçer.
+  eq(
+    'analiz: yayın süresi saat olarak okunur',
+    readMetric({ platform: 'KICK', total_stream_time_minutes: 2520 }, 'KICK', 'total_stream_time_minutes'),
+    42
+  );
+  eq(
+    'analiz: Twitch yayın süresi de saat',
+    readMetric({ platform: 'TWITCH', total_stream_time_minutes: 600 }, 'TWITCH', 'total_stream_time_minutes'),
+    10
+  );
+
+  // Kick'te girilen her alan artık grafiklenebilir olmalı — girip göremediğin
+  // alan kullanıcıya "verim kayboldu" hissi veriyordu.
+  const graphable = new Set(ANALYTICS_METRICS.KICK.map((m) => m.key));
+  const ungraphable = kick.map((f) => f.name).filter((n) => !graphable.has(n));
+  eq('Kick: girilen her alan grafiklenebilir', ungraphable, []);
+
+  const twitch = expectedFields('TWITCH').map((f) => f.name);
+  const twitchGraphable = new Set(ANALYTICS_METRICS.TWITCH.map((m) => m.key));
+  eq('Twitch: girilen her alan grafiklenebilir', twitch.filter((n) => !twitchGraphable.has(n)), []);
 }
 
 // ── 8. Ayı elle tamamlandı işaretleme ───────────────────────────────────────

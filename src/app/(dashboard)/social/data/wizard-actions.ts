@@ -18,6 +18,7 @@ import { userService } from '@/services';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   expectedFields,
+  toStoredValue,
   MONTHLY_PLATFORMS,
   type MonthlyPlatform,
 } from '../social-monthly.constants';
@@ -46,18 +47,22 @@ export async function saveMissingMetrics(
   }
 
   // Yalnızca bu platformun tanımlı alanları yazılabilir.
-  const allowed = new Set(expectedFields(platform as MonthlyPlatform).map((f) => f.name));
+  const fields = expectedFields(platform as MonthlyPlatform);
+  const byName = new Map(fields.map((f) => [f.name, f]));
 
   const payload: Record<string, number> = {};
   for (const [key, raw] of Object.entries(values)) {
-    if (!allowed.has(key)) continue;
+    const field = byName.get(key);
+    if (!field) continue;
     const text = String(raw ?? '').trim();
     if (text === '') continue; // boş bırakılan alan "şimdilik yok" demek
     const n = Number(text);
     if (!Number.isFinite(n) || n < 0) {
-      return { success: false, error: `${key} için geçerli bir sayı gir` };
+      return { success: false, error: `${field.label} için geçerli bir sayı gir` };
     }
-    payload[key] = Math.round(n);
+    // Birim çevrimi TEK yerde ve SUNUCUDA: yayın süresi saat girilir, dakika
+    // saklanır. İstemcide yapılsaydı başka bir giriş yolu atlayabilirdi.
+    payload[key] = toStoredValue(field, n);
   }
 
   if (Object.keys(payload).length === 0) return { success: true, saved: 0 };

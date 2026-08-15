@@ -17,6 +17,7 @@ import {
   MONTHLY_PLATFORMS,
   MONTHLY_PLATFORM_LABELS,
   PLATFORMS_WITHOUT_FOLLOWERS,
+  toStoredValue,
   type MonthlyPlatform,
 } from './social-monthly.constants';
 import type { MetricsPlatform, CreateSocialMonthlyMetricsInput } from '@/types';
@@ -226,8 +227,9 @@ export function MetricsForm() {
       if (field.name === 'followers_total') continue;
       const value = platformFields[field.name];
       if (value) {
-        (input as unknown as Record<string, unknown>)[field.name] =
-          field.type === 'decimal' ? parseFloat(value) || 0 : parseInt(value) || 0;
+        const parsed = field.type === 'decimal' ? parseFloat(value) || 0 : parseInt(value) || 0;
+        // Birim çevrimi katalogdan: yayın süresi saat girilir, dakika saklanır.
+        (input as unknown as Record<string, unknown>)[field.name] = toStoredValue(field, parsed);
       }
     }
 
