@@ -35,6 +35,20 @@ CREATE TABLE IF NOT EXISTS ai_formats (
   updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Format playbook history: ai_formats holds the CURRENT playbook (stable id so
+-- ai_scripts.format_id stays valid), while every version — including the seed —
+-- is snapshotted here so an old ruleset can be inspected later, like DNA.
+CREATE TABLE IF NOT EXISTS ai_format_versions (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  format_id   UUID NOT NULL REFERENCES ai_formats(id) ON DELETE CASCADE,
+  version     INTEGER NOT NULL,
+  playbook    JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_by  UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (format_id, version)
+);
+CREATE INDEX IF NOT EXISTS idx_ai_format_versions_format ON ai_format_versions(format_id);
+
 -- ── Reference Library: not-ours, style-analysis material (NOT gold standard) ─
 CREATE TABLE IF NOT EXISTS ai_references (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -87,6 +101,9 @@ CREATE TABLE IF NOT EXISTS ai_generations (
   format_version  INTEGER,
   prompt_version  TEXT,
   model           TEXT,
+  -- Exactly which examples grounded this output (for retrieval-quality analysis).
+  reference_ids            UUID[] NOT NULL DEFAULT '{}',
+  gold_standard_script_ids UUID[] NOT NULL DEFAULT '{}',
   created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
@@ -126,9 +143,15 @@ VALUES
   ('list',         'Liste / Karşılaştırma',  7, '{"hook":"","body":"","rhythm":"","evidence":"","payoff":"","cta":""}'::jsonb)
 ON CONFLICT (key) DO NOTHING;
 
-ALTER TABLE ai_dna         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ai_formats     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ai_references  ENABLE ROW LEVEL SECURITY;
+-- Snapshot each seeded format as version 1 so history starts at creation.
+INSERT INTO ai_format_versions (format_id, version, playbook)
+SELECT id, version, playbook FROM ai_formats
+ON CONFLICT (format_id, version) DO NOTHING;
+
+ALTER TABLE ai_dna            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_formats        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_format_versions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_references     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_scripts     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_generations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_edit_signals ENABLE ROW LEVEL SECURITY;

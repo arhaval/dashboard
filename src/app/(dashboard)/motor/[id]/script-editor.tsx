@@ -106,6 +106,8 @@ export function ScriptEditor({
           format_version: null,
           prompt_version: null,
           model: null,
+          reference_ids: [],
+          gold_standard_script_ids: [],
           created_at: new Date().toISOString(),
         };
         setGenerations((prev) => [gen, ...prev]);

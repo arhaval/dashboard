@@ -102,8 +102,12 @@ export const aiEngineService = {
     }));
   },
 
-  /** Update one format's playbook and bump its version. */
-  async saveFormatPlaybook(id: string, playbook: Record<string, string>): Promise<{ error?: string }> {
+  /** Update one format's playbook, bump its version, and snapshot it to history. */
+  async saveFormatPlaybook(
+    id: string,
+    playbook: Record<string, string>,
+    userId: string
+  ): Promise<{ error?: string }> {
     const admin = createAdminClient();
     const { data: cur } = await admin.from('ai_formats').select('version').eq('id', id).maybeSingle();
     const nextVersion = ((cur as Row | null)?.version as number ?? 0) + 1;
@@ -111,7 +115,32 @@ export const aiEngineService = {
       .from('ai_formats')
       .update({ playbook, version: nextVersion, updated_at: new Date().toISOString() })
       .eq('id', id);
-    return error ? { error: error.message } : {};
+    if (error) return { error: error.message };
+    // Snapshot so the old ruleset stays inspectable (like DNA versions).
+    await admin.from('ai_format_versions').insert({
+      format_id: id,
+      version: nextVersion,
+      playbook,
+      updated_by: userId,
+    });
+    return {};
+  },
+
+  /** Full playbook history for one format, newest version first. */
+  async getFormatVersions(formatId: string): Promise<
+    { version: number; playbook: Record<string, string>; created_at: string }[]
+  > {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from('ai_format_versions')
+      .select('version, playbook, created_at')
+      .eq('format_id', formatId)
+      .order('version', { ascending: false });
+    return ((data ?? []) as Row[]).map((r) => ({
+      version: r.version as number,
+      playbook: asStringMap(r.playbook),
+      created_at: r.created_at as string,
+    }));
   },
 
   // ── References ─────────────────────────────────────────────────────────
@@ -290,6 +319,8 @@ export const aiEngineService = {
     formatVersion: number | null;
     promptVersion: string;
     model: string;
+    referenceIds: string[];
+    goldStandardScriptIds: string[];
     userId: string;
   }): Promise<{ id?: string; error?: string }> {
     const admin = createAdminClient();
@@ -303,6 +334,8 @@ export const aiEngineService = {
         format_version: input.formatVersion,
         prompt_version: input.promptVersion,
         model: input.model,
+        reference_ids: input.referenceIds,
+        gold_standard_script_ids: input.goldStandardScriptIds,
         created_by: input.userId,
       })
       .select('id')
@@ -325,8 +358,8 @@ export const aiEngineService = {
   async buildContext(formatId: string | null): Promise<{
     dna: DnaDTO | null;
     format: FormatDTO | null;
-    golds: { title: string; text: string }[];
-    references: { title: string; text: string }[];
+    golds: { id: string; title: string; text: string }[];
+    references: { id: string; title: string; text: string }[];
   }> {
     const admin = createAdminClient();
     const dna = await this.getActiveDna();
@@ -339,7 +372,7 @@ export const aiEngineService = {
 
     const goldsQuery = admin
       .from('ai_scripts')
-      .select('title, final_text')
+      .select('id, title, final_text')
       .eq('status', 'FINAL')
       .not('final_text', 'is', null)
       .order('approved_at', { ascending: false })
@@ -347,18 +380,20 @@ export const aiEngineService = {
     if (formatId) goldsQuery.eq('format_id', formatId);
     const { data: goldRows } = await goldsQuery;
     const golds = ((goldRows ?? []) as Row[]).map((r) => ({
+      id: r.id as string,
       title: r.title as string,
       text: String(r.final_text ?? '').slice(0, EXAMPLE_CHAR_CAP),
     }));
 
     const refQuery = admin
       .from('ai_references')
-      .select('title, body')
+      .select('id, title, body')
       .order('created_at', { ascending: false })
       .limit(MAX_REFERENCE_EXAMPLES);
     if (formatId) refQuery.eq('format_id', formatId);
     const { data: refRows } = await refQuery;
     const references = ((refRows ?? []) as Row[]).map((r) => ({
+      id: r.id as string,
       title: r.title as string,
       text: String(r.body ?? '').slice(0, EXAMPLE_CHAR_CAP),
     }));
@@ -397,6 +432,8 @@ function rowToGeneration(r: Row): GenerationDTO {
     format_version: (r.format_version as number) ?? null,
     prompt_version: (r.prompt_version as string) ?? null,
     model: (r.model as string) ?? null,
+    reference_ids: (r.reference_ids as string[]) ?? [],
+    gold_standard_script_ids: (r.gold_standard_script_ids as string[]) ?? [],
     created_at: r.created_at as string,
   };
 }

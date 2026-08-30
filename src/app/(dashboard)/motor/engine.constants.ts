@@ -76,6 +76,14 @@ export interface GenerationDTO {
   format_version: number | null;
   prompt_version: string | null;
   model: string | null;
+  reference_ids: string[];
+  gold_standard_script_ids: string[];
+  created_at: string;
+}
+
+export interface FormatVersionDTO {
+  version: number;
+  playbook: Record<string, string>;
   created_at: string;
 }
 

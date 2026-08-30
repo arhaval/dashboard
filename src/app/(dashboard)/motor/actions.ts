@@ -35,9 +35,16 @@ export async function saveFormatPlaybook(
 ): Promise<{ error?: string }> {
   const user = await requireAdmin();
   if (!user) return { error: 'Yetki yok' };
-  const res = await aiEngineService.saveFormatPlaybook(id, playbook);
+  const res = await aiEngineService.saveFormatPlaybook(id, playbook, user.id);
   revalidatePath('/motor/formatlar');
   return res;
+}
+
+/** Playbook history for one format (admin only). */
+export async function getFormatVersions(formatId: string) {
+  const user = await requireAdmin();
+  if (!user) return [];
+  return aiEngineService.getFormatVersions(formatId);
 }
 
 // ── References ─────────────────────────────────────────────────────────────
@@ -217,6 +224,8 @@ export async function arhavalize(
     formatVersion: ctx.format?.version ?? null,
     promptVersion: PROMPT_VERSION,
     model: OPENAI_MODEL,
+    referenceIds: ctx.references.map((r) => r.id),
+    goldStandardScriptIds: ctx.golds.map((g) => g.id),
     userId: user.id,
   });
   if (saved.error) return { error: saved.error };
