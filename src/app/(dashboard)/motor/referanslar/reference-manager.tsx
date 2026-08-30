@@ -90,7 +90,9 @@ export function ReferenceManager({
             <Input name="tags" placeholder="hikaye, duygusal, transfer" />
           </div>
           <div>
-            <label className="text-xs text-[var(--color-text-muted)]">İçerik metni / SRT *</label>
+            <label className="text-xs text-[var(--color-text-muted)]">
+              İçerik metni / SRT * <span className="text-[var(--color-text-muted)]">— SRT ise zaman kodları ve tekrarlar otomatik temizlenir, orijinali ayrı saklanır</span>
+            </label>
             <textarea
               name="body"
               required

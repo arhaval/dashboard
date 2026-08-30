@@ -55,13 +55,16 @@ CREATE TABLE IF NOT EXISTS ai_references (
   title       TEXT NOT NULL,
   format_id   UUID REFERENCES ai_formats(id) ON DELETE SET NULL,
   source_type TEXT NOT NULL DEFAULT 'SRT',   -- SRT | TEXT | VIDEO
-  body        TEXT NOT NULL,                 -- cleaned transcript / text
+  body        TEXT NOT NULL,                 -- clean_content: what the model sees
+  raw_content TEXT,                          -- original SRT/text, kept for reference
   tags        TEXT[] NOT NULL DEFAULT '{}',
   notes       TEXT,
   created_by  UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at  TIMESTAMPTZ DEFAULT NOW(),
   updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
+-- For DBs where ai_references already exists (CREATE TABLE IF NOT EXISTS skips it).
+ALTER TABLE ai_references ADD COLUMN IF NOT EXISTS raw_content TEXT;
 CREATE INDEX IF NOT EXISTS idx_ai_references_format ON ai_references(format_id);
 CREATE INDEX IF NOT EXISTS idx_ai_references_tags ON ai_references USING GIN (tags);
 

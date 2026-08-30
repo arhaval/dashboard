@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { userService } from '@/services';
 import { aiEngineService } from '@/services/ai-engine.service';
 import { buildArhavalizePrompt } from '@/services/ai-engine.prompt';
+import { cleanSubtitle, looksLikeSubtitle } from '@/lib/srt-clean';
 import { PROMPT_VERSION } from './engine.constants';
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
@@ -53,9 +54,18 @@ export async function createReference(formData: FormData): Promise<{ error?: str
   if (!user) return { error: 'Yetki yok' };
 
   const title = str(formData.get('title'));
-  const body = str(formData.get('body'));
+  const raw = str(formData.get('body'));
   if (!title) return { error: 'Başlık zorunlu' };
-  if (!body) return { error: 'İçerik metni zorunlu' };
+  if (!raw) return { error: 'İçerik metni zorunlu' };
+
+  const sourceType = str(formData.get('source_type')) ?? 'SRT';
+
+  // Subtitles get cleaned into a flowing paragraph before storage; plain text
+  // is auto-cleaned only if it actually looks like a subtitle file. The model
+  // sees `body` (clean_content); the original is kept in raw_content.
+  const shouldClean = sourceType === 'SRT' || sourceType === 'VIDEO' || looksLikeSubtitle(raw);
+  const clean = shouldClean ? cleanSubtitle(raw) : raw;
+  if (!clean) return { error: 'Temizleme sonrası metin boş kaldı — SRT içeriğini kontrol et.' };
 
   const tags = (str(formData.get('tags')) ?? '')
     .split(',')
@@ -65,8 +75,9 @@ export async function createReference(formData: FormData): Promise<{ error?: str
   const res = await aiEngineService.createReference({
     title,
     formatId: str(formData.get('format_id')),
-    sourceType: str(formData.get('source_type')) ?? 'SRT',
-    body,
+    sourceType,
+    body: clean,
+    rawContent: clean === raw ? null : raw,
     tags,
     notes: str(formData.get('notes')),
     userId: user.id,

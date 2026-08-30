@@ -167,7 +167,10 @@ export const aiEngineService = {
     title: string;
     formatId: string | null;
     sourceType: string;
+    /** clean_content — the text the model will actually see. */
     body: string;
+    /** original SRT/text, kept separately (null when identical to body). */
+    rawContent: string | null;
     tags: string[];
     notes: string | null;
     userId: string;
@@ -178,6 +181,7 @@ export const aiEngineService = {
       format_id: input.formatId,
       source_type: input.sourceType,
       body: input.body,
+      raw_content: input.rawContent,
       tags: input.tags,
       notes: input.notes,
       created_by: input.userId,
