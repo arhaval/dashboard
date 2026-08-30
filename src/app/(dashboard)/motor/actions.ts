@@ -7,7 +7,10 @@ import { buildArhavalizePrompt } from '@/services/ai-engine.prompt';
 import { cleanSubtitle, looksLikeSubtitle } from '@/lib/srt-clean';
 import { PROMPT_VERSION, PLATFORM_LABELS, type EnginePlatform } from './engine.constants';
 
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
+// Active model: OPENAI_MODEL env wins; otherwise the current default.
+// No silent fallback to another model at call time — a failed call surfaces
+// the error so we always know which model actually ran.
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.6-terra';
 
 async function requireAdmin() {
   const user = await userService.getCurrentUser();
@@ -211,7 +214,11 @@ export async function arhavalize(
       body: JSON.stringify({
         model: OPENAI_MODEL,
         temperature: 0.7,
+        // GPT-5.6 Terra supports reasoning; medium balances quality vs. cost.
+        reasoning_effort: 'medium',
         response_format: { type: 'json_object' },
+        // No max token cap — length is driven by the target duration carried in
+        // the prompt, not by inflating the output budget.
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: userMsg },
@@ -220,11 +227,12 @@ export async function arhavalize(
     });
     if (!res.ok) {
       const body = await res.text();
-      return { error: `OpenAI hatası (${res.status}): ${body.slice(0, 200)}` };
+      // Name the model so we know which one failed — no silent fallback.
+      return { error: `OpenAI hatası [${OPENAI_MODEL}] (${res.status}): ${body.slice(0, 200)}` };
     }
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content;
-    if (!content) return { error: 'Boş yanıt geldi' };
+    if (!content) return { error: `Boş yanıt geldi [${OPENAI_MODEL}]` };
     try {
       const parsed = JSON.parse(content);
       output = typeof parsed.script === 'string' ? parsed.script.trim() : '';
@@ -233,9 +241,9 @@ export async function arhavalize(
       // Model ignored the JSON contract — fall back to raw text.
       output = String(content).trim();
     }
-    if (!output) return { error: 'Model boş metin döndürdü' };
+    if (!output) return { error: `Model boş metin döndürdü [${OPENAI_MODEL}]` };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Ağ hatası' };
+    return { error: `${e instanceof Error ? e.message : 'Ağ hatası'} [${OPENAI_MODEL}]` };
   }
 
   const saved = await aiEngineService.recordGeneration({
