@@ -26,8 +26,29 @@ import type {
 /** How many gold-standard + reference examples to inject into a prompt. */
 const MAX_GOLD_EXAMPLES = 3;
 const MAX_REFERENCE_EXAMPLES = 3;
-/** Cap example length so a few long transcripts don't blow the context. */
-const EXAMPLE_CHAR_CAP = 4000;
+
+/**
+ * Example excerpt budget. A flat "first N chars" would show the hook but cut the
+ * body's end and the payoff — the very things style learning needs. So a long
+ * example is represented by its head + middle + tail, keeping hook, narrative
+ * body, and payoff from the SAME reference. Short examples are sent whole.
+ */
+const EXCERPT_HEAD = 2000;
+const EXCERPT_MID = 1500;
+const EXCERPT_TAIL = 2000;
+const EXCERPT_FULL_LIMIT = EXCERPT_HEAD + EXCERPT_MID + EXCERPT_TAIL; // <= this → send whole
+
+/** Represent an example for the prompt: whole if short, else head+middle+tail. */
+function excerptForPrompt(text: string): string {
+  const t = (text ?? '').trim();
+  if (t.length <= EXCERPT_FULL_LIMIT) return t;
+
+  const head = t.slice(0, EXCERPT_HEAD);
+  const midStart = Math.floor((t.length - EXCERPT_MID) / 2);
+  const mid = t.slice(midStart, midStart + EXCERPT_MID);
+  const tail = t.slice(t.length - EXCERPT_TAIL);
+  return `${head}\n\n[… ara bölüm atlandı …]\n\n${mid}\n\n[… ara bölüm atlandı …]\n\n${tail}`;
+}
 
 type Row = Record<string, unknown>;
 
@@ -386,7 +407,7 @@ export const aiEngineService = {
     const golds = ((goldRows ?? []) as Row[]).map((r) => ({
       id: r.id as string,
       title: r.title as string,
-      text: String(r.final_text ?? '').slice(0, EXAMPLE_CHAR_CAP),
+      text: excerptForPrompt(String(r.final_text ?? '')),
     }));
 
     const refQuery = admin
@@ -399,7 +420,7 @@ export const aiEngineService = {
     const references = ((refRows ?? []) as Row[]).map((r) => ({
       id: r.id as string,
       title: r.title as string,
-      text: String(r.body ?? '').slice(0, EXAMPLE_CHAR_CAP),
+      text: excerptForPrompt(String(r.body ?? '')),
     }));
 
     return { dna, format, golds, references };
