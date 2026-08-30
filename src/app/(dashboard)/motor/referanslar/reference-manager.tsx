@@ -105,6 +105,10 @@ export function ReferenceManager({
             <label className="text-xs text-[var(--color-text-muted)]">Not (opsiyonel)</label>
             <Input name="notes" placeholder="Neden referans aldık, neye dikkat…" />
           </div>
+          <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+            <input type="checkbox" name="use_in_retrieval" defaultChecked className="h-4 w-4 accent-[var(--color-accent)]" />
+            Üretimde örnek olarak kullanılsın
+          </label>
           {err && <p className="text-sm text-[var(--color-error)]">{err}</p>}
           <Button type="submit" disabled={isPending}>
             {isPending ? 'Ekleniyor…' : 'Kaydet'}
@@ -137,6 +141,11 @@ export function ReferenceManager({
                 <span className="rounded px-1.5 py-0.5 bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
                   {r.source_type}
                 </span>
+                {!r.use_in_retrieval && (
+                  <span className="rounded px-1.5 py-0.5 bg-[var(--color-warning-muted)] text-[var(--color-warning)]">
+                    üretim dışı
+                  </span>
+                )}
                 {r.format_label && (
                   <span className="rounded px-1.5 py-0.5 bg-[var(--color-info-muted)] text-[var(--color-info)]">
                     {r.format_label}

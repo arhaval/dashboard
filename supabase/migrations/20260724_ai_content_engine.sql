@@ -59,12 +59,15 @@ CREATE TABLE IF NOT EXISTS ai_references (
   raw_content TEXT,                          -- original SRT/text, kept for reference
   tags        TEXT[] NOT NULL DEFAULT '{}',
   notes       TEXT,
+  -- When false, kept for the record but excluded from generation retrieval.
+  use_in_retrieval BOOLEAN NOT NULL DEFAULT true,
   created_by  UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at  TIMESTAMPTZ DEFAULT NOW(),
   updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
 -- For DBs where ai_references already exists (CREATE TABLE IF NOT EXISTS skips it).
 ALTER TABLE ai_references ADD COLUMN IF NOT EXISTS raw_content TEXT;
+ALTER TABLE ai_references ADD COLUMN IF NOT EXISTS use_in_retrieval BOOLEAN NOT NULL DEFAULT true;
 CREATE INDEX IF NOT EXISTS idx_ai_references_format ON ai_references(format_id);
 CREATE INDEX IF NOT EXISTS idx_ai_references_tags ON ai_references USING GIN (tags);
 
@@ -151,8 +154,9 @@ VALUES
   ('tactic',       'Taktik Analiz',          3, '{"hook":"","body":"","rhythm":"","evidence":"","payoff":"","cta":""}'::jsonb),
   ('stats',        'İstatistik / Veri',      4, '{"hook":"","body":"","rhythm":"","evidence":"","payoff":"","cta":""}'::jsonb),
   ('emotional',    'Duygusal Hikâye',        5, '{"hook":"","body":"","rhythm":"","evidence":"","payoff":"","cta":""}'::jsonb),
-  ('news',         'Haber / Transfer',       6, '{"hook":"","body":"","rhythm":"","evidence":"","payoff":"","cta":""}'::jsonb),
-  ('list',         'Liste / Karşılaştırma',  7, '{"hook":"","body":"","rhythm":"","evidence":"","payoff":"","cta":""}'::jsonb)
+  ('news',            'Haber / Transfer',       6, '{"hook":"","body":"","rhythm":"","evidence":"","payoff":"","cta":""}'::jsonb),
+  ('list',            'Liste / Karşılaştırma',  7, '{"hook":"","body":"","rhythm":"","evidence":"","payoff":"","cta":""}'::jsonb),
+  ('player_analysis', 'Oyuncu Analizi',         8, '{"hook":"","body":"","rhythm":"","evidence":"","payoff":"","cta":""}'::jsonb)
 ON CONFLICT (key) DO NOTHING;
 
 -- Snapshot each seeded format as version 1 so history starts at creation.

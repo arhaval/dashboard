@@ -134,5 +134,6 @@ export interface ReferenceDTO {
   body: string;
   tags: string[];
   notes: string | null;
+  use_in_retrieval: boolean;
   created_at: string;
 }

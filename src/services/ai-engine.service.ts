@@ -180,6 +180,7 @@ export const aiEngineService = {
       body: r.body as string,
       tags: (r.tags as string[]) ?? [],
       notes: (r.notes as string) ?? null,
+      use_in_retrieval: (r.use_in_retrieval as boolean) ?? true,
       created_at: r.created_at as string,
     }));
   },
@@ -194,6 +195,7 @@ export const aiEngineService = {
     rawContent: string | null;
     tags: string[];
     notes: string | null;
+    useInRetrieval: boolean;
     userId: string;
   }): Promise<{ error?: string }> {
     const admin = createAdminClient();
@@ -205,6 +207,7 @@ export const aiEngineService = {
       raw_content: input.rawContent,
       tags: input.tags,
       notes: input.notes,
+      use_in_retrieval: input.useInRetrieval,
       created_by: input.userId,
     });
     return error ? { error: error.message } : {};
@@ -413,6 +416,7 @@ export const aiEngineService = {
     const refQuery = admin
       .from('ai_references')
       .select('id, title, body')
+      .eq('use_in_retrieval', true)
       .order('created_at', { ascending: false })
       .limit(MAX_REFERENCE_EXAMPLES);
     if (formatId) refQuery.eq('format_id', formatId);

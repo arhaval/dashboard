@@ -80,6 +80,7 @@ export async function createReference(formData: FormData): Promise<{ error?: str
     rawContent: clean === raw ? null : raw,
     tags,
     notes: str(formData.get('notes')),
+    useInRetrieval: formData.get('use_in_retrieval') !== null,
     userId: user.id,
   });
   revalidatePath('/motor/referanslar');
