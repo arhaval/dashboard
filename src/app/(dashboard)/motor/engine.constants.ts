@@ -1,7 +1,7 @@
 /** İçerik Motoru — client-safe types, section keys & labels (no server imports). */
 
 export type ScriptStatus = 'DRAFT' | 'AI_EDITED' | 'FINAL';
-export type EnginePlatform = 'YOUTUBE' | 'INSTAGRAM' | 'TIKTOK' | 'X';
+export type EnginePlatform = 'REELS' | 'SHORTS' | 'TIKTOK' | 'YOUTUBE_LONG' | 'X';
 export type ReferenceSourceType = 'SRT' | 'TEXT' | 'VIDEO';
 
 /** The prompt template revision — bump when the generation prompt changes so we
@@ -36,11 +36,30 @@ export const STATUS_META: Record<ScriptStatus, { label: string; bg: string; colo
 };
 
 export const PLATFORM_OPTIONS: { value: EnginePlatform; label: string }[] = [
-  { value: 'YOUTUBE',   label: 'YouTube' },
-  { value: 'INSTAGRAM', label: 'Instagram' },
-  { value: 'TIKTOK',    label: 'TikTok' },
-  { value: 'X',         label: 'X' },
+  { value: 'REELS',        label: 'Instagram Reels' },
+  { value: 'SHORTS',       label: 'YouTube Shorts' },
+  { value: 'TIKTOK',       label: 'TikTok' },
+  { value: 'YOUTUBE_LONG', label: 'YouTube (uzun video)' },
+  { value: 'X',            label: 'X' },
 ];
+
+export const PLATFORM_LABELS: Record<EnginePlatform, string> = {
+  REELS: 'Instagram Reels',
+  SHORTS: 'YouTube Shorts',
+  TIKTOK: 'TikTok',
+  YOUTUBE_LONG: 'YouTube (uzun video)',
+  X: 'X',
+};
+
+/** Reels/Shorts-heavy channel → sensible default. */
+export const DEFAULT_PLATFORM: EnginePlatform = 'REELS';
+
+/** Target duration as choices, not free text — so it's usable as data later. */
+export const DURATION_OPTIONS = ['30 sn', '45 sn', '60 sn', '90 sn', '2 dk'] as const;
+
+/** Shown above every draft box — the engine's core safety contract. */
+export const DRAFT_SAFETY_NOTE =
+  'Bu metindeki bilgileri koruyacağız. AI yeni gerçek veya sana ait görüş uydurmayacak.';
 
 export const SOURCE_TYPE_OPTIONS: { value: ReferenceSourceType; label: string }[] = [
   { value: 'SRT',  label: 'SRT / Altyazı' },

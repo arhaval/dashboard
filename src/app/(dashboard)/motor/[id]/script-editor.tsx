@@ -8,10 +8,12 @@ import { Select } from '@/components/ui/select';
 import {
   STATUS_META,
   PLATFORM_OPTIONS,
+  DRAFT_SAFETY_NOTE,
   type FormatDTO,
   type GenerationDTO,
   type ScriptDTO,
 } from '../engine.constants';
+import { DurationSelect } from '../duration-select';
 import {
   updateScript,
   deleteScript,
@@ -176,18 +178,18 @@ export function ScriptEditor({
         <section className="space-y-3 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
           <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">1 · Kaynak</h3>
           <div>
-            <label className="text-xs text-[var(--color-text-muted)]">Başlık</label>
+            <label className="text-xs text-[var(--color-text-muted)]">İçerik adı *</label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
           <div>
-            <label className="text-xs text-[var(--color-text-muted)]">Konu</label>
+            <label className="text-xs text-[var(--color-text-muted)]">Konu / Bağlam (opsiyonel)</label>
             <Input value={topic} onChange={(e) => setTopic(e.target.value)} />
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-xs text-[var(--color-text-muted)]">Format</label>
+              <label className="text-xs text-[var(--color-text-muted)]">Format *</label>
               <Select value={formatId} onChange={(e) => setFormatId(e.target.value)}>
-                <option value="">—</option>
+                <option value="">— Format seç —</option>
                 {formats.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.label}
@@ -207,12 +209,15 @@ export function ScriptEditor({
               </Select>
             </div>
             <div>
-              <label className="text-xs text-[var(--color-text-muted)]">Süre</label>
-              <Input value={duration} onChange={(e) => setDuration(e.target.value)} />
+              <label className="text-xs text-[var(--color-text-muted)]">Hedef süre *</label>
+              <DurationSelect value={duration} onChange={setDuration} />
             </div>
           </div>
           <div>
-            <label className="text-xs text-[var(--color-text-muted)]">Taslak metin</label>
+            <label className="text-xs text-[var(--color-text-muted)]">Taslak metin *</label>
+            <p className="mb-1.5 mt-0.5 rounded-[var(--radius-md)] border border-[var(--color-info)] bg-[var(--color-info-muted)] px-3 py-1.5 text-xs text-[var(--color-info)]">
+              🔒 {DRAFT_SAFETY_NOTE}
+            </p>
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}

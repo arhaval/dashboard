@@ -9,9 +9,14 @@ import { Select } from '@/components/ui/select';
 import {
   STATUS_META,
   PLATFORM_OPTIONS,
+  PLATFORM_LABELS,
+  DEFAULT_PLATFORM,
+  DRAFT_SAFETY_NOTE,
+  type EnginePlatform,
   type FormatDTO,
   type ScriptDTO,
 } from './engine.constants';
+import { DurationSelect } from './duration-select';
 import { createScript } from './actions';
 
 export function ScriptList({
@@ -53,17 +58,19 @@ export function ScriptList({
         >
           <div className="grid gap-3 md:grid-cols-2">
             <div>
-              <label className="text-xs text-[var(--color-text-muted)]">Başlık *</label>
-              <Input name="title" required placeholder="ör. XANTARES neden efsane?" />
+              <label className="text-xs text-[var(--color-text-muted)]">İçerik adı *</label>
+              <Input name="title" required placeholder="Panelde bulmak için — ör. XANTARES efsane" />
             </div>
             <div>
-              <label className="text-xs text-[var(--color-text-muted)]">Konu</label>
-              <Input name="topic" placeholder="Kısa konu / bağlam" />
+              <label className="text-xs text-[var(--color-text-muted)]">Konu / Bağlam (opsiyonel)</label>
+              <Input name="topic" placeholder="AI’ya kısa açıklama — çoğu zaman gerekmez" />
             </div>
             <div>
-              <label className="text-xs text-[var(--color-text-muted)]">Format</label>
-              <Select name="format_id" defaultValue="">
-                <option value="">— Seçilmedi —</option>
+              <label className="text-xs text-[var(--color-text-muted)]">Format *</label>
+              <Select name="format_id" defaultValue="" required>
+                <option value="" disabled>
+                  — Format seç —
+                </option>
                 {formats.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.label}
@@ -74,7 +81,7 @@ export function ScriptList({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-[var(--color-text-muted)]">Platform</label>
-                <Select name="platform" defaultValue="">
+                <Select name="platform" defaultValue={DEFAULT_PLATFORM}>
                   <option value="">—</option>
                   {PLATFORM_OPTIONS.map((p) => (
                     <option key={p.value} value={p.value}>
@@ -84,17 +91,20 @@ export function ScriptList({
                 </Select>
               </div>
               <div>
-                <label className="text-xs text-[var(--color-text-muted)]">Hedef süre</label>
-                <Input name="target_duration" placeholder="60 sn / 8-10 dk" />
+                <label className="text-xs text-[var(--color-text-muted)]">Hedef süre *</label>
+                <DurationSelect name="target_duration" required />
               </div>
             </div>
           </div>
           <div>
-            <label className="text-xs text-[var(--color-text-muted)]">Taslak metin</label>
+            <label className="text-xs text-[var(--color-text-muted)]">Taslak metin *</label>
+            <p className="mb-1.5 mt-0.5 rounded-[var(--radius-md)] border border-[var(--color-info)] bg-[var(--color-info-muted)] px-3 py-1.5 text-xs text-[var(--color-info)]">
+              🔒 {DRAFT_SAFETY_NOTE}
+            </p>
             <textarea
               name="draft_text"
-              rows={5}
-              placeholder="Ham taslağını buraya yaz. AI yalnızca burada ve ek bilgilerde yazanı kullanır — bilgi uydurmaz."
+              rows={6}
+              placeholder="Tam taslağını buraya yapıştır (300-500 kelime olabilir). AI yalnızca burada ve ek bilgilerde yazanı kullanır."
               className="w-full resize-y rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)]"
             />
           </div>
@@ -102,14 +112,14 @@ export function ScriptList({
             <label className="text-xs text-[var(--color-text-muted)]">Ek nesnel bilgiler (opsiyonel)</label>
             <textarea
               name="source_facts"
-              rows={3}
-              placeholder="Taslakta olmayan ama kullanılabilecek doğrulanmış bilgiler (tarih, sayı, isim…)"
+              rows={2}
+              placeholder="Yalnızca gerçekten gerekiyorsa: taslakta olmayan doğrulanmış bilgiler (tarih, sayı, isim…)"
               className="w-full resize-y rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)]"
             />
           </div>
           {err && <p className="text-sm text-[var(--color-error)]">{err}</p>}
           <Button type="submit" disabled={isPending}>
-            {isPending ? 'Oluşturuluyor…' : 'Oluştur ve Aç'}
+            {isPending ? 'Kaydediliyor…' : 'Taslağı Kaydet'}
           </Button>
         </form>
       )}
@@ -130,7 +140,7 @@ export function ScriptList({
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
                     {s.format_label && <span>{s.format_label}</span>}
-                    {s.platform && <span>· {s.platform}</span>}
+                    {s.platform && <span>· {PLATFORM_LABELS[s.platform as EnginePlatform] ?? s.platform}</span>}
                     {s.target_duration && <span>· {s.target_duration}</span>}
                   </div>
                 </div>

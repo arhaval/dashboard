@@ -5,7 +5,7 @@ import { userService } from '@/services';
 import { aiEngineService } from '@/services/ai-engine.service';
 import { buildArhavalizePrompt } from '@/services/ai-engine.prompt';
 import { cleanSubtitle, looksLikeSubtitle } from '@/lib/srt-clean';
-import { PROMPT_VERSION } from './engine.constants';
+import { PROMPT_VERSION, PLATFORM_LABELS, type EnginePlatform } from './engine.constants';
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
 
@@ -100,15 +100,23 @@ export async function createScript(formData: FormData): Promise<{ id?: string; e
   if (!user) return { error: 'Yetki yok' };
 
   const title = str(formData.get('title'));
-  if (!title) return { error: 'Başlık zorunlu' };
+  const formatId = str(formData.get('format_id'));
+  const draftText = str(formData.get('draft_text'));
+  const targetDuration = str(formData.get('target_duration'));
+
+  // The non-negotiable trio: Format + Taslak + Hedef Süre.
+  if (!title) return { error: 'İçerik adı zorunlu' };
+  if (!formatId) return { error: 'Format seçimi zorunlu' };
+  if (!draftText) return { error: 'Taslak metin zorunlu' };
+  if (!targetDuration) return { error: 'Hedef süre zorunlu' };
 
   const res = await aiEngineService.createScript({
     title,
     topic: str(formData.get('topic')),
-    formatId: str(formData.get('format_id')),
+    formatId,
     platform: str(formData.get('platform')),
-    targetDuration: str(formData.get('target_duration')),
-    draftText: str(formData.get('draft_text')),
+    targetDuration,
+    draftText,
     sourceFacts: str(formData.get('source_facts')),
     userId: user.id,
   });
@@ -184,7 +192,9 @@ export async function arhavalize(
     input: {
       title: script.title,
       topic: script.topic,
-      platform: script.platform,
+      platform: script.platform
+        ? PLATFORM_LABELS[script.platform as EnginePlatform] ?? script.platform
+        : null,
       targetDuration: script.target_duration,
       draftText: script.draft_text,
       sourceFacts: script.source_facts,
