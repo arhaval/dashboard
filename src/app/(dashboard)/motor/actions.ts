@@ -10,7 +10,7 @@ import { PROMPT_VERSION, PLATFORM_LABELS, type EnginePlatform } from './engine.c
 // Active model: OPENAI_MODEL env wins; otherwise the current default.
 // No silent fallback to another model at call time — a failed call surfaces
 // the error so we always know which model actually ran.
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.6-terra';
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.6-sol';
 
 async function requireAdmin() {
   const user = await userService.getCurrentUser();
@@ -214,7 +214,7 @@ export async function arhavalize(
       body: JSON.stringify({
         model: OPENAI_MODEL,
         temperature: 0.7,
-        // GPT-5.6 Terra supports reasoning; medium balances quality vs. cost.
+        // GPT-5.6 supports reasoning; medium balances quality vs. cost.
         reasoning_effort: 'medium',
         response_format: { type: 'json_object' },
         // No max token cap — length is driven by the target duration carried in
