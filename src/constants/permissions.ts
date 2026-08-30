@@ -20,6 +20,7 @@ export type PageKey =
   | 'content-plan'
   | 'idea-pool'
   | 'content-performance'
+  | 'content-engine'
   | 'obs'
   | 'reports';
 
@@ -43,6 +44,7 @@ export const PAGE_DEFS: PageDef[] = [
   { key: 'content-plan',        label: 'İçerik Planı',       route: '/icerik-plani',      group: 'Analitik' },
   { key: 'idea-pool',           label: 'Fikir Havuzu',       route: '/fikir-havuzu',      group: 'Analitik' },
   { key: 'content-performance', label: 'İçerik Performansı', route: '/icerik-performansi',group: 'Analitik' },
+  { key: 'content-engine',      label: 'İçerik Motoru',      route: '/motor',             group: 'Analitik' },
   { key: 'obs',                 label: 'OBS Overlay',        route: '/obs',               group: 'Yayın' },
   { key: 'reports',             label: 'Raporlar',           route: '/reports',           group: 'Diğer' },
 ];

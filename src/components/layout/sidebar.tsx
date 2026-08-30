@@ -20,6 +20,7 @@ import {
   Handshake,
   Lightbulb,
   ShieldCheck,
+  Sparkles,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -66,6 +67,7 @@ const navSections: NavSection[] = [
       { label: 'İçerik Planı',    href: '/icerik-plani',     icon: Users,        perm: 'content-plan' },
       { label: 'Fikir Havuzu',    href: '/fikir-havuzu',     icon: Lightbulb,    perm: 'idea-pool' },
       { label: 'İçerik Performansı', href: '/icerik-performansi', icon: PlayCircle, perm: 'content-performance' },
+      { label: 'İçerik Motoru',    href: '/motor',            icon: Sparkles,     perm: 'content-engine' },
     ],
   },
   {
