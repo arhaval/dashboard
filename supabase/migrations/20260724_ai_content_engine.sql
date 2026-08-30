@@ -110,9 +110,18 @@ CREATE TABLE IF NOT EXISTS ai_generations (
 CREATE INDEX IF NOT EXISTS idx_ai_generations_script ON ai_generations(script_id);
 
 -- final_generation_id points into ai_generations (added after the table exists).
-ALTER TABLE ai_scripts
-  ADD CONSTRAINT ai_scripts_final_generation_fk
-  FOREIGN KEY (final_generation_id) REFERENCES ai_generations(id) ON DELETE SET NULL;
+-- Guarded so the whole migration stays safe to re-run (ADD CONSTRAINT is not
+-- idempotent on its own).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'ai_scripts_final_generation_fk'
+  ) THEN
+    ALTER TABLE ai_scripts
+      ADD CONSTRAINT ai_scripts_final_generation_fk
+      FOREIGN KEY (final_generation_id) REFERENCES ai_generations(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 -- ── Layer 4 automation (Phase 2): recurring-edit → rule suggestions ─────────
 CREATE TABLE IF NOT EXISTS ai_edit_signals (
