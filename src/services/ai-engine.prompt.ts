@@ -8,7 +8,11 @@
  * add goes into `notes`, never the body.
  */
 
-import { DNA_SECTIONS, PLAYBOOK_SECTIONS } from '@/app/(dashboard)/motor/engine.constants';
+import {
+  DNA_SECTIONS,
+  PLAYBOOK_SECTIONS,
+  wordTargetFor,
+} from '@/app/(dashboard)/motor/engine.constants';
 
 export interface PromptContext {
   dnaSections: Record<string, string> | null;
@@ -99,6 +103,13 @@ export function buildArhavalizePrompt(ctx: PromptContext): { system: string; use
   if (ctx.input.topic) parts.push(`# Konu: ${ctx.input.topic}`);
   if (ctx.input.platform) parts.push(`# Platform: ${ctx.input.platform}`);
   if (ctx.input.targetDuration) parts.push(`# Hedef süre/uzunluk: ${ctx.input.targetDuration}`);
+  const wordTarget = wordTargetFor(ctx.input.targetDuration);
+  if (wordTarget) {
+    parts.push(
+      `# Kelime hedefi: ${wordTarget.min}-${wordTarget.max} kelime` +
+        ' (hedef süreden türetildi, ~170 kelime/dk seslendirme hızı)'
+    );
+  }
   parts.push('');
   parts.push('## KULLANICININ TASLAĞI (bilgi kaynağın #1)');
   parts.push(ctx.input.draftText?.trim() || '(taslak girilmedi)');

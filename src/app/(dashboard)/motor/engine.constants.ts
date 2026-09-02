@@ -6,7 +6,7 @@ export type ReferenceSourceType = 'SRT' | 'TEXT' | 'VIDEO';
 
 /** The prompt template revision — bump when the generation prompt changes so we
  *  can later tell which prompt shape produced which output. */
-export const PROMPT_VERSION = 'v3';
+export const PROMPT_VERSION = 'v4';
 
 /** Arhaval DNA sections (Layer 1) — the same keys stored in ai_dna.sections. */
 export const DNA_SECTIONS: { key: string; label: string; hint: string }[] = [
@@ -60,7 +60,52 @@ export const PLATFORM_LABELS: Record<EnginePlatform, string> = {
 export const DEFAULT_PLATFORM: EnginePlatform = 'REELS';
 
 /** Target duration as choices, not free text — so it's usable as data later. */
-export const DURATION_OPTIONS = ['30 sn', '45 sn', '60 sn', '90 sn', '2 dk'] as const;
+export const DURATION_OPTIONS = ['30 sn', '45 sn', '60 sn', '90 sn', '2 dk', '2.5 dk', '3 dk'] as const;
+
+export type DurationOption = (typeof DURATION_OPTIONS)[number];
+
+/**
+ * Kelime hedefi süreden türetilir (~170 kelime/dk seslendirme hızı). Tek kaynak:
+ * prompt da, UI de bandı buradan okur — aynı sayı iki yerde tutulmaz.
+ */
+export const WORD_TARGETS: Record<DurationOption, { min: number; max: number }> = {
+  '30 sn':  { min:  70, max: 100 },
+  '45 sn':  { min: 110, max: 150 },
+  '60 sn':  { min: 150, max: 190 },
+  '90 sn':  { min: 230, max: 280 },
+  '2 dk':   { min: 310, max: 370 },
+  '2.5 dk': { min: 390, max: 460 },
+  '3 dk':   { min: 470, max: 550 },
+};
+
+/** "2,5 DK." / "90 saniye" gibi serbest girişleri preset anahtarına indirger. */
+function normalizeDuration(raw: string): string {
+  return raw
+    .trim()
+    .toLocaleLowerCase('tr')
+    .replace(/,/g, '.')
+    .replace(/\.(?!\d)/g, '')                      // "dk." → "dk" ama "2.5" korunur
+    .replace(/\b(saniye|saniyelik|sec)\b/g, 'sn')
+    .replace(/\b(dakika|dakikalık|dakikalik|dak|min)\b/g, 'dk')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const NORMALIZED_TARGETS = new Map(
+  (Object.keys(WORD_TARGETS) as DurationOption[]).map((d) => [normalizeDuration(d), WORD_TARGETS[d]])
+);
+
+/**
+ * Süre serbest metin de girilebildiği için hedef her zaman türetilemez. Tanınmayan
+ * sürede null döner ve prompt kelime hedefi satırını hiç yazmaz — uydurulmuş bir
+ * bant vermektense hedefi hiç vermemek doğrudur.
+ */
+export function wordTargetFor(
+  duration: string | null | undefined
+): { min: number; max: number } | null {
+  if (!duration?.trim()) return null;
+  return NORMALIZED_TARGETS.get(normalizeDuration(duration)) ?? null;
+}
 
 /** Shown above every draft box — the engine's core safety contract. */
 export const DRAFT_SAFETY_NOTE =
