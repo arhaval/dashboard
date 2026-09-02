@@ -113,6 +113,13 @@ CREATE TABLE IF NOT EXISTS ai_generations (
   created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
+-- Tablo bu iki kolon eklenmeden ONCE olusturulmus veritabanlari icin.
+-- CREATE TABLE IF NOT EXISTS mevcut tabloyu atladigi icin kolonlar gelmiyor ve
+-- uretim kaydi "Could not find the 'gold_standard_script_ids' column" ile
+-- dusuyordu. Ayni desen yukarida ai_references icin de kullanildi.
+ALTER TABLE ai_generations ADD COLUMN IF NOT EXISTS reference_ids            UUID[] NOT NULL DEFAULT '{}';
+ALTER TABLE ai_generations ADD COLUMN IF NOT EXISTS gold_standard_script_ids UUID[] NOT NULL DEFAULT '{}';
+
 CREATE INDEX IF NOT EXISTS idx_ai_generations_script ON ai_generations(script_id);
 
 -- final_generation_id points into ai_generations (added after the table exists).
