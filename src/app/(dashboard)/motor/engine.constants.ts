@@ -187,3 +187,24 @@ export interface ReferenceDTO {
   use_in_retrieval: boolean;
   created_at: string;
 }
+
+/**
+ * Öğrenme sinyali: bir final onaylandığında AI'ın ham çıktısı, kullanıcının
+ * onayladığı hâli ve (varsa) gerekçesi birlikte saklanır. Karşılaştırmanın
+ * anlamlı olması için o üretimi doğuran sürümler de satırda tutulur.
+ */
+export interface EditSignalDTO {
+  id: string;
+  script_id: string | null;
+  script_title: string | null;
+  format_id: string | null;
+  format_label: string | null;
+  /** Üretim olmadan doğrudan yazılıp onaylanan metinlerde null. */
+  ai_text: string | null;
+  final_text: string | null;
+  edit_reason: string | null;
+  dna_version: number | null;
+  format_version: number | null;
+  prompt_version: string | null;
+  created_at: string;
+}

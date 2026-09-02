@@ -1,5 +1,5 @@
 /**
- * İçerik Motoru — kelime hedefi ve prompt biçimi doğrulaması.
+ * İçerik Motoru — kelime hedefi, prompt biçimi ve öğrenme sayımları doğrulaması.
  *
  *   pnpm exec tsx scripts/check-engine-prompt.ts
  *
@@ -15,6 +15,14 @@ import {
   type DurationOption,
 } from '../src/app/(dashboard)/motor/engine.constants';
 import { buildArhavalizePrompt, type PromptContext } from '../src/services/ai-engine.prompt';
+import type { EditSignalDTO } from '../src/app/(dashboard)/motor/engine.constants';
+import {
+  NO_FORMAT_LABEL,
+  countByFormat,
+  formatDelta,
+  signalDelta,
+  wordCount,
+} from '../src/app/(dashboard)/motor/ogrenme/learning.constants';
 
 let passed = 0;
 const failures: string[] = [];
@@ -126,6 +134,51 @@ check('tanınmayan süre yine de prompt\'a yazılır',
 
 // Prompt biçimi değiştiği için sürüm ilerlemiş olmalı.
 eq('prompt sürümü', PROMPT_VERSION, 'v4');
+
+// ── Öğrenme sinyalleri ──────────────────────────────────────────────────────
+
+function sig(p: Partial<EditSignalDTO>): EditSignalDTO {
+  return {
+    id: p.id ?? 'x', script_id: null, script_title: null,
+    format_id: p.format_id ?? null, format_label: p.format_label ?? null,
+    ai_text: p.ai_text ?? null, final_text: p.final_text ?? null,
+    edit_reason: p.edit_reason ?? null, dna_version: null, format_version: null,
+    prompt_version: null, created_at: '2026-09-03T00:00:00Z',
+  };
+}
+
+eq('sinyal yokken sayım boş', countByFormat([]), []);
+
+{
+  const rows = countByFormat([
+    sig({ format_id: 'a', format_label: 'Duygusal Hikâye', edit_reason: 'hook uzundu' }),
+    sig({ format_id: 'b', format_label: 'Taktik Analiz' }),
+    sig({ format_id: 'a', format_label: 'Duygusal Hikâye' }),
+    sig({ format_id: 'a', format_label: 'Duygusal Hikâye', edit_reason: '   ' }),
+    sig({}),
+  ]);
+  eq('format başına sayım, çoktan aza',
+    rows.map((r) => [r.label, r.count, r.withReason]),
+    [['Duygusal Hikâye', 3, 1], [NO_FORMAT_LABEL, 1, 0], ['Taktik Analiz', 1, 0]]);
+  check('formatsız sinyal gizlenmez', rows.some((r) => r.formatId === null));
+  eq('toplam sayım sinyal sayısına eşit', rows.reduce((n, r) => n + r.count, 0), 5);
+  check('yalnız boşluktan ibaret gerekçe sayılmaz', rows[0].withReason === 1);
+}
+
+// Metin yoksa 0 değil null — "sıfır kelime" ile "metin yok" aynı şey değildir.
+eq('kelime sayısı', wordCount('  bir  iki üç '), 3);
+eq('boş metin → null', wordCount('   '), null);
+eq('null metin → null', wordCount(null), null);
+
+eq('üretim varken fark hesaplanır',
+  signalDelta(sig({ ai_text: 'a b c d', final_text: 'a b' })), { ai: 4, final: 2, diff: -2 });
+eq('üretim yokken fark null',
+  signalDelta(sig({ final_text: 'a b' })), { ai: null, final: 2, diff: null });
+
+eq('artı fark işaretli', formatDelta(12), '+12');
+eq('eksi fark işaretli', formatDelta(-7), '−7');
+eq('sıfır fark', formatDelta(0), '0');
+eq('hesaplanamayan fark → null', formatDelta(null), null);
 
 // ── Sonuç ───────────────────────────────────────────────────────────────────
 

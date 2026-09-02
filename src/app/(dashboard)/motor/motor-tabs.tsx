@@ -8,6 +8,7 @@ const TABS = [
   { href: '/motor/dna', label: 'Arhaval DNA' },
   { href: '/motor/formatlar', label: 'Formatlar' },
   { href: '/motor/referanslar', label: 'Referanslar' },
+  { href: '/motor/ogrenme', label: 'Öğrenme' },
 ];
 
 export function MotorTabs() {

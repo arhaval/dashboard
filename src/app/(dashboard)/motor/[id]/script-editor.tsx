@@ -44,6 +44,8 @@ export function ScriptEditor({
 
   // Generation state (Step 2/3)
   const [generations, setGenerations] = React.useState<GenerationDTO[]>(script.generations ?? []);
+  // Onay anında sorulan tek satırlık gerekçe — öğrenme sinyaline yazılır.
+  const [editReason, setEditReason] = React.useState('');
   const [status, setStatus] = React.useState(script.status);
   const latestGen = generations[0] ?? null;
   const [finalText, setFinalText] = React.useState(
@@ -130,10 +132,12 @@ export function ScriptEditor({
     setErr(null);
     setMsg(null);
     startApprove(async () => {
-      const res = await approveFinal(script.id, finalText, basedOn);
+      const res = await approveFinal(script.id, finalText, basedOn, editReason);
       if (res.error) setErr(res.error);
       else {
         setStatus('FINAL');
+        // Sinyal yazılamasa bile final geçerlidir; uyarı hatanın yerini almaz.
+        if (res.warning) setErr(res.warning);
         setMsg('Final onaylandı — gold standard olarak kaydedildi.');
       }
     });
@@ -281,6 +285,22 @@ export function ScriptEditor({
               className="w-full resize-y rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)] disabled:opacity-60"
             />
           </div>
+
+          {status !== 'FINAL' && (
+            <div>
+              <label className="text-xs text-[var(--color-text-muted)]">
+                Neyi değiştirdin, neden?{' '}
+                <span className="text-[var(--color-text-muted)]">
+                  — isteğe bağlı, boş bırakabilirsin
+                </span>
+              </label>
+              <Input
+                value={editReason}
+                onChange={(e) => setEditReason(e.target.value)}
+                placeholder="ör. hook fazla uzundu, ilk iki cümleyi tek cümleye indirdim"
+              />
+            </div>
+          )}
 
           <div className="flex items-center gap-2">
             {status === 'FINAL' ? (

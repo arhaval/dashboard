@@ -21,7 +21,11 @@ import type {
   ReferenceDTO,
   ScriptDTO,
   ScriptStatus,
+  EditSignalDTO,
 } from '@/app/(dashboard)/motor/engine.constants';
+
+/** Ham sinyal satirlarini Phase 2 oneri satirlarindan (SUGGESTED) ayirir. */
+const RECORDED_STATUS = 'RECORDED';
 
 /** How many gold-standard + reference examples to inject into a prompt. */
 const MAX_GOLD_EXAMPLES = 3;
@@ -311,8 +315,9 @@ export const aiEngineService = {
     id: string,
     finalText: string,
     generationId: string | null,
-    userId: string
-  ): Promise<{ error?: string }> {
+    userId: string,
+    editReason?: string | null
+  ): Promise<{ error?: string; warning?: string }> {
     const admin = createAdminClient();
     const { error } = await admin
       .from('ai_scripts')
@@ -325,7 +330,44 @@ export const aiEngineService = {
         updated_at: new Date().toISOString(),
       })
       .eq('id', id);
-    return error ? { error: error.message } : {};
+    if (error) return { error: error.message };
+
+    // Öğrenme sinyali onay BAŞARILI olduktan sonra yazılır. Sinyal yazılamazsa
+    // onay geri alınmaz — çağırana uyarı döner, final kaydı geçerli kalır.
+    const warning = await recordEditSignal({
+      scriptId: id,
+      finalText,
+      generationId,
+      editReason: editReason ?? null,
+    });
+    return warning ? { warning } : {};
+  },
+
+  /** Öğrenme sayfası: ham düzenleme sinyalleri (öneri satırları hariç). */
+  async listEditSignals(): Promise<{ signals: EditSignalDTO[]; error?: string }> {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from('ai_edit_signals')
+      .select('*, ai_formats(label), ai_scripts(title)')
+      .eq('status', RECORDED_STATUS)
+      .order('created_at', { ascending: false });
+    if (error) return { signals: [], error: error.message };
+    return {
+      signals: ((data ?? []) as Row[]).map((r) => ({
+        id: r.id as string,
+        script_id: (r.script_id as string) ?? null,
+        script_title: ((r.ai_scripts as Row | null)?.title as string) ?? null,
+        format_id: (r.format_id as string) ?? null,
+        format_label: ((r.ai_formats as Row | null)?.label as string) ?? null,
+        ai_text: (r.ai_text as string) ?? null,
+        final_text: (r.final_text as string) ?? null,
+        edit_reason: (r.edit_reason as string) ?? null,
+        dna_version: (r.dna_version as number) ?? null,
+        format_version: (r.format_version as number) ?? null,
+        prompt_version: (r.prompt_version as string) ?? null,
+        created_at: r.created_at as string,
+      })),
+    };
   },
 
   /** Reopen a FINAL script for further editing (keeps final_text as-is). */
@@ -465,4 +507,48 @@ function rowToGeneration(r: Row): GenerationDTO {
     gold_standard_script_ids: (r.gold_standard_script_ids as string[]) ?? [],
     created_at: r.created_at as string,
   };
+}
+
+/**
+ * Öğrenme sinyalini yazar: AI'ın ham çıktısı + onaylanan hâli + gerekçesi.
+ * Hata mesajı döner (null = sorun yok). Çağıran onayı geri almaz — sinyal
+ * kaybı, kaydedilmiş bir finali geçersiz kılmaz.
+ */
+async function recordEditSignal(input: {
+  scriptId: string;
+  finalText: string;
+  generationId: string | null;
+  editReason: string | null;
+}): Promise<string | null> {
+  const admin = createAdminClient();
+
+  const { data: script } = await admin
+    .from('ai_scripts')
+    .select('format_id')
+    .eq('id', input.scriptId)
+    .maybeSingle();
+
+  let gen: Row | null = null;
+  if (input.generationId) {
+    const { data } = await admin
+      .from('ai_generations')
+      .select('output_text, dna_version, format_version, prompt_version')
+      .eq('id', input.generationId)
+      .maybeSingle();
+    gen = (data as Row | null) ?? null;
+  }
+
+  const { error } = await admin.from('ai_edit_signals').insert({
+    script_id: input.scriptId,
+    generation_id: input.generationId,
+    format_id: ((script as Row | null)?.format_id as string) ?? null,
+    ai_text: (gen?.output_text as string) ?? null,
+    final_text: input.finalText,
+    edit_reason: input.editReason?.trim() || null,
+    dna_version: (gen?.dna_version as number) ?? null,
+    format_version: (gen?.format_version as number) ?? null,
+    prompt_version: (gen?.prompt_version as string) ?? null,
+    status: RECORDED_STATUS,
+  });
+  return error ? `Final kaydedildi, öğrenme sinyali yazılamadı: ${error.message}` : null;
 }

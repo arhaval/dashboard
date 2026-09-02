@@ -147,6 +147,23 @@ CREATE TABLE IF NOT EXISTS ai_edit_signals (
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Onaylanan her final, uretimin ham ciktisiyla birlikte kaydedilir: AI'in neyi
+-- surekli yanlis yaptigini zamanla gorebilmek icin. Tablo Phase 2'de kural
+-- onerisi icin acilmisti (observation/occurrences/status); ham sinyal satirlari
+-- ayni tabloda status='RECORDED' ile durur, oneri satirlarindan ayrilir.
+ALTER TABLE ai_edit_signals ADD COLUMN IF NOT EXISTS ai_text        TEXT;
+ALTER TABLE ai_edit_signals ADD COLUMN IF NOT EXISTS final_text     TEXT;
+ALTER TABLE ai_edit_signals ADD COLUMN IF NOT EXISTS edit_reason    TEXT;
+ALTER TABLE ai_edit_signals ADD COLUMN IF NOT EXISTS format_id      UUID REFERENCES ai_formats(id) ON DELETE SET NULL;
+ALTER TABLE ai_edit_signals ADD COLUMN IF NOT EXISTS generation_id  UUID REFERENCES ai_generations(id) ON DELETE SET NULL;
+ALTER TABLE ai_edit_signals ADD COLUMN IF NOT EXISTS dna_version    INTEGER;
+ALTER TABLE ai_edit_signals ADD COLUMN IF NOT EXISTS format_version INTEGER;
+ALTER TABLE ai_edit_signals ADD COLUMN IF NOT EXISTS prompt_version TEXT;
+-- observation yalnizca oneri satirlarinda dolu; ham sinyalde gozlem yok.
+ALTER TABLE ai_edit_signals ALTER COLUMN observation DROP NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_ai_edit_signals_format  ON ai_edit_signals(format_id);
+CREATE INDEX IF NOT EXISTS idx_ai_edit_signals_created ON ai_edit_signals(created_at DESC);
+
 -- ── Seed: one empty active DNA + the 7 writing formats ──────────────────────
 INSERT INTO ai_dna (version, sections, is_active)
 SELECT 1,

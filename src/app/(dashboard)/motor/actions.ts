@@ -151,14 +151,23 @@ export async function deleteScript(id: string): Promise<{ error?: string }> {
 export async function approveFinal(
   id: string,
   finalText: string,
-  generationId: string | null
-): Promise<{ error?: string }> {
+  generationId: string | null,
+  /** "Neyi değiştirdin, neden?" — serbest, zorunlu değil. */
+  editReason?: string | null
+): Promise<{ error?: string; warning?: string }> {
   const user = await requireAdmin();
   if (!user) return { error: 'Yetki yok' };
   if (!finalText.trim()) return { error: 'Final metin boş olamaz' };
-  const res = await aiEngineService.approveFinal(id, finalText, generationId, user.id);
+  const res = await aiEngineService.approveFinal(
+    id,
+    finalText,
+    generationId,
+    user.id,
+    editReason ?? null
+  );
   revalidatePath(`/motor/${id}`);
   revalidatePath('/motor');
+  revalidatePath('/motor/ogrenme');
   return res;
 }
 
