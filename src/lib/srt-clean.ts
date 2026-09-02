@@ -2,14 +2,19 @@
  * SRT / VTT subtitle cleaner.
  *
  * Turns raw subtitle text into a flowing speech paragraph the model can learn
- * style from — without timestamps, cue numbers, tags, or the duplicated lines
- * that rolling captions produce. Pure function, no I/O.
+ * style from — without timestamps, cue numbers, tags, non-speech markers, or
+ * the duplicated lines rolling captions produce. Pure function, no I/O.
  */
 
 const TIMESTAMP_LINE = /-->/;
 const SEQ_NUMBER_LINE = /^\d+$/;
 const TAG = /<[^>]+>|\{[^}]+\}/g; // <i>, <c.color>, {\an8} ...
 const CUE_SETTING = /\b(align|position|line|size|region):\S+/gi;
+// Non-speech notation auto-captioners insert into the middle of sentences.
+// It is caption markup, not spoken words, so it must not reach the model.
+const NON_SPEECH_MARKER =
+  /\[\s*(m[uü]zik|music|alk[ıi][sş]|applause|g[uü]l[uü][sş]|laughter|ses|sound|inaudible|belirsiz)[^\]]*\]/gi;
+const SPEAKER_MARK = /^>>+\s*/; // ">> " speaker-change marker
 
 function decodeEntities(s: string): string {
   return s
@@ -31,6 +36,7 @@ function extractLines(raw: string): string[] {
     if (TIMESTAMP_LINE.test(line)) continue;      // 00:00:01,000 --> 00:00:04,000
     if (SEQ_NUMBER_LINE.test(line)) continue;     // cue index
     line = line.replace(TAG, '').replace(CUE_SETTING, '').trim();
+    line = line.replace(NON_SPEECH_MARKER, ' ').replace(SPEAKER_MARK, '').trim();
     line = decodeEntities(line).replace(/\s+/g, ' ').trim();
     if (line) out.push(line);
   }

@@ -11,7 +11,8 @@
     "check:content-impact": "tsx scripts/check-content-impact.ts",
     "check:publication-metrics": "tsx scripts/check-publication-metrics.ts",
     "check:social-monthly": "tsx scripts/check-social-monthly.ts",
-    "test": "npm run check:content-impact && npm run check:publication-metrics && npm run check:social-monthly"
+    "check:srt-clean": "tsx scripts/check-srt-clean.ts",
+    "test": "npm run check:content-impact && npm run check:publication-metrics && npm run check:social-monthly && npm run check:srt-clean"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
