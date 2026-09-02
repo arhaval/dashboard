@@ -213,7 +213,9 @@ export async function arhavalize(
       headers: { Authorization: `Bearer ${KEY}`, 'content-type': 'application/json' },
       body: JSON.stringify({
         model: OPENAI_MODEL,
-        temperature: 0.7,
+        // temperature YOK: GPT-5 ailesi bu parametreyi reddediyor (400,
+        // "Only the default (1) value is supported"). Çeşitlilik burada
+        // sıcaklıkla değil, reasoning_effort ve prompt ile ayarlanır.
         // GPT-5.6 supports reasoning; medium balances quality vs. cost.
         reasoning_effort: 'medium',
         response_format: { type: 'json_object' },
