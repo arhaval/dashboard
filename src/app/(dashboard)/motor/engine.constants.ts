@@ -6,11 +6,15 @@ export type ReferenceSourceType = 'SRT' | 'TEXT' | 'VIDEO';
 
 /** The prompt template revision — bump when the generation prompt changes so we
  *  can later tell which prompt shape produced which output. */
-export const PROMPT_VERSION = 'v1';
+export const PROMPT_VERSION = 'v2';
 
 /** Arhaval DNA sections (Layer 1) — the same keys stored in ai_dna.sections. */
 export const DNA_SECTIONS: { key: string; label: string; hint: string }[] = [
   { key: 'voice',      label: 'Anlatıcı Sesi / Ton',   hint: 'Nasıl konuşuyoruz? "Biz" dili, samimiyet, iddia, jargon.' },
+  // İskelet prompt'ta KENDİ bölümünde gösterilir (madde listesinde tekrarlanmaz);
+  // boş bırakılırsa prompt varsayılan iskeleti yazar.
+  { key: 'skeleton',           label: 'Metin İskeleti',            hint: 'Metnin değişmez sırası ve blok sayısı. Boş bırakılırsa varsayılan iskelet kullanılır.' },
+  { key: 'voice_distribution', label: 'Anlatıcı Sesi Dağılımı',    hint: 'Hangi bölümde hangi ses baskın? Anlatıcı/yorumcu/aktarıcı dengesi metin boyunca nasıl değişiyor?' },
   { key: 'hook_logic', label: 'Hook Mantığı',          hint: 'İlk saniyelerde merak/gerilim nasıl kuruluyor?' },
   { key: 'rhythm',     label: 'Cümle Ritmi',           hint: 'Kısa/uzun cümle dengesi, tempo, nefes noktaları.' },
   { key: 'data_usage', label: 'Veri Kullanımı',        hint: 'Sayı/istatistik nasıl veriliyor, ne zaman?' },
@@ -22,6 +26,7 @@ export const DNA_SECTIONS: { key: string; label: string; hint: string }[] = [
 /** Format Playbook sections (Layer 2) — the same keys stored in ai_formats.playbook. */
 export const PLAYBOOK_SECTIONS: { key: string; label: string; hint: string }[] = [
   { key: 'hook',     label: 'Hook',    hint: 'Bu formatta giriş nasıl kurulur.' },
+  { key: 'thesis',   label: 'Tez',     hint: "Hook'un vaadini somutlaştıran tek cümle. Gövdenin neyi kanıtlayacağını söyler, gövdeyi özetlemez." },
   { key: 'body',     label: 'Gövde',   hint: 'Ana anlatının yapısı, sırası.' },
   { key: 'rhythm',   label: 'Ritim',   hint: 'Bu formata özel tempo.' },
   { key: 'evidence', label: 'Kanıt',   hint: 'Hangi kanıt/veri türü kullanılır.' },

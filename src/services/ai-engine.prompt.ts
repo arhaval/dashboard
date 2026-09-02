@@ -26,6 +26,19 @@ export interface PromptContext {
   };
 }
 
+/**
+ * İskelet DNA'da tutulur ama prompt'ta KENDİ bölümünde gösterilir — hem madde
+ * listesinde hem ayrı blokta çıkarsa aynı metin iki kez gider.
+ */
+const SKELETON_KEY = 'skeleton';
+
+/** DNA'da iskelet tanımlanmamışsa kullanılan varsayılan yapı. */
+const DEFAULT_SKELETON = [
+  'HOOK → TEZ → 3 GÖVDE BLOĞU → PAYOFF → CTA',
+  'Format bu sıralamayı veya blok sayısını değiştirmez; yalnızca blokların neyle doldurulacağını belirler.',
+  "Varsayılan blok sayısı 3'tür. 2 veya 4 blok yalnızca konunun yapısı gerektiriyorsa kullanılır.",
+].join('\n');
+
 function renderSections(
   defs: { key: string; label: string }[],
   values: Record<string, string> | null
@@ -38,7 +51,12 @@ function renderSections(
 }
 
 export function buildArhavalizePrompt(ctx: PromptContext): { system: string; user: string } {
-  const dna = renderSections(DNA_SECTIONS, ctx.dnaSections);
+  // İskelet madde listesinden çıkarılır; aşağıda kendi bölümünde yazılır.
+  const dna = renderSections(
+    DNA_SECTIONS.filter((d) => d.key !== SKELETON_KEY),
+    ctx.dnaSections
+  );
+  const skeleton = ctx.dnaSections?.[SKELETON_KEY]?.trim() || DEFAULT_SKELETON;
   const playbook = renderSections(PLAYBOOK_SECTIONS, ctx.playbook);
 
   const system = [
@@ -47,6 +65,9 @@ export function buildArhavalizePrompt(ctx: PromptContext): { system: string; use
     '',
     '## ARHAVAL DNA (her formatta geçerli, değişmez kimlik)',
     dna,
+    '',
+    '## METİN İSKELETİ (tüm formatlarda aynı, değişmez)',
+    skeleton,
     '',
     `## FORMAT: ${ctx.formatLabel ?? 'Belirtilmedi'} (bu formatın kuralları)`,
     playbook,
