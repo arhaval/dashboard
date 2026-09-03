@@ -2,9 +2,11 @@ import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
 import { aiEngineService } from '@/services/ai-engine.service';
+import { isUntagged, listFinalScripts } from '@/services/ai-classify.service';
 import { MotorTabs } from '../motor-tabs';
 import { countByFormat } from './learning.constants';
 import { SignalList } from './signal-list';
+import { TagBackfillButton } from './tag-backfill-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,8 +15,12 @@ export default async function OgrenmePage() {
   if (!user) redirect('/login');
   if (user.role !== 'ADMIN') redirect('/motor');
 
-  const { signals, error } = await aiEngineService.listEditSignals();
+  const [{ signals, error }, finals] = await Promise.all([
+    aiEngineService.listEditSignals(),
+    listFinalScripts(),
+  ]);
   const counts = countByFormat(signals);
+  const untagged = finals.filter(isUntagged).length;
 
   return (
     <PageShell
@@ -22,6 +28,17 @@ export default async function OgrenmePage() {
       description="Onaylanan her finalde AI'ın ham çıktısı, senin onayladığın hâli ve gerekçen birlikte saklanır. Amaç: motorun neyi tekrar tekrar yanlış yaptığını görmek."
     >
       <MotorTabs />
+
+      <section className="mb-6">
+        <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+          Etiketleme
+        </h2>
+        <p className="mb-2 text-xs text-[var(--color-text-muted)]">
+          Onaylanan metinler otomatik etiketlenir. Bu düğme yalnızca etiketi eksik kalmış eski
+          finaller içindir; onay akışını çalıştırmaz, öğrenme sinyali yazmaz.
+        </p>
+        <TagBackfillButton untagged={untagged} />
+      </section>
 
       {error ? (
         <p className="rounded-[var(--radius-md)] border border-[var(--color-error)] px-4 py-3 text-sm text-[var(--color-error)]">

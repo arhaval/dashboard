@@ -13,44 +13,26 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 config();
 
-import { createAdminClient } from '../src/lib/supabase/admin';
-import { classifyAndSaveScriptTags } from '../src/services/ai-classify.service';
+import {
+  classifyAndSaveScriptTags,
+  isUntagged,
+  listFinalScripts,
+  type FinalScriptRow,
+} from '../src/services/ai-classify.service';
 
 const APPLY = process.argv.includes('--apply');
 const ALL = process.argv.includes('--all');
-
-interface Row {
-  id: string;
-  title: string;
-  final_text: string | null;
-  hook_family: string | null;
-  payoff_type: string | null;
-  cta_type: string | null;
-}
 
 function tagLine(r: { hook_family: string | null; payoff_type: string | null; cta_type: string | null }) {
   return `hook=${r.hook_family ?? '—'} payoff=${r.payoff_type ?? '—'} cta=${r.cta_type ?? '—'}`;
 }
 
 async function main() {
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from('ai_scripts')
-    .select('id, title, final_text, hook_family, payoff_type, cta_type')
-    .eq('status', 'FINAL')
-    .order('approved_at', { ascending: true });
-  if (error) {
-    console.error(`Metinler okunamadı: ${error.message}`);
-    process.exit(1);
-  }
-
-  const finals = (data ?? []) as Row[];
-  const withText = finals.filter((r) => r.final_text?.trim());
-  const missing = withText.filter((r) => !r.hook_family || !r.payoff_type || !r.cta_type);
+  const withText: FinalScriptRow[] = await listFinalScripts();
+  const missing = withText.filter(isUntagged);
   const targets = ALL ? withText : missing;
 
-  console.log(`FINAL metin: ${finals.length}`);
-  console.log(`  final_text dolu: ${withText.length}`);
+  console.log(`final_text dolu FINAL metin: ${withText.length}`);
   console.log(`  eksik etiketli : ${missing.length}`);
   console.log(`  işlenecek      : ${targets.length}${ALL ? ' (--all: etiketliler dahil)' : ''}\n`);
 

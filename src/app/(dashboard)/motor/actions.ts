@@ -5,7 +5,10 @@ import { userService } from '@/services';
 import { aiEngineService } from '@/services/ai-engine.service';
 import { buildArhavalizePrompt } from '@/services/ai-engine.prompt';
 import { OPENAI_CHAT_URL, OPENAI_MODEL } from '@/services/openai.constants';
-import { classifyAndSaveScriptTags } from '@/services/ai-classify.service';
+import {
+  classifyAndSaveScriptTags,
+  classifyUntaggedFinals,
+} from '@/services/ai-classify.service';
 import { cleanSubtitle, looksLikeSubtitle } from '@/lib/srt-clean';
 import {
   CTA_TYPES,
@@ -314,4 +317,26 @@ export async function arhavalize(
 
   revalidatePath(`/motor/${scriptId}`);
   return { generationId: saved.id, output, notes, tags, hookAlternatives };
+}
+
+/**
+ * Etiketsiz FINAL metinleri toplu etiketler (Öğrenme sayfasındaki düğme).
+ *
+ * Onay akışından ayrıdır ve öğrenme sinyali YAZMAZ: bu bir yeniden onay değil,
+ * eksik veriyi tamamlama işlemidir. Yeniden onaylatmak sinyal tablosuna gerçek
+ * bir düzenlemeye karşılık gelmeyen satır düşürürdü.
+ */
+export async function tagUntaggedFinals(): Promise<{
+  total?: number;
+  tagged?: number;
+  failures?: { title: string; error: string }[];
+  error?: string;
+}> {
+  const user = await requireAdmin();
+  if (!user) return { error: 'Yetki yok' };
+
+  const res = await classifyUntaggedFinals();
+  revalidatePath('/motor/ogrenme');
+  revalidatePath('/motor');
+  return res;
 }

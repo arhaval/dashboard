@@ -115,3 +115,56 @@ export async function classifyAndSaveScriptTags(
   const { error } = await admin.from('ai_scripts').update(patch).eq('id', scriptId);
   return error ? { tags: result.tags, error: error.message } : result;
 }
+
+// ── Etiketsiz finaller ──────────────────────────────────────────────────────
+// "Etiketsiz final" tanımı TEK yerde durur: panel düğmesi de, backfill komutu
+// da aynı ölçüyü kullanır.
+
+export interface FinalScriptRow {
+  id: string;
+  title: string;
+  final_text: string | null;
+  hook_family: string | null;
+  payoff_type: string | null;
+  cta_type: string | null;
+}
+
+/** Üç etiketten biri bile eksikse metin etiketsiz sayılır. */
+export function isUntagged(row: FinalScriptRow): boolean {
+  return !row.hook_family || !row.payoff_type || !row.cta_type;
+}
+
+/** final_text'i dolu olan FINAL metinler, onaydan eskiye. */
+export async function listFinalScripts(): Promise<FinalScriptRow[]> {
+  const { data } = await createAdminClient()
+    .from('ai_scripts')
+    .select('id, title, final_text, hook_family, payoff_type, cta_type')
+    .eq('status', 'FINAL')
+    .order('approved_at', { ascending: true });
+  return ((data ?? []) as FinalScriptRow[]).filter((r) => r.final_text?.trim());
+}
+
+export interface BulkClassifyResult {
+  /** Etiketsiz bulunan metin sayısı. */
+  total: number;
+  /** Etiketi yazılan metin sayısı. */
+  tagged: number;
+  failures: { title: string; error: string }[];
+}
+
+/**
+ * Etiketsiz tüm finalleri etiketler. Öğrenme sinyali YAZMAZ — bu bir onay
+ * değil, eksik veriyi tamamlama işlemidir; sinyal tablosuna sahte satır düşmez.
+ */
+export async function classifyUntaggedFinals(): Promise<BulkClassifyResult> {
+  const targets = (await listFinalScripts()).filter(isUntagged);
+  const failures: BulkClassifyResult['failures'] = [];
+  let tagged = 0;
+
+  for (const row of targets) {
+    const res = await classifyAndSaveScriptTags(row.id);
+    if (res.error) failures.push({ title: row.title, error: res.error });
+    else if (hasAnyTag(res.tags)) tagged += 1;
+  }
+  return { total: targets.length, tagged, failures };
+}
