@@ -6,7 +6,7 @@ export type ReferenceSourceType = 'SRT' | 'TEXT' | 'VIDEO';
 
 /** The prompt template revision — bump when the generation prompt changes so we
  *  can later tell which prompt shape produced which output. */
-export const PROMPT_VERSION = 'v5';
+export const PROMPT_VERSION = 'v6';
 
 /** Arhaval DNA sections (Layer 1) — the same keys stored in ai_dna.sections. */
 export const DNA_SECTIONS: { key: string; label: string; hint: string }[] = [
@@ -151,6 +151,8 @@ export interface GenerationDTO {
   hook_family: string | null;
   payoff_type: string | null;
   cta_type: string | null;
+  /** Üç hook seçeneği; ilki `output_text`in başındaki hook'tur. */
+  hook_alternatives: HookAlternative[];
   created_at: string;
 }
 
@@ -269,4 +271,54 @@ export function readVarietyTags(row: {
     payoffType: coerceTag(PAYOFF_TYPES, row.payoff_type),
     ctaType: coerceTag(CTA_TYPES, row.cta_type),
   };
+}
+
+// ── Hook seçenekleri ────────────────────────────────────────────────────────
+// Üretim tek hook yerine üç seçenek döner. Seçim metne uygulanır ve seçilen
+// aile finale yazılır — çeşitlilik kısıtı denenen değil, SEÇİLEN aileyi sayar.
+
+/** Kaç seçenek istiyoruz. Dört aile var; üçü farklı olmak zorunda. */
+export const HOOK_ALTERNATIVE_COUNT = 3;
+
+export interface HookAlternative {
+  family: HookFamily;
+  text: string;
+}
+
+/**
+ * Modelin döndürdüğü seçenek listesini güvene alır: sözlük dışı aile, boş metin
+ * ve aynı aileden ikinci seçenek elenir. Kalan liste kısa olabilir — eksik
+ * seçeneği uydurmak, "üç farklı aile" vaadini sahte biçimde yerine getirirdi.
+ */
+export function coerceHookAlternatives(raw: unknown): HookAlternative[] {
+  if (!Array.isArray(raw)) return [];
+  const out: HookAlternative[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as { family?: unknown; text?: unknown };
+    const family = coerceTag(HOOK_FAMILIES, row.family);
+    const text = typeof row.text === 'string' ? row.text.trim() : '';
+    if (!family || !text || seen.has(family)) continue;
+    seen.add(family);
+    out.push({ family, text });
+    if (out.length === HOOK_ALTERNATIVE_COUNT) break;
+  }
+  return out;
+}
+
+/**
+ * Seçilen hook'u metne uygular. Metin, seçeneklerden birinin metniyle BİREBİR
+ * başlamak zorundadır; başlamıyorsa değiştirme yapılmaz (ok=false) ve kullanıcı
+ * elle düzenler. Cümle sınırı tahmin edip metni kesmek, sessizce bozardı.
+ */
+export function applyHook(
+  script: string,
+  alternatives: HookAlternative[],
+  chosen: HookAlternative
+): { text: string; ok: boolean } {
+  const body = script.trimStart();
+  const current = alternatives.find((a) => a.text && body.startsWith(a.text));
+  if (!current) return { text: script, ok: false };
+  return { text: chosen.text + body.slice(current.text.length), ok: true };
 }

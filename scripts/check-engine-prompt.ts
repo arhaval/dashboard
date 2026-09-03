@@ -14,10 +14,14 @@ import {
   PAYOFF_TYPES,
   PROMPT_VERSION,
   WORD_TARGETS,
+  HOOK_ALTERNATIVE_COUNT,
+  applyHook,
+  coerceHookAlternatives,
   coerceTag,
   readVarietyTags,
   wordTargetFor,
   type DurationOption,
+  type HookAlternative,
 } from '../src/app/(dashboard)/motor/engine.constants';
 import { buildArhavalizePrompt, type PromptContext } from '../src/services/ai-engine.prompt';
 import type { EditSignalDTO } from '../src/app/(dashboard)/motor/engine.constants';
@@ -139,7 +143,7 @@ check('tanınmayan süre yine de prompt\'a yazılır',
   buildArhavalizePrompt(ctx('4 dk')).user.includes('# Hedef süre/uzunluk: 4 dk'));
 
 // Prompt biçimi değiştiği için sürüm ilerlemiş olmalı.
-eq('prompt sürümü', PROMPT_VERSION, 'v5');
+eq('prompt sürümü', PROMPT_VERSION, 'v6');
 
 // ── Öğrenme sinyalleri ──────────────────────────────────────────────────────
 
@@ -243,6 +247,67 @@ check('etiketi boş finaller bölüm açtırmaz',
   for (const pt of PAYOFF_TYPES) check(`izinli payoff prompt'ta: ${pt}`, sys.includes(pt));
   for (const c of CTA_TYPES) check(`izinli CTA prompt'ta: ${c}`, sys.includes(c));
   check('etikete uydurma yasağı var', sys.includes('Metni etikete uydurma'));
+}
+
+// ── Hook seçenekleri ────────────────────────────────────────────────────────
+
+eq("seçenek sayısı üçtür", HOOK_ALTERNATIVE_COUNT, 3);
+
+const RAW3 = [
+  { family: "sahne", text: "Bir stadyum, boş tribün." },
+  { family: "Çıplak Sayı", text: "18,9." },
+  { family: "soru", text: "Bu adam neden gitti?" },
+];
+eq("geçerli üçlü aynen geçer",
+  coerceHookAlternatives(RAW3).map((a) => a.family), ["sahne", "çıplak sayı", "soru"]);
+
+eq("sözlük dışı aile elenir",
+  coerceHookAlternatives([{ family: "metafor", text: "x" }, RAW3[0]]).map((a) => a.family), ["sahne"]);
+eq("boş metin elenir", coerceHookAlternatives([{ family: "sahne", text: "   " }]), []);
+eq("aynı aileden ikinci seçenek elenir",
+  coerceHookAlternatives([RAW3[0], { family: "sahne", text: "başka cümle" }, RAW3[2]])
+    .map((a) => a.family), ["sahne", "soru"]);
+eq("dördüncü seçenek alınmaz",
+  coerceHookAlternatives([...RAW3, { family: "aforizma", text: "dört" }]).length, 3);
+eq("dizi olmayan girdi → boş", coerceHookAlternatives("sahne"), []);
+eq("null → boş", coerceHookAlternatives(null), []);
+eq("metin kırpılır",
+  coerceHookAlternatives([{ family: "soru", text: "  Neden?  " }])[0].text, "Neden?");
+
+// applyHook: önek değişimi. Eşleşme yoksa TAHMİN YÜRÜTÜLMEZ.
+const ALTS: HookAlternative[] = coerceHookAlternatives(RAW3);
+const BODY = " Devamı burada. Son cümle.";
+
+{
+  const r = applyHook(ALTS[0].text + BODY, ALTS, ALTS[2]);
+  check("eşleşen önek değişir", r.ok);
+  eq("gövde korunur", r.text, ALTS[2].text + BODY);
+}
+{
+  const r = applyHook(ALTS[1].text + BODY, ALTS, ALTS[1]);
+  check("aynı seçenek seçilince değişmez", r.ok);
+  eq("metin aynı kalır", r.text, ALTS[1].text + BODY);
+}
+{
+  const elle = "Kullanıcı hooku elle yazdı." + BODY;
+  const r = applyHook(elle, ALTS, ALTS[0]);
+  check("eşleşme yoksa uygulanmaz", !r.ok);
+  eq("metne dokunulmaz", r.text, elle);
+}
+{
+  const r = applyHook("\n  " + ALTS[0].text + BODY, ALTS, ALTS[1]);
+  check("baştaki boşluk eşleşmeyi bozmaz", r.ok);
+  eq("boşluk kırpılarak yeni hook yazılır", r.text, ALTS[1].text + BODY);
+}
+eq("seçenek yokken uygulanamaz", applyHook("metin", [], ALTS[0]).ok, false);
+
+// Prompt sözleşmesi
+{
+  const sys = withRecent([]);
+  check("hook_alternatives JSON alanı istenir", sys.includes('"hook_alternatives"'));
+  check("üç farklı aile şartı yazılı", sys.includes("FARKLI bir kanca ailesinden"));
+  check("birebir eşleşme şartı yazılı", sys.includes("BİREBİR aynı metin"));
+  check("seçenek sayısı prompta geçer", sys.includes(`tam ${HOOK_ALTERNATIVE_COUNT} seçenek`));
 }
 
 // ── Sonuç ───────────────────────────────────────────────────────────────────

@@ -11,8 +11,10 @@ import {
   PAYOFF_TYPES,
   PLATFORM_LABELS,
   PROMPT_VERSION,
+  coerceHookAlternatives,
   coerceTag,
   type EnginePlatform,
+  type HookAlternative,
   type VarietyTags,
 } from './engine.constants';
 
@@ -162,7 +164,9 @@ export async function approveFinal(
   finalText: string,
   generationId: string | null,
   /** "Neyi değiştirdin, neden?" — serbest, zorunlu değil. */
-  editReason?: string | null
+  editReason?: string | null,
+  /** Kullanıcının seçtiği hook ailesi — çeşitlilik kaydına bu gider. */
+  chosenHookFamily?: string | null
 ): Promise<{ error?: string; warning?: string }> {
   const user = await requireAdmin();
   if (!user) return { error: 'Yetki yok' };
@@ -172,7 +176,8 @@ export async function approveFinal(
     finalText,
     generationId,
     user.id,
-    editReason ?? null
+    editReason ?? null,
+    chosenHookFamily ?? null
   );
   revalidatePath(`/motor/${id}`);
   revalidatePath('/motor');
@@ -196,6 +201,7 @@ export async function arhavalize(
   output?: string;
   notes?: string[];
   tags?: VarietyTags;
+  hookAlternatives?: HookAlternative[];
   error?: string;
 }> {
   const user = await requireAdmin();
@@ -233,6 +239,7 @@ export async function arhavalize(
   let output: string;
   let notes: string[] = [];
   let tags: VarietyTags = { hookFamily: null, payoffType: null, ctaType: null };
+  let hookAlternatives: HookAlternative[] = [];
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -272,6 +279,7 @@ export async function arhavalize(
         payoffType: coerceTag(PAYOFF_TYPES, parsed.payoff_type),
         ctaType: coerceTag(CTA_TYPES, parsed.cta_type),
       };
+      hookAlternatives = coerceHookAlternatives(parsed.hook_alternatives);
     } catch {
       // Model ignored the JSON contract — fall back to raw text.
       output = String(content).trim();
@@ -292,10 +300,11 @@ export async function arhavalize(
     referenceIds: ctx.references.map((r) => r.id),
     goldStandardScriptIds: ctx.golds.map((g) => g.id),
     tags,
+    hookAlternatives,
     userId: user.id,
   });
   if (saved.error) return { error: saved.error };
 
   revalidatePath(`/motor/${scriptId}`);
-  return { generationId: saved.id, output, notes, tags };
+  return { generationId: saved.id, output, notes, tags, hookAlternatives };
 }

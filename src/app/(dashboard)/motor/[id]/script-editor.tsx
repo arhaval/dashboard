@@ -9,8 +9,10 @@ import {
   STATUS_META,
   PLATFORM_OPTIONS,
   DRAFT_SAFETY_NOTE,
+  applyHook,
   type FormatDTO,
   type GenerationDTO,
+  type HookAlternative,
   type ScriptDTO,
 } from '../engine.constants';
 import { DurationSelect } from '../duration-select';
@@ -54,6 +56,14 @@ export function ScriptEditor({
   const [basedOn, setBasedOn] = React.useState<string | null>(
     script.final_generation_id ?? script.generations?.[0]?.id ?? null
   );
+
+  // Hook seçenekleri, metnin dayandığı üretimden gelir. Hangisinin uygulandığı
+  // AYRI state'te tutulmaz, metnin kendisinden okunur: kullanıcı hook'u elle
+  // düzenlerse eşleşme düşer ve panel "seçili" göstermeye devam etmez.
+  const activeGen = generations.find((g) => g.id === basedOn) ?? null;
+  const hookOptions: HookAlternative[] = activeGen?.hook_alternatives ?? [];
+  const currentHook =
+    hookOptions.find((a) => finalText.trimStart().startsWith(a.text)) ?? null;
 
   const [saving, startSave] = React.useTransition();
   const [generating, startGen] = React.useTransition();
@@ -115,6 +125,7 @@ export function ScriptEditor({
           hook_family: res.tags?.hookFamily ?? null,
           payoff_type: res.tags?.payoffType ?? null,
           cta_type: res.tags?.ctaType ?? null,
+          hook_alternatives: res.hookAlternatives ?? [],
           created_at: new Date().toISOString(),
         };
         setGenerations((prev) => [gen, ...prev]);
@@ -126,6 +137,18 @@ export function ScriptEditor({
     });
   }
 
+  function chooseHook(alt: HookAlternative) {
+    const res = applyHook(finalText, hookOptions, alt);
+    if (!res.ok) {
+      setErr(
+        'Hook değiştirilemedi: metnin başı seçeneklerin hiçbiriyle birebir eşleşmiyor. Hook’u elle düzenleyebilirsin.'
+      );
+      return;
+    }
+    setErr(null);
+    setFinalText(res.text);
+  }
+
   function loadGeneration(g: GenerationDTO) {
     setFinalText(g.output_text);
     setBasedOn(g.id);
@@ -135,7 +158,14 @@ export function ScriptEditor({
     setErr(null);
     setMsg(null);
     startApprove(async () => {
-      const res = await approveFinal(script.id, finalText, basedOn, editReason);
+      // Eşleşme yoksa null gider; servis üretimin beyanına düşer.
+      const res = await approveFinal(
+        script.id,
+        finalText,
+        basedOn,
+        editReason,
+        currentHook?.family ?? null
+      );
       if (res.error) setErr(res.error);
       else {
         setStatus('FINAL');
@@ -272,6 +302,42 @@ export function ScriptEditor({
                   <li key={i}>{n}</li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {hookOptions.length > 0 && status !== 'FINAL' && (
+            <div>
+              <label className="text-xs text-[var(--color-text-muted)]">
+                Hook seçenekleri — birine bas, metnin başı değişsin
+              </label>
+              <div className="mt-1.5 space-y-1.5">
+                {hookOptions.map((alt) => {
+                  const active = currentHook?.family === alt.family;
+                  return (
+                    <button
+                      key={alt.family}
+                      onClick={() => chooseHook(alt)}
+                      className={`w-full rounded-[var(--radius-md)] border px-3 py-2 text-left text-sm transition-colors ${
+                        active
+                          ? 'border-[var(--color-accent)] bg-[var(--color-accent-muted)]'
+                          : 'border-[var(--color-border)] hover:border-[var(--color-border-hover)]'
+                      }`}
+                    >
+                      <span className="text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">
+                        {alt.family}
+                        {active ? ' · uygulandı' : ''}
+                      </span>
+                      <p className="mt-0.5 text-[var(--color-text-primary)]">{alt.text}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              {!currentHook && (
+                <p className="mt-1.5 text-xs text-[var(--color-text-muted)]">
+                  Metnin başı seçeneklerin hiçbiriyle eşleşmiyor — hook elle düzenlenmiş. Onayda
+                  üretimin bildirdiği aile kaydedilir.
+                </p>
+              )}
             </div>
           )}
 

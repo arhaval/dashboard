@@ -22,9 +22,15 @@ import type {
   ScriptDTO,
   ScriptStatus,
   EditSignalDTO,
+  HookAlternative,
   VarietyTags,
 } from '@/app/(dashboard)/motor/engine.constants';
-import { readVarietyTags } from '@/app/(dashboard)/motor/engine.constants';
+import {
+  HOOK_FAMILIES,
+  coerceHookAlternatives,
+  coerceTag,
+  readVarietyTags,
+} from '@/app/(dashboard)/motor/engine.constants';
 
 /** DNA "son 3 icerikte kullanilan aile tekrarlanmaz" diyor -- kisit penceresi. */
 const RECENT_TAGGED_FINALS = 3;
@@ -321,10 +327,19 @@ export const aiEngineService = {
     finalText: string,
     generationId: string | null,
     userId: string,
-    editReason?: string | null
+    editReason?: string | null,
+    /** Kullanıcının seçtiği hook ailesi; verilmezse üretimin beyanı geçerli. */
+    chosenHookFamily?: string | null
   ): Promise<{ error?: string; warning?: string }> {
     const admin = createAdminClient();
-    const approvedTags = await tagsOfGeneration(generationId);
+    const generationTags = await tagsOfGeneration(generationId);
+    // Kullanıcı hook seçtiyse çeşitlilik kaydına GİDEN o seçimdir: kısıt,
+    // modelin önerdiğini değil yayına çıkanı saymalı.
+    const approvedTags: VarietyTags = {
+      ...generationTags,
+      hookFamily:
+        coerceTag(HOOK_FAMILIES, chosenHookFamily) ?? generationTags.hookFamily,
+    };
     const { error } = await admin
       .from('ai_scripts')
       .update({
@@ -404,6 +419,8 @@ export const aiEngineService = {
     goldStandardScriptIds: string[];
     /** Modelin beyan ettiği çeşitlilik etiketleri; sözlük dışı değer null gelir. */
     tags: VarietyTags;
+    /** Üç hook seçeneği; ilki çıktının başındaki hook'tur. */
+    hookAlternatives: HookAlternative[];
     userId: string;
   }): Promise<{ id?: string; error?: string }> {
     const admin = createAdminClient();
@@ -422,6 +439,7 @@ export const aiEngineService = {
         hook_family: input.tags.hookFamily,
         payoff_type: input.tags.payoffType,
         cta_type: input.tags.ctaType,
+        hook_alternatives: input.hookAlternatives,
         created_by: input.userId,
       })
       .select('id')
@@ -543,6 +561,7 @@ function rowToGeneration(r: Row): GenerationDTO {
     hook_family: tags.hookFamily,
     payoff_type: tags.payoffType,
     cta_type: tags.ctaType,
+    hook_alternatives: coerceHookAlternatives(r.hook_alternatives),
     created_at: r.created_at as string,
   };
 }

@@ -130,6 +130,9 @@ CREATE INDEX IF NOT EXISTS idx_ai_generations_script ON ai_generations(script_id
 ALTER TABLE ai_generations ADD COLUMN IF NOT EXISTS hook_family TEXT;
 ALTER TABLE ai_generations ADD COLUMN IF NOT EXISTS payoff_type TEXT;
 ALTER TABLE ai_generations ADD COLUMN IF NOT EXISTS cta_type    TEXT;
+-- Uretim tek hook yerine uc secenek doner (her biri farkli kanca ailesinden).
+-- Kullanici birini secer; secilen aile finale hook_family olarak yazilir.
+ALTER TABLE ai_generations ADD COLUMN IF NOT EXISTS hook_alternatives JSONB NOT NULL DEFAULT '[]'::jsonb;
 ALTER TABLE ai_scripts     ADD COLUMN IF NOT EXISTS hook_family TEXT;
 ALTER TABLE ai_scripts     ADD COLUMN IF NOT EXISTS payoff_type TEXT;
 ALTER TABLE ai_scripts     ADD COLUMN IF NOT EXISTS cta_type    TEXT;
