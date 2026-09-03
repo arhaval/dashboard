@@ -122,6 +122,20 @@ ALTER TABLE ai_generations ADD COLUMN IF NOT EXISTS gold_standard_script_ids UUI
 
 CREATE INDEX IF NOT EXISTS idx_ai_generations_script ON ai_generations(script_id);
 
+-- ── Cesitlilik etiketleri: kural verisi ────────────────────────────────────
+-- DNA "son 3 icerikte kullanilan hook ailesini tekrarlama" diyordu ama bu bilgi
+-- hicbir yerde tutulmuyordu; kural yaziliydi, verisi yoktu. Model artik her
+-- uretimde kendi sectigi aileyi/tipi soyluyor, onaylanan final ile birlikte
+-- saklaniyor ve sonraki uretimin prompt'una somut liste olarak geri gidiyor.
+ALTER TABLE ai_generations ADD COLUMN IF NOT EXISTS hook_family TEXT;
+ALTER TABLE ai_generations ADD COLUMN IF NOT EXISTS payoff_type TEXT;
+ALTER TABLE ai_generations ADD COLUMN IF NOT EXISTS cta_type    TEXT;
+ALTER TABLE ai_scripts     ADD COLUMN IF NOT EXISTS hook_family TEXT;
+ALTER TABLE ai_scripts     ADD COLUMN IF NOT EXISTS payoff_type TEXT;
+ALTER TABLE ai_scripts     ADD COLUMN IF NOT EXISTS cta_type    TEXT;
+-- "Son 3 final" sorgusu approved_at'e gore siralanir.
+CREATE INDEX IF NOT EXISTS idx_ai_scripts_approved ON ai_scripts(approved_at DESC) WHERE status = 'FINAL';
+
 -- final_generation_id points into ai_generations (added after the table exists).
 -- Guarded so the whole migration stays safe to re-run (ADD CONSTRAINT is not
 -- idempotent on its own).

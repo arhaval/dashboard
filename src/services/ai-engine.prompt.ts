@@ -9,9 +9,13 @@
  */
 
 import {
+  CTA_TYPES,
   DNA_SECTIONS,
+  HOOK_FAMILIES,
+  PAYOFF_TYPES,
   PLAYBOOK_SECTIONS,
   wordTargetFor,
+  type VarietyTags,
 } from '@/app/(dashboard)/motor/engine.constants';
 
 export interface PromptContext {
@@ -20,6 +24,11 @@ export interface PromptContext {
   playbook: Record<string, string> | null;
   golds: { title: string; text: string }[];
   references: { title: string; text: string }[];
+  /**
+   * Son onaylanan finallerin çeşitlilik etiketleri, yeniden eskiye. DNA "son 3
+   * içerikte kullanılan aile tekrarlanmaz" diyor; bu liste o kuralın verisidir.
+   */
+  recentTags: { title: string; tags: VarietyTags }[];
   input: {
     title: string;
     topic: string | null;
@@ -63,6 +72,28 @@ export function buildArhavalizePrompt(ctx: PromptContext): { system: string; use
   const skeleton = ctx.dnaSections?.[SKELETON_KEY]?.trim() || DEFAULT_SKELETON;
   const playbook = renderSections(PLAYBOOK_SECTIONS, ctx.playbook);
 
+  // Etiketi kayıtlı final yoksa bölüm hiç yazılmaz: boş bir "son 3" listesi
+  // modele yanlışlıkla "kısıt yok" demekten daha kötüsünü, sahte kısıt duygusunu
+  // verir. Kısıt ancak gerçek veri varken uygulanır.
+  const tagged = ctx.recentTags.filter(
+    (r) => r.tags.hookFamily || r.tags.payoffType || r.tags.ctaType
+  );
+  const variety = tagged.length
+    ? [
+        '## ÇEŞİTLİLİK (son onaylanan metinler — tekrarlama kısıtı)',
+        ...tagged.map((r, i) => {
+          const t = r.tags;
+          return (
+            `${i + 1}. ${r.title} — hook: ${t.hookFamily ?? '—'} · ` +
+            `payoff: ${t.payoffType ?? '—'} · CTA: ${t.ctaType ?? '—'}`
+          );
+        }),
+        'Yukarıda listelenen hook ailesini, payoff tipini ve CTA tipini bu metinde TEKRARLAMA; listede geçmeyen bir seçim yap.',
+        'Konu gerçekten başka bir seçime izin vermiyorsa tekrar edebilirsin ama gerekçesini "notes" alanına yaz.',
+        '',
+      ]
+    : [];
+
   const system = [
     'Sen Arhaval adlı Türk CS2/espor içerik kanalının editöryel yazarısın.',
     'Görevin: kullanıcının verdiği taslağı ve bilgileri, Arhaval kimliğine ve seçilen formatın kurallarına göre yeniden yazmak (Arhavalize etmek).',
@@ -76,6 +107,7 @@ export function buildArhavalizePrompt(ctx: PromptContext): { system: string; use
     `## FORMAT: ${ctx.formatLabel ?? 'Belirtilmedi'} (bu formatın kuralları)`,
     playbook,
     '',
+    ...variety,
     '## TASLAK ELE ALMA',
     'Kullanıcının taslağı ham malzemedir, taslak metnin kendisi değildir.',
     'Taslaktaki bilgiler, isimler, sayılar ve görüşler korunur — hiçbiri atılmaz, hiçbiri değiştirilmez. Taslakta olmayan olgu eklenmez.',
@@ -94,8 +126,12 @@ export function buildArhavalizePrompt(ctx: PromptContext): { system: string; use
     '6. Aşağıdaki örnekler yalnızca STİL/ritim referansıdır; onlardaki OLAYLARI/bilgileri bu metne taşıma.',
     '',
     '## ÇIKTI BİÇİMİ',
-    'Yalnızca şu JSON yapısında yanıt ver: {"script": "<Arhavalize edilmiş tam metin>", "notes": ["<AI olarak eklemeyi önerdiğin ama metne koymadığın her şey>"]}',
+    'Yalnızca şu JSON yapısında yanıt ver: {"script": "<Arhavalize edilmiş tam metin>", "notes": ["<AI olarak eklemeyi önerdiğin ama metne koymadığın her şey>"], "hook_family": "<...>", "payoff_type": "<...>", "cta_type": "<...>"}',
     'notes boş olabilir ([]). script alanı düz metin olmalı (Markdown başlığı zorunlu değil).',
+    `hook_family şunlardan biri olmalı: ${HOOK_FAMILIES.join(' | ')}`,
+    `payoff_type şunlardan biri olmalı: ${PAYOFF_TYPES.join(' | ')}`,
+    `cta_type şunlardan biri olmalı: ${CTA_TYPES.join(' | ')}`,
+    'Bu üç alan yazdığın metnin GERÇEKTE ne kullandığını bildirir. Metni etikete uydurma; etiketi metne göre seç.',
   ].join('\n');
 
   const parts: string[] = [];

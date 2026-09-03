@@ -112,6 +112,9 @@ export function ScriptEditor({
           model: null,
           reference_ids: [],
           gold_standard_script_ids: [],
+          hook_family: res.tags?.hookFamily ?? null,
+          payoff_type: res.tags?.payoffType ?? null,
+          cta_type: res.tags?.ctaType ?? null,
           created_at: new Date().toISOString(),
         };
         setGenerations((prev) => [gen, ...prev]);
@@ -334,6 +337,8 @@ export function ScriptEditor({
                       <span className="text-[var(--color-text-primary)]">
                         Üretim #{generations.length - i}
                         {g.model ? ` · ${g.model}` : ''}
+                        {g.hook_family ? ` · hook: ${g.hook_family}` : ''}
+                        {g.payoff_type ? ` · payoff: ${g.payoff_type}` : ''}
                       </span>
                       <span className="text-[var(--color-text-muted)]">
                         {new Date(g.created_at).toLocaleString('tr-TR', {

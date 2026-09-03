@@ -22,7 +22,12 @@ import type {
   ScriptDTO,
   ScriptStatus,
   EditSignalDTO,
+  VarietyTags,
 } from '@/app/(dashboard)/motor/engine.constants';
+import { readVarietyTags } from '@/app/(dashboard)/motor/engine.constants';
+
+/** DNA "son 3 icerikte kullanilan aile tekrarlanmaz" diyor -- kisit penceresi. */
+const RECENT_TAGGED_FINALS = 3;
 
 /** Ham sinyal satirlarini Phase 2 oneri satirlarindan (SUGGESTED) ayirir. */
 const RECORDED_STATUS = 'RECORDED';
@@ -319,11 +324,17 @@ export const aiEngineService = {
     editReason?: string | null
   ): Promise<{ error?: string; warning?: string }> {
     const admin = createAdminClient();
+    const approvedTags = await tagsOfGeneration(generationId);
     const { error } = await admin
       .from('ai_scripts')
       .update({
         final_text: finalText,
         final_generation_id: generationId,
+        // Çeşitlilik etiketleri finale taşınır: kısıt listesi ONAYLANAN
+        // metinlerden kurulur, denenmiş her üretimden değil.
+        hook_family: approvedTags.hookFamily,
+        payoff_type: approvedTags.payoffType,
+        cta_type: approvedTags.ctaType,
         status: 'FINAL',
         approved_by: userId,
         approved_at: new Date().toISOString(),
@@ -391,6 +402,8 @@ export const aiEngineService = {
     model: string;
     referenceIds: string[];
     goldStandardScriptIds: string[];
+    /** Modelin beyan ettiği çeşitlilik etiketleri; sözlük dışı değer null gelir. */
+    tags: VarietyTags;
     userId: string;
   }): Promise<{ id?: string; error?: string }> {
     const admin = createAdminClient();
@@ -406,6 +419,9 @@ export const aiEngineService = {
         model: input.model,
         reference_ids: input.referenceIds,
         gold_standard_script_ids: input.goldStandardScriptIds,
+        hook_family: input.tags.hookFamily,
+        payoff_type: input.tags.payoffType,
+        cta_type: input.tags.ctaType,
         created_by: input.userId,
       })
       .select('id')
@@ -430,6 +446,7 @@ export const aiEngineService = {
     format: FormatDTO | null;
     golds: { id: string; title: string; text: string }[];
     references: { id: string; title: string; text: string }[];
+    recentTags: { title: string; tags: VarietyTags }[];
   }> {
     const admin = createAdminClient();
     const dna = await this.getActiveDna();
@@ -469,11 +486,25 @@ export const aiEngineService = {
       text: excerptForPrompt(String(r.body ?? '')),
     }));
 
-    return { dna, format, golds, references };
+    // Çeşitlilik kısıtı kanal geneli çalışır: DNA "ardışık metinlerde" diyor,
+    // "aynı formatta ardışık" demiyor. Bu yüzden format filtresi UYGULANMAZ.
+    const { data: recentRows } = await admin
+      .from('ai_scripts')
+      .select('title, hook_family, payoff_type, cta_type')
+      .eq('status', 'FINAL')
+      .order('approved_at', { ascending: false })
+      .limit(RECENT_TAGGED_FINALS);
+    const recentTags = ((recentRows ?? []) as Row[]).map((r) => ({
+      title: r.title as string,
+      tags: readVarietyTags(r),
+    }));
+
+    return { dna, format, golds, references, recentTags };
   },
 };
 
 function rowToScript(r: Row): ScriptDTO {
+  const scriptTags = readVarietyTags(r);
   return {
     id: r.id as string,
     title: r.title as string,
@@ -487,6 +518,9 @@ function rowToScript(r: Row): ScriptDTO {
     source_facts: (r.source_facts as string) ?? null,
     final_text: (r.final_text as string) ?? null,
     final_generation_id: (r.final_generation_id as string) ?? null,
+    hook_family: scriptTags.hookFamily,
+    payoff_type: scriptTags.payoffType,
+    cta_type: scriptTags.ctaType,
     created_at: r.created_at as string,
     updated_at: r.updated_at as string,
   };
@@ -494,6 +528,7 @@ function rowToScript(r: Row): ScriptDTO {
 
 function rowToGeneration(r: Row): GenerationDTO {
   const notes = r.ai_notes;
+  const tags = readVarietyTags(r);
   return {
     id: r.id as string,
     script_id: r.script_id as string,
@@ -505,6 +540,9 @@ function rowToGeneration(r: Row): GenerationDTO {
     model: (r.model as string) ?? null,
     reference_ids: (r.reference_ids as string[]) ?? [],
     gold_standard_script_ids: (r.gold_standard_script_ids as string[]) ?? [],
+    hook_family: tags.hookFamily,
+    payoff_type: tags.payoffType,
+    cta_type: tags.ctaType,
     created_at: r.created_at as string,
   };
 }
@@ -551,4 +589,15 @@ async function recordEditSignal(input: {
     status: RECORDED_STATUS,
   });
   return error ? `Final kaydedildi, öğrenme sinyali yazılamadı: ${error.message}` : null;
+}
+
+/** Onaya esas uretimin cesitlilik etiketleri; uretim yoksa hepsi null. */
+async function tagsOfGeneration(generationId: string | null): Promise<VarietyTags> {
+  if (!generationId) return { hookFamily: null, payoffType: null, ctaType: null };
+  const { data } = await createAdminClient()
+    .from('ai_generations')
+    .select('hook_family, payoff_type, cta_type')
+    .eq('id', generationId)
+    .maybeSingle();
+  return readVarietyTags((data as Row | null) ?? {});
 }

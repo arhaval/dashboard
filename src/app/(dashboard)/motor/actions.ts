@@ -5,7 +5,16 @@ import { userService } from '@/services';
 import { aiEngineService } from '@/services/ai-engine.service';
 import { buildArhavalizePrompt } from '@/services/ai-engine.prompt';
 import { cleanSubtitle, looksLikeSubtitle } from '@/lib/srt-clean';
-import { PROMPT_VERSION, PLATFORM_LABELS, type EnginePlatform } from './engine.constants';
+import {
+  CTA_TYPES,
+  HOOK_FAMILIES,
+  PAYOFF_TYPES,
+  PLATFORM_LABELS,
+  PROMPT_VERSION,
+  coerceTag,
+  type EnginePlatform,
+  type VarietyTags,
+} from './engine.constants';
 
 // Active model: OPENAI_MODEL env wins; otherwise the current default.
 // No silent fallback to another model at call time — a failed call surfaces
@@ -182,7 +191,13 @@ export async function reopenScript(id: string): Promise<{ error?: string }> {
 // ── Arhavalize (OpenAI) ──────────────────────────────────────────────────────
 export async function arhavalize(
   scriptId: string
-): Promise<{ generationId?: string; output?: string; notes?: string[]; error?: string }> {
+): Promise<{
+  generationId?: string;
+  output?: string;
+  notes?: string[];
+  tags?: VarietyTags;
+  error?: string;
+}> {
   const user = await requireAdmin();
   if (!user) return { error: 'Yetki yok' };
 
@@ -202,6 +217,7 @@ export async function arhavalize(
     playbook: ctx.format?.playbook ?? null,
     golds: ctx.golds,
     references: ctx.references,
+    recentTags: ctx.recentTags,
     input: {
       title: script.title,
       topic: script.topic,
@@ -216,6 +232,7 @@ export async function arhavalize(
 
   let output: string;
   let notes: string[] = [];
+  let tags: VarietyTags = { hookFamily: null, payoffType: null, ctaType: null };
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -248,6 +265,13 @@ export async function arhavalize(
       const parsed = JSON.parse(content);
       output = typeof parsed.script === 'string' ? parsed.script.trim() : '';
       notes = Array.isArray(parsed.notes) ? parsed.notes.map(String).filter(Boolean) : [];
+      // Sözlük dışı bir etiket null olur; uydurma etiket çeşitlilik listesini
+      // sessizce bozar, o yüzden kaydedilmez.
+      tags = {
+        hookFamily: coerceTag(HOOK_FAMILIES, parsed.hook_family),
+        payoffType: coerceTag(PAYOFF_TYPES, parsed.payoff_type),
+        ctaType: coerceTag(CTA_TYPES, parsed.cta_type),
+      };
     } catch {
       // Model ignored the JSON contract — fall back to raw text.
       output = String(content).trim();
@@ -267,10 +291,11 @@ export async function arhavalize(
     model: OPENAI_MODEL,
     referenceIds: ctx.references.map((r) => r.id),
     goldStandardScriptIds: ctx.golds.map((g) => g.id),
+    tags,
     userId: user.id,
   });
   if (saved.error) return { error: saved.error };
 
   revalidatePath(`/motor/${scriptId}`);
-  return { generationId: saved.id, output, notes };
+  return { generationId: saved.id, output, notes, tags };
 }

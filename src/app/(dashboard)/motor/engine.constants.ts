@@ -6,7 +6,7 @@ export type ReferenceSourceType = 'SRT' | 'TEXT' | 'VIDEO';
 
 /** The prompt template revision — bump when the generation prompt changes so we
  *  can later tell which prompt shape produced which output. */
-export const PROMPT_VERSION = 'v4';
+export const PROMPT_VERSION = 'v5';
 
 /** Arhaval DNA sections (Layer 1) — the same keys stored in ai_dna.sections. */
 export const DNA_SECTIONS: { key: string; label: string; hint: string }[] = [
@@ -147,6 +147,10 @@ export interface GenerationDTO {
   model: string | null;
   reference_ids: string[];
   gold_standard_script_ids: string[];
+  /** Modelin bu üretim için beyan ettiği çeşitlilik etiketleri. */
+  hook_family: string | null;
+  payoff_type: string | null;
+  cta_type: string | null;
   created_at: string;
 }
 
@@ -169,6 +173,10 @@ export interface ScriptDTO {
   source_facts: string | null;
   final_text: string | null;
   final_generation_id: string | null;
+  /** Onaylanan finalin etiketleri — çeşitlilik listesi buradan kurulur. */
+  hook_family: string | null;
+  payoff_type: string | null;
+  cta_type: string | null;
   created_at: string;
   updated_at: string;
   /** Only loaded on the detail view. */
@@ -207,4 +215,58 @@ export interface EditSignalDTO {
   format_version: number | null;
   prompt_version: string | null;
   created_at: string;
+}
+
+// ── Çeşitlilik etiketleri ───────────────────────────────────────────────────
+// DNA "son 3 içerikte kullanılan aile tekrarlanmaz" diyor. Bunun uygulanabilmesi
+// için hangi ailenin kullanıldığının KAYITLI olması gerekir. Sözlükler DNA'daki
+// tanımların aynısıdır; serbest metin etiket karşılaştırmayı imkânsız kılardı.
+
+export const HOOK_FAMILIES = ['aforizma', 'çıplak sayı', 'sahne', 'soru'] as const;
+export const PAYOFF_TYPES = ['dönüş', 'isimlendirme', 'ters çevirme'] as const;
+/** CTA her metinde olmaz — DNA gerçek bir tartışma yoksa kullanılmamasını söyler. */
+export const CTA_TYPES = ['eksik madde daveti', 'adalet sorusu', 'tahmin sorusu', 'yok'] as const;
+
+export type HookFamily = (typeof HOOK_FAMILIES)[number];
+export type PayoffType = (typeof PAYOFF_TYPES)[number];
+export type CtaType = (typeof CTA_TYPES)[number];
+
+export interface VarietyTags {
+  hookFamily: string | null;
+  payoffType: string | null;
+  ctaType: string | null;
+}
+
+/** Aksan/büyük harf farklarını eler: "Çıplak Sayı" ile "ciplak sayi" eşleşsin. */
+function foldTag(raw: string): string {
+  return raw
+    .trim()
+    .toLocaleLowerCase('tr')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // NFD sonrasi aksan isaretleri
+    .replace(/ı/g, 'i')
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Modelin döndürdüğü etiketi sözlüğe oturtur. Sözlükte olmayan bir değer null
+ * olur — uydurma etiket kaydetmek, çeşitlilik listesini sessizce bozardı.
+ */
+export function coerceTag<T extends string>(allowed: readonly T[], raw: unknown): T | null {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  const needle = foldTag(raw);
+  return allowed.find((a) => foldTag(a) === needle) ?? null;
+}
+
+/** Bir üretim/final satırından çeşitlilik etiketlerini güvenle çıkarır. */
+export function readVarietyTags(row: {
+  hook_family?: unknown;
+  payoff_type?: unknown;
+  cta_type?: unknown;
+}): VarietyTags {
+  return {
+    hookFamily: coerceTag(HOOK_FAMILIES, row.hook_family),
+    payoffType: coerceTag(PAYOFF_TYPES, row.payoff_type),
+    ctaType: coerceTag(CTA_TYPES, row.cta_type),
+  };
 }

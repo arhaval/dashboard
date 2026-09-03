@@ -8,9 +8,14 @@
  */
 
 import {
+  CTA_TYPES,
   DURATION_OPTIONS,
+  HOOK_FAMILIES,
+  PAYOFF_TYPES,
   PROMPT_VERSION,
   WORD_TARGETS,
+  coerceTag,
+  readVarietyTags,
   wordTargetFor,
   type DurationOption,
 } from '../src/app/(dashboard)/motor/engine.constants';
@@ -100,6 +105,7 @@ function ctx(targetDuration: string | null): PromptContext {
     playbook: null,
     golds: [],
     references: [],
+    recentTags: [],
     input: {
       title: 'Başlık', topic: null, platform: null,
       targetDuration, draftText: null, sourceFacts: null,
@@ -133,7 +139,7 @@ check('tanınmayan süre yine de prompt\'a yazılır',
   buildArhavalizePrompt(ctx('4 dk')).user.includes('# Hedef süre/uzunluk: 4 dk'));
 
 // Prompt biçimi değiştiği için sürüm ilerlemiş olmalı.
-eq('prompt sürümü', PROMPT_VERSION, 'v4');
+eq('prompt sürümü', PROMPT_VERSION, 'v5');
 
 // ── Öğrenme sinyalleri ──────────────────────────────────────────────────────
 
@@ -179,6 +185,65 @@ eq('artı fark işaretli', formatDelta(12), '+12');
 eq('eksi fark işaretli', formatDelta(-7), '−7');
 eq('sıfır fark', formatDelta(0), '0');
 eq('hesaplanamayan fark → null', formatDelta(null), null);
+
+// ── Çeşitlilik etiketleri ───────────────────────────────────────────────────
+
+eq('sözlükler DNA ile aynı', [HOOK_FAMILIES.length, PAYOFF_TYPES.length, CTA_TYPES.length], [4, 3, 4]);
+check('CTA sozlugunde "yok" var — DNA CTA kullanilmayan metne izin veriyor', CTA_TYPES.includes('yok'));
+
+for (const h of HOOK_FAMILIES) eq(`hook birebir tanınır: ${h}`, coerceTag(HOOK_FAMILIES, h), h);
+eq('büyük harf toleransı', coerceTag(HOOK_FAMILIES, 'SAHNE'), 'sahne');
+eq('aksansız yazım toleransı', coerceTag(HOOK_FAMILIES, 'ciplak sayi'), 'çıplak sayı');
+eq('fazla boşluk toleransı', coerceTag(PAYOFF_TYPES, '  ters   çevirme '), 'ters çevirme');
+
+// Sözlük dışı değer UYDURULMAZ — yanlış etiket çeşitliliği sessizce bozar.
+eq('sözlük dışı → null', coerceTag(HOOK_FAMILIES, 'metafor'), null);
+eq('boş → null', coerceTag(HOOK_FAMILIES, '  '), null);
+eq('string olmayan → null', coerceTag(HOOK_FAMILIES, 42), null);
+eq('undefined → null', coerceTag(HOOK_FAMILIES, undefined), null);
+
+eq('satırdan etiket okuma',
+  readVarietyTags({ hook_family: 'Sahne', payoff_type: 'uydurma', cta_type: 'yok' }),
+  { hookFamily: 'sahne', payoffType: null, ctaType: 'yok' });
+eq('boş satır → hepsi null',
+  readVarietyTags({}), { hookFamily: null, payoffType: null, ctaType: null });
+
+// ── Prompt: çeşitlilik bölümü ───────────────────────────────────────────────
+
+function withRecent(recent: PromptContext['recentTags']): string {
+  return buildArhavalizePrompt({ ...ctx('60 sn'), recentTags: recent }).system;
+}
+const VARIETY_HEAD = '## ÇEŞİTLİLİK';
+
+check('kayıt yokken çeşitlilik bölümü yazılmaz', !withRecent([]).includes(VARIETY_HEAD));
+check('etiketi boş finaller bölüm açtırmaz',
+  !withRecent([
+    { title: 'A', tags: { hookFamily: null, payoffType: null, ctaType: null } },
+  ]).includes(VARIETY_HEAD));
+
+{
+  const sys = withRecent([
+    { title: 'Bir Çocuğun Rüyası', tags: { hookFamily: 'sahne', payoffType: 'dönüş', ctaType: 'yok' } },
+    { title: 'Lukaku', tags: { hookFamily: 'soru', payoffType: null, ctaType: null } },
+  ]);
+  check('çeşitlilik bölümü açılır', sys.includes(VARIETY_HEAD));
+  check('final başlığı listelenir', sys.includes('1. Bir Çocuğun Rüyası'));
+  check('kullanılan hook listelenir', sys.includes('hook: sahne'));
+  check('bilinmeyen alan tire ile gösterilir', sys.includes('payoff: —'));
+  check('tekrarlama talimatı var', sys.includes('TEKRARLAMA'));
+}
+
+// Çıktı biçimi üç etiketi de sözlüğüyle birlikte dayatmalı.
+{
+  const sys = withRecent([]);
+  check('hook_family JSON alanı istenir', sys.includes('"hook_family"'));
+  check('payoff_type JSON alanı istenir', sys.includes('"payoff_type"'));
+  check('cta_type JSON alanı istenir', sys.includes('"cta_type"'));
+  for (const h of HOOK_FAMILIES) check(`izinli hook prompt'ta: ${h}`, sys.includes(h));
+  for (const pt of PAYOFF_TYPES) check(`izinli payoff prompt'ta: ${pt}`, sys.includes(pt));
+  for (const c of CTA_TYPES) check(`izinli CTA prompt'ta: ${c}`, sys.includes(c));
+  check('etikete uydurma yasağı var', sys.includes('Metni etikete uydurma'));
+}
 
 // ── Sonuç ───────────────────────────────────────────────────────────────────
 
