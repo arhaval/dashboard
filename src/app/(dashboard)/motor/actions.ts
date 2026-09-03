@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { userService } from '@/services';
 import { aiEngineService } from '@/services/ai-engine.service';
 import { buildArhavalizePrompt } from '@/services/ai-engine.prompt';
+import { OPENAI_CHAT_URL, OPENAI_MODEL } from '@/services/openai.constants';
+import { classifyAndSaveScriptTags } from '@/services/ai-classify.service';
 import { cleanSubtitle, looksLikeSubtitle } from '@/lib/srt-clean';
 import {
   CTA_TYPES,
@@ -17,11 +19,6 @@ import {
   type HookAlternative,
   type VarietyTags,
 } from './engine.constants';
-
-// Active model: OPENAI_MODEL env wins; otherwise the current default.
-// No silent fallback to another model at call time — a failed call surfaces
-// the error so we always know which model actually ran.
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.6-sol';
 
 async function requireAdmin() {
   const user = await userService.getCurrentUser();
@@ -179,10 +176,20 @@ export async function approveFinal(
     editReason ?? null,
     chosenHookFamily ?? null
   );
+  if (res.error) return res;
+
+  // Etiketleri final metinden yeniden çıkar: kullanıcı metni düzenlemiş
+  // olabilir, doğru kaynak üretimin beyanı değil ONAYLANAN metindir.
+  // Başarısız olursa onay geri alınmaz; üretimden gelen etiket yerinde kalır.
+  const classified = await classifyAndSaveScriptTags(id);
+  const warnings = [res.warning, classified.error && `Etiketleme yapılamadı: ${classified.error}`]
+    .filter(Boolean)
+    .join(' · ');
+
   revalidatePath(`/motor/${id}`);
   revalidatePath('/motor');
   revalidatePath('/motor/ogrenme');
-  return res;
+  return warnings ? { warning: warnings } : {};
 }
 
 export async function reopenScript(id: string): Promise<{ error?: string }> {
@@ -241,7 +248,7 @@ export async function arhavalize(
   let tags: VarietyTags = { hookFamily: null, payoffType: null, ctaType: null };
   let hookAlternatives: HookAlternative[] = [];
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch(OPENAI_CHAT_URL, {
       method: 'POST',
       headers: { Authorization: `Bearer ${KEY}`, 'content-type': 'application/json' },
       body: JSON.stringify({

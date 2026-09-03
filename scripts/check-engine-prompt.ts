@@ -23,7 +23,11 @@ import {
   type DurationOption,
   type HookAlternative,
 } from '../src/app/(dashboard)/motor/engine.constants';
-import { buildArhavalizePrompt, type PromptContext } from '../src/services/ai-engine.prompt';
+import {
+  buildArhavalizePrompt,
+  buildClassifyPrompt,
+  type PromptContext,
+} from '../src/services/ai-engine.prompt';
 import type { EditSignalDTO } from '../src/app/(dashboard)/motor/engine.constants';
 import {
   NO_FORMAT_LABEL,
@@ -308,6 +312,46 @@ eq("seçenek yokken uygulanamaz", applyHook("metin", [], ALTS[0]).ok, false);
   check("üç farklı aile şartı yazılı", sys.includes("FARKLI bir kanca ailesinden"));
   check("birebir eşleşme şartı yazılı", sys.includes("BİREBİR aynı metin"));
   check("seçenek sayısı prompta geçer", sys.includes(`tam ${HOOK_ALTERNATIVE_COUNT} seçenek`));
+}
+
+// ── Sınıflandırma prompt'u ──────────────────────────────────────────────────
+
+const DNA_STUB = {
+  hook_logic: 'Dört kanca ailesi: aforizma, çıplak sayı, sahne, soru.',
+  payoff: 'Üç tipi: dönüş, isimlendirme, ters çevirme.',
+  cta: 'Aynı CTA tipi art arda kullanılmaz.',
+  voice: 'Bu bölüm sınıflandırmaya girmemeli.',
+};
+
+{
+  const { system, user } = buildClassifyPrompt(DNA_STUB, '  Bir stadyum. Devamı.  ');
+  check('hook tanımı DNA dan gelir', system.includes(DNA_STUB.hook_logic));
+  check('payoff tanımı DNA dan gelir', system.includes(DNA_STUB.payoff));
+  check('cta tanımı DNA dan gelir', system.includes(DNA_STUB.cta));
+  check('ilgisiz DNA bölümü taşınmaz', !system.includes(DNA_STUB.voice));
+
+  for (const h of HOOK_FAMILIES) check(`sınıflandırmada hook seçeneği: ${h}`, system.includes(h));
+  for (const pt of PAYOFF_TYPES) check(`sınıflandırmada payoff seçeneği: ${pt}`, system.includes(pt));
+  for (const c of CTA_TYPES) check(`sınıflandırmada CTA seçeneği: ${c}`, system.includes(c));
+
+  check('emin değilsen null kuralı var', system.includes('null bırak'));
+  check('liste dışı değer yasağı var', system.includes('dışında bir değer üretme'));
+  check('sadece JSON istenir', system.includes('Yalnızca şu JSON yapısında'));
+  check('metni yeniden yazma yasağı var', system.includes('yeniden yazma'));
+
+  eq('metin user mesajında ve kırpılmış', user, '## ETİKETLENECEK METİN\nBir stadyum. Devamı.');
+}
+
+// DNA boşsa tanım başlıkları yazılmaz ama seçenekler yine dayatılır.
+{
+  const { system } = buildClassifyPrompt(null, 'metin');
+  check('tanımsız DNA da hook başlığı yok', !system.includes('HOOK MANTIĞI'));
+  check('tanımsız DNA da seçenekler yine var', system.includes('hook_family: '));
+}
+{
+  const { system } = buildClassifyPrompt({ hook_logic: '   ', payoff: 'x' }, 'metin');
+  check('boş DNA bölümü başlık açtırmaz', !system.includes('HOOK MANTIĞI'));
+  check('dolu DNA bölümü başlık açar', system.includes('PAYOFF MANTIĞI'));
 }
 
 // ── Sonuç ───────────────────────────────────────────────────────────────────

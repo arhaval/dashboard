@@ -177,3 +177,46 @@ export function buildArhavalizePrompt(ctx: PromptContext): { system: string; use
 
   return { system, user: parts.join('\n') };
 }
+
+/**
+ * Onaylanan final metni etiketleyen sınıflandırma çağrısının prompt'u.
+ *
+ * Doğru kaynak FINAL METİNDİR: üretimden gelen etiket, kullanıcı metni
+ * düzenlediyse yanlış olabilir. Tanımlar DNA'nın kendi bölümlerinden gelir ki
+ * sınıflandırıcı, metni yazan kurallarla aynı sözlüğü kullansın.
+ */
+export function buildClassifyPrompt(
+  dnaSections: Record<string, string> | null,
+  finalText: string
+): { system: string; user: string } {
+  const definition = (key: string, title: string): string[] => {
+    const body = dnaSections?.[key]?.trim();
+    return body ? ['', `## ${title}`, body] : [];
+  };
+
+  const system = [
+    'Sen Arhaval metinlerini etiketleyen bir sınıflandırıcısın.',
+    'Görevin: verilen ONAYLANMIŞ metni okuyup üç etiketi seçmek. Metni yeniden yazma, özetleme, yorumlama.',
+    ...definition('hook_logic', 'HOOK MANTIĞI (kanca ailelerinin tanımı)'),
+    ...definition('payoff', 'PAYOFF MANTIĞI (payoff tiplerinin tanımı)'),
+    ...definition('cta', 'CTA YAKLAŞIMI (CTA tiplerinin tanımı)'),
+    '',
+    '## SEÇENEKLER',
+    `hook_family: ${HOOK_FAMILIES.join(' | ')}`,
+    `payoff_type: ${PAYOFF_TYPES.join(' | ')}`,
+    `cta_type: ${CTA_TYPES.join(' | ')}`,
+    '',
+    '## KURALLAR',
+    '1. Etiketi metnin GERÇEKTE ne yaptığına göre seç; metnin ne yapması gerektiğine göre değil.',
+    '2. hook_family metnin ilk cümlesine/açılışına bakar. payoff_type kapanış cümlesine bakar.',
+    '3. Metinde izleyiciye yönelik bir çağrı yoksa cta_type "yok" olur.',
+    '4. Bir alandan emin değilsen o alanı null bırak. Tahmin etme — yanlış etiket, etiketsizlikten daha zararlıdır.',
+    '5. Yukarıdaki listelerin dışında bir değer üretme.',
+    '',
+    '## ÇIKTI BİÇİMİ',
+    'Yalnızca şu JSON yapısında yanıt ver: {"hook_family": "<...>|null", "payoff_type": "<...>|null", "cta_type": "<...>|null"}',
+    'Açıklama, gerekçe veya ek alan yazma.',
+  ].join('\n');
+
+  return { system, user: `## ETİKETLENECEK METİN\n${finalText.trim()}` };
+}

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
+    "backfill:script-tags": "tsx scripts/backfill-script-tags.ts",
     "check:content-impact": "tsx scripts/check-content-impact.ts",
     "check:engine-prompt": "tsx scripts/check-engine-prompt.ts",
     "check:publication-metrics": "tsx scripts/check-publication-metrics.ts",
