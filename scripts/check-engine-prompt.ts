@@ -24,6 +24,11 @@ import {
   type HookAlternative,
 } from '../src/app/(dashboard)/motor/engine.constants';
 import {
+  checkGeneratedText,
+  connectorLimitFor,
+  splitSentences,
+} from '../src/app/(dashboard)/motor/text-guard.constants';
+import {
   buildArhavalizePrompt,
   buildClassifyPrompt,
   type PromptContext,
@@ -393,6 +398,107 @@ const DNA_STUB = {
   }).system;
   check('DNA avoid bölümü prompta taşınır', sys.includes('AVOID-ISARETI'));
   check('DNA voice bölümü prompta taşınır', sys.includes('VOICE-ISARETI'));
+}
+
+// ── Deterministik metin denetimi ────────────────────────────────────────────
+
+eq("30 sn eşiği", connectorLimitFor("30 sn"), 1);
+eq("45 sn eşiği", connectorLimitFor("45 sn"), 1);
+eq("60 sn eşiği (sınır dahil)", connectorLimitFor("60 sn"), 2);
+eq("90 sn eşiği", connectorLimitFor("90 sn"), 2);
+eq("2 dk eşiği (üst sınır dahil)", connectorLimitFor("2 dk"), 2);
+eq("2.5 dk eşiği", connectorLimitFor("2.5 dk"), 3);
+eq("3 dk eşiği", connectorLimitFor("3 dk"), 3);
+
+// Süre bilinmiyorsa eşik UYDURULMAZ.
+eq("tablo dışı süre → eşik yok", connectorLimitFor("4 dk"), null);
+eq("süre yok → eşik yok", connectorLimitFor(null), null);
+
+eq("cümlelere bölme",
+  splitSentences("Bir. İki!  Üç?  "), ["Bir.", "İki!", "Üç?"]);
+eq("boş metin → cümle yok", splitSentences("   "), []);
+
+// Üç kategori TOPLAMDA sayılır.
+{
+  const t = "Bakın şu rakama. Hatta daha fazlası var. Dikkat edin buraya.";
+  const r = checkGeneratedText(t, "30 sn");
+  eq("toplam sayım", r.connectors.count, 3);
+  eq("eşik metne göre", r.connectors.limit, 1);
+  check("eşik aşıldı", r.connectors.over);
+  check("uyarı var", r.hasWarning);
+  eq("bulunanların etiketleri",
+    r.connectors.hits.map((h) => h.label).sort(),
+    ['"bakın"', '"dikkat edin"', '"hatta"'].sort());
+  check("bulunan cümle raporlanır",
+    r.connectors.hits.some((h) => h.sentence === "Hatta daha fazlası var."));
+}
+
+// Eşiğin altında kalırsa uyarı YOK.
+{
+  const r = checkGeneratedText("Bakın şu rakama. Gerisi sade.", "3 dk");
+  eq("sayım", r.connectors.count, 1);
+  check("eşik aşılmadı", !r.connectors.over);
+  check("uyarı yok", !r.hasWarning);
+}
+
+// Süre tanınmıyorsa sayım yapılır ama ihlal İDDİA EDİLMEZ.
+{
+  const r = checkGeneratedText("Bakın. Hatta. Dikkat edin. Ya tamam.", "kısa olsun");
+  check("sayım yine yapılır", r.connectors.count >= 4);
+  eq("eşik yok", r.connectors.limit, null);
+  check("ihlal iddia edilmez", !r.connectors.over);
+  check("uyarı yok", !r.hasWarning);
+}
+
+// Cümle başı "E" bağlacı sayılır; kelime içindeki e sayılmaz.
+{
+  const r = checkGeneratedText("E kader sever bunu.", "30 sn");
+  eq("cümle başı E sayıldı", r.connectors.count, 1);
+}
+{
+  const r = checkGeneratedText("Evet, elbette her şey yolunda.", "30 sn");
+  eq("kelime içi e sayılmaz", r.connectors.count, 0);
+  check("temiz metinde uyarı yok", !r.hasWarning);
+}
+{
+  const r = checkGeneratedText("Hattayı geçtik.", "30 sn");
+  eq("hatta kelimenin parçasıysa sayılmaz", r.connectors.count, 0);
+}
+
+// Klişe kapanış YALNIZCA son cümlede aranır.
+{
+  const r = checkGeneratedText("Bir metin. Zaman gösterecek.", "3 dk");
+  eq("son cümlede klişe bulundu", r.clichePayoff.hits.length, 1);
+  eq("son cümle raporlanır", r.clichePayoff.lastSentence, "Zaman gösterecek.");
+  check("uyarı var", r.hasWarning);
+}
+{
+  const r = checkGeneratedText("Zaman gösterecek. Asıl mesele başka.", "3 dk");
+  eq("son cümle dışındaki klişe sayılmaz", r.clichePayoff.hits.length, 0);
+  check("uyarı yok", !r.hasWarning);
+}
+for (const kapanis of [
+  "Onun için yeni bir hikâye başladı.",
+  "Tarih yeniden yazılmaya başladı.",
+  "Bunu zaman gösterecek.",
+  "Devamı gelecek.",
+]) {
+  const r = checkGeneratedText("Giriş cümlesi. " + kapanis, "3 dk");
+  check(`klişe yakalandı: ${kapanis}`, r.clichePayoff.hits.length === 1);
+}
+
+// Aksan/büyük harf farkı eşleşmeyi bozmaz.
+{
+  const r = checkGeneratedText("Giriş. BUNU ZAMAN GOSTERECEK.", "3 dk");
+  eq("aksansız ve büyük harf yakalanır", r.clichePayoff.hits.length, 1);
+}
+
+// Boş metin hiçbir şey iddia etmez.
+{
+  const r = checkGeneratedText("", "30 sn");
+  eq("boş metin sayımı", r.connectors.count, 0);
+  eq("boş metinde son cümle yok", r.clichePayoff.lastSentence, null);
+  check("boş metinde uyarı yok", !r.hasWarning);
 }
 
 // ── Sonuç ───────────────────────────────────────────────────────────────────

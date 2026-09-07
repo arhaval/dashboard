@@ -91,6 +91,30 @@ function normalizeDuration(raw: string): string {
     .trim();
 }
 
+/** Süre seçeneklerinin saniye karşılığı — eşikler saniye cinsinden tanımlı. */
+export const DURATION_SECONDS: Record<DurationOption, number> = {
+  '30 sn': 30,
+  '45 sn': 45,
+  '60 sn': 60,
+  '90 sn': 90,
+  '2 dk': 120,
+  '2.5 dk': 150,
+  '3 dk': 180,
+};
+
+const NORMALIZED_SECONDS = new Map(
+  (Object.keys(DURATION_SECONDS) as DurationOption[]).map((d) => [
+    normalizeDuration(d),
+    DURATION_SECONDS[d],
+  ])
+);
+
+/** Tanınmayan/serbest sürede null — saniye uydurulmaz. */
+export function durationSecondsFor(duration: string | null | undefined): number | null {
+  if (!duration?.trim()) return null;
+  return NORMALIZED_SECONDS.get(normalizeDuration(duration)) ?? null;
+}
+
 const NORMALIZED_TARGETS = new Map(
   (Object.keys(WORD_TARGETS) as DurationOption[]).map((d) => [normalizeDuration(d), WORD_TARGETS[d]])
 );
@@ -239,8 +263,11 @@ export interface VarietyTags {
   ctaType: string | null;
 }
 
-/** Aksan/büyük harf farklarını eler: "Çıplak Sayı" ile "ciplak sayi" eşleşsin. */
-function foldTag(raw: string): string {
+/**
+ * Aksan/büyük harf farklarını eler: "Çıplak Sayı" ile "ciplak sayi" eşleşsin.
+ * Etiket sözlüğü de metin denetimi de aynı normalleştirmeyi kullanır.
+ */
+export function foldTurkish(raw: string): string {
   return raw
     .trim()
     .toLocaleLowerCase('tr')
@@ -256,8 +283,8 @@ function foldTag(raw: string): string {
  */
 export function coerceTag<T extends string>(allowed: readonly T[], raw: unknown): T | null {
   if (typeof raw !== 'string' || !raw.trim()) return null;
-  const needle = foldTag(raw);
-  return allowed.find((a) => foldTag(a) === needle) ?? null;
+  const needle = foldTurkish(raw);
+  return allowed.find((a) => foldTurkish(a) === needle) ?? null;
 }
 
 /** Bir üretim/final satırından çeşitlilik etiketlerini güvenle çıkarır. */

@@ -16,6 +16,8 @@ import {
   type ScriptDTO,
 } from '../engine.constants';
 import { DurationSelect } from '../duration-select';
+import { TextGuardNotice } from '../text-guard-notice';
+import { checkGeneratedText } from '../text-guard.constants';
 import {
   updateScript,
   deleteScript,
@@ -64,6 +66,12 @@ export function ScriptEditor({
   const hookOptions: HookAlternative[] = activeGen?.hook_alternatives ?? [];
   const currentHook =
     hookOptions.find((a) => finalText.trimStart().startsWith(a.text)) ?? null;
+
+  // Deterministik kural denetimi. Sadece bilgilendirir; onayı engellemez.
+  const guard = React.useMemo(
+    () => checkGeneratedText(finalText, duration),
+    [finalText, duration]
+  );
 
   const [saving, startSave] = React.useTransition();
   const [generating, startGen] = React.useTransition();
@@ -354,6 +362,8 @@ export function ScriptEditor({
               className="w-full resize-y rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)] disabled:opacity-60"
             />
           </div>
+
+          <TextGuardNotice report={guard} />
 
           {status !== 'FINAL' && (
             <div>
