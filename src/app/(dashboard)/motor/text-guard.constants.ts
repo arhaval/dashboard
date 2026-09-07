@@ -41,6 +41,10 @@ export const CONNECTOR_PATTERNS: Pattern[] = [
   { label: '"tamam, anladık"', source: '\\btamam,?\\s+anladik\\b' },
   { label: '"diyeceksiniz"', source: '\\bdiyeceksiniz\\b' },
   { label: '"diye soracaksınız"', source: '\\bdiye soracaksiniz\\b' },
+  { label: '"peki"', source: '\\bpeki\\b' },
+  { label: '"ama şu ne"', source: '\\bama su ne\\b' },
+  { label: '"değil mi"', source: '\\bdegil mi\\b' },
+  { label: '"sizce"', source: '\\bsizce\\b' },
 ];
 
 /**

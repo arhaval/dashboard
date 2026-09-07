@@ -501,6 +501,25 @@ for (const kapanis of [
   check("boş metinde uyarı yok", !r.hasWarning);
 }
 
+// Sonradan eklenen kendi kendine itiraz kalıpları.
+for (const [kalip, cumle] of [
+  ["peki", "Peki bu ne anlama geliyor?"],
+  ["ama şu ne", "Tamam ama şu ne olacak?"],
+  ["değil mi", "Zaman ne hızlı geçiyor değil mi?"],
+  ["sizce", "Sizce bu yeterli mi?"],
+] as const) {
+  const r = checkGeneratedText(cumle, "3 dk");
+  eq(`kalıp sayıldı: ${kalip}`, r.connectors.count, 1);
+  check(`kalıp raporlandı: ${kalip}`, r.connectors.hits[0]?.label.includes(kalip));
+}
+
+// Kelimenin parçasıysa sayılmaz.
+for (const cumle of ["Pekiştirmek gerekiyor.", "Sizcesi böyle."]) {
+  eq(`kelime içi sayılmaz: ${cumle}`, checkGeneratedText(cumle, "3 dk").connectors.count, 0);
+}
+eq('"değil miydi" sayılmaz',
+  checkGeneratedText("Öyle değil miydi?", "3 dk").connectors.count, 0);
+
 // ── Sonuç ───────────────────────────────────────────────────────────────────
 
 console.log(`\n${passed} kontrol geçti.`);
