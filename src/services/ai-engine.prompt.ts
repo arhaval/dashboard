@@ -118,6 +118,8 @@ export function buildArhavalizePrompt(ctx: PromptContext): { system: string; use
     'Taslakta aynı bilgi birden çok cümleyle tekrarlanmışsa tek cümlede toplanır.',
     'Kullanıcı bir görüş belirtmişse aynen taşınır. Belirtmemişse görüş üretilmez.',
     '',
+    // 7 ve 8 DNA'nın avoid/voice bölümlerinde de yazılı. Tekrar kasıtlı:
+    // prompt'ta geride kalan kuralı model ağırlıklandırmıyordu.
     '## MUTLAK KURALLAR',
     '1. Bilgi sınırın: SADECE kullanıcının verdiği taslak metin ve ek bilgiler. Bunların dışında YENİ olgusal bilgi (isim, tarih, sayı, olay, iddia) UYDURMA.',
     '2. Kullanıcıya aitmiş gibi öznel görüş/yorum EKLEME. Kullanıcının söylemediği bir kanıyı onun ağzından yazma.',
@@ -125,6 +127,8 @@ export function buildArhavalizePrompt(ctx: PromptContext): { system: string; use
     '4. Orijinal bilgileri çarpıtma; sadece dile, ritme, kurguya ve hook/payoff/CTA yapısına Arhaval kimliğini uygula.',
     '5. AI klişelerinden ve genel kalıplardan kaçın; DNA\'daki "Kaçınılacaklar" bölümüne uy.',
     '6. Aşağıdaki örnekler yalnızca STİL/ritim referansıdır; onlardaki OLAYLARI/bilgileri bu metne taşıma.',
+    "7. Payoff'ta klişe kapanış cümlesi kullanma: 'yeni bir hikâye başladı', 'yeniden yazılmaya başladı', 'zaman gösterecek', 'devamı gelecek' ve benzerleri yasaktır.",
+    "8. Konuşma bağlaçları ('E', 'e işte', 'ya tamam', 'hatta'), izleyiciye dönüş ifadeleri ('bakın', 'dikkat edin') ve kendi kendine itiraz kalıpları TOPLAMDA sayılır. 60 saniyenin altında en fazla 1, 60-120 saniye arası en fazla 2, daha uzun metinlerde en fazla 3 kullanılabilir.",
     '',
     '## ÇIKTI BİÇİMİ',
     'Yalnızca şu JSON yapısında yanıt ver: {"script": "<Arhavalize edilmiş tam metin>", "notes": ["<AI olarak eklemeyi önerdiğin ama metne koymadığın her şey>"], "hook_family": "<...>", "payoff_type": "<...>", "cta_type": "<...>", "hook_alternatives": [{"family": "<kanca ailesi>", "text": "<hook cümlesi>"}]}',

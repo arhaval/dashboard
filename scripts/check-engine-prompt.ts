@@ -147,7 +147,7 @@ check('tanınmayan süre yine de prompt\'a yazılır',
   buildArhavalizePrompt(ctx('4 dk')).user.includes('# Hedef süre/uzunluk: 4 dk'));
 
 // Prompt biçimi değiştiği için sürüm ilerlemiş olmalı.
-eq('prompt sürümü', PROMPT_VERSION, 'v6');
+eq('prompt sürümü', PROMPT_VERSION, 'v7');
 
 // ── Öğrenme sinyalleri ──────────────────────────────────────────────────────
 
@@ -352,6 +352,47 @@ const DNA_STUB = {
   const { system } = buildClassifyPrompt({ hook_logic: '   ', payoff: 'x' }, 'metin');
   check('boş DNA bölümü başlık açtırmaz', !system.includes('HOOK MANTIĞI'));
   check('dolu DNA bölümü başlık açar', system.includes('PAYOFF MANTIĞI'));
+}
+
+// ── MUTLAK KURALLAR: sürekli çiğnenen iki kural ─────────────────────────────
+// İkisi DNA'nın avoid/voice bölümlerinde de yazılı. Prompt'ta geride kaldıkları
+// için ağırlıklandırılmıyorlardı; MUTLAK KURALLAR'da TEKRARLANMALARI kasıtlı.
+
+{
+  const sys = withRecent([]);
+  const rules = sys.slice(sys.indexOf('## MUTLAK KURALLAR'), sys.indexOf('## ÇIKTI BİÇİMİ'));
+
+  check('7. kural mutlak kurallarda', rules.includes('7. Payoff'));
+  check('8. kural mutlak kurallarda', rules.includes('8. Konuşma bağlaçları'));
+
+  for (const kalip of [
+    'yeni bir hikâye başladı',
+    'yeniden yazılmaya başladı',
+    'zaman gösterecek',
+    'devamı gelecek',
+  ]) {
+    check(`yasak kapanış örneklendi: ${kalip}`, rules.includes(kalip));
+  }
+
+  for (const esik of ['en fazla 1', 'en fazla 2', 'en fazla 3']) {
+    check(`bağlaç sınırı yazılı: ${esik}`, rules.includes(esik));
+  }
+  check('sınır TOPLAMDA sayılır diyor', rules.includes('TOPLAMDA'));
+  check('60 saniye eşiği yazılı', rules.includes('60 saniyenin altında'));
+  check('60-120 aralığı yazılı', rules.includes('60-120 saniye'));
+}
+
+// avoid/voice'taki asıl kurallar DNA'dan gelir; prompt onları SİLMEZ.
+{
+  const sys = buildArhavalizePrompt({
+    ...ctx('60 sn'),
+    dnaSections: {
+      avoid: 'AVOID-ISARETI klişe kapanış yasağı',
+      voice: 'VOICE-ISARETI bağlaç kullanımı',
+    },
+  }).system;
+  check('DNA avoid bölümü prompta taşınır', sys.includes('AVOID-ISARETI'));
+  check('DNA voice bölümü prompta taşınır', sys.includes('VOICE-ISARETI'));
 }
 
 // ── Sonuç ───────────────────────────────────────────────────────────────────
