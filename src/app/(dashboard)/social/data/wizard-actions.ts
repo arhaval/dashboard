@@ -18,10 +18,12 @@ import { userService } from '@/services';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   expectedFields,
+  monthLabel,
   toStoredValue,
   MONTHLY_PLATFORMS,
   type MonthlyPlatform,
 } from '../social-monthly.constants';
+import { monthProgress } from '../month.utils';
 
 export interface SaveResult {
   success: boolean;
@@ -42,6 +44,12 @@ export async function saveMissingMetrics(
   if (user.role !== 'ADMIN') return { success: false, error: 'Yetki yok' };
 
   if (!MONTH_PATTERN.test(month)) return { success: false, error: 'Ay formatı YYYY-MM olmalı' };
+  // Rapor biten ay için girilir (Ağustos raporu 10 Eylül'de). Süren aya elle
+  // aylık veri yazmak önceki ayın rakamlarını yanlış aya kaydetmek demek —
+  // 11 Eylül 2026'da tam olarak bu oldu. Arayüz de engelliyor; burası ikinci kat.
+  if (monthProgress(month).inProgress) {
+    return { success: false, error: `${monthLabel(month)} henüz bitmedi; önceki ayın raporuna gir` };
+  }
   if (!MONTHLY_PLATFORMS.includes(platform as MonthlyPlatform)) {
     return { success: false, error: 'Geçersiz platform' };
   }

@@ -9,15 +9,28 @@
  */
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check, Lock, LockOpen, Plug, Sparkles, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlatformTag } from '../social-ui';
-import { monthLabel, type MonthCompleteness, type PlatformCompleteness } from '../social-monthly.constants';
+import {
+  monthLabel,
+  previousMonth,
+  type MonthCompleteness,
+  type PlatformCompleteness,
+} from '../social-monthly.constants';
+import { reportDueDate, type MonthProgress } from '../month.utils';
 import { CompletionWizard } from './completion-wizard';
 import { closeMonth, reopenMonth } from './closure-actions';
 
-export function CompletionPanel({ completeness }: { completeness: MonthCompleteness }) {
+export function CompletionPanel({
+  completeness,
+  progress,
+}: {
+  completeness: MonthCompleteness;
+  progress: MonthProgress;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,25 +77,30 @@ export function CompletionPanel({ completeness }: { completeness: MonthCompleten
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {manualPending > 0 && !isManuallyClosed && (
-            <Button type="button" onClick={() => setOpen(true)}>
-              <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-              Eksik Verileri Tamamla ({manualPending})
-            </Button>
-          )}
-
-          {/* Veri artık alınamıyorsa ayı kapatmanın tek yolu bu — aksi halde
-              hatırlatma olmayacak bir veri için sonsuza kadar sorardı. */}
-          <Button type="button" variant="secondary" onClick={toggleClosure} disabled={isPending}>
-            {isManuallyClosed ? (
-              <><LockOpen className="mr-1.5 h-3.5 w-3.5" /> Ayı Yeniden Aç</>
-            ) : (
-              <><Lock className="mr-1.5 h-3.5 w-3.5" /> Bu Ayı Tamamlandı İşaretle</>
+        {/* Süren ay için elle giriş ve kapatma yok: rapor ay bitince girilir. */}
+        {!progress.inProgress && (
+          <div className="flex flex-wrap items-center gap-2">
+            {manualPending > 0 && !isManuallyClosed && (
+              <Button type="button" onClick={() => setOpen(true)}>
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                Eksik Verileri Tamamla ({manualPending})
+              </Button>
             )}
-          </Button>
-        </div>
+
+            {/* Veri artık alınamıyorsa ayı kapatmanın tek yolu bu — aksi halde
+                hatırlatma olmayacak bir veri için sonsuza kadar sorardı. */}
+            <Button type="button" variant="secondary" onClick={toggleClosure} disabled={isPending}>
+              {isManuallyClosed ? (
+                <><LockOpen className="mr-1.5 h-3.5 w-3.5" /> Ayı Yeniden Aç</>
+              ) : (
+                <><Lock className="mr-1.5 h-3.5 w-3.5" /> Bu Ayı Tamamlandı İşaretle</>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
+
+      {progress.inProgress && <InProgressNotice month={month} />}
 
       {error && <p className="mt-2 text-[12px]" style={{ color: 'var(--color-error)' }}>{error}</p>}
 
@@ -97,15 +115,19 @@ export function CompletionPanel({ completeness }: { completeness: MonthCompleten
       </div>
 
       <div className="mt-4 flex flex-col gap-1.5">
-        {platforms.map((p) => <PlatformLine key={p.platform} p={p} />)}
+        {platforms.map((p) => (
+          <PlatformLine key={p.platform} p={p} inProgress={progress.inProgress} />
+        ))}
       </div>
 
-      {open && <CompletionWizard completeness={completeness} onClose={() => setOpen(false)} />}
+      {open && !progress.inProgress && (
+        <CompletionWizard completeness={completeness} onClose={() => setOpen(false)} />
+      )}
     </section>
   );
 }
 
-function PlatformLine({ p }: { p: PlatformCompleteness }) {
+function PlatformLine({ p, inProgress }: { p: PlatformCompleteness; inProgress: boolean }) {
   const complete = p.filled === p.total;
   // Platformun verisi API'den mi geliyor — rozet bunun için.
   const automatic = p.fields.some((f) => f.source === 'API');
@@ -137,12 +159,14 @@ function PlatformLine({ p }: { p: PlatformCompleteness }) {
           </span>
         ) : (
           <>
-            {p.pendingManualFields.length > 0 && (
+            {p.pendingManualFields.length > 0 && (inProgress ? (
+              <span style={{ color: 'var(--color-text-muted)' }}>ay bitince girilecek</span>
+            ) : (
               <span className="flex items-center gap-1" style={{ color: 'var(--color-warning)' }}>
                 <TriangleAlert className="h-3.5 w-3.5" />
                 {p.pendingManualFields.length} alan eksik
               </span>
-            )}
+            ))}
             {p.brokenApiFields.length > 0 && (
               <span
                 className="flex items-center gap-1"
@@ -156,6 +180,33 @@ function PlatformLine({ p }: { p: PlatformCompleteness }) {
           </>
         )}
       </span>
+    </div>
+  );
+}
+
+/**
+ * Süren ay için elle giriş istenmez: aylık rapor ay bittikten sonra, bir sonraki
+ * ayın 10'unda girilir. 11 Eylül 2026'da Ağustos rakamları, Genel Bakış'tan
+ * sekme geçişinde açık kalan Eylül'e kaydedilmişti — bu blok o tuzağı kapatır.
+ */
+function InProgressNotice({ month }: { month: string }) {
+  const report = previousMonth(month);
+  const due = reportDueDate(month).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+  return (
+    <div
+      className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-sm)] px-3 py-2 text-[12.5px]"
+      style={{
+        backgroundColor: 'var(--color-warning-muted)',
+        border: '1px solid var(--color-warning)',
+        color: 'var(--color-warning)',
+      }}
+    >
+      <span>
+        {monthLabel(month)} henüz bitmedi — bu ayın raporu {due} tarihinde girilir.
+      </span>
+      <Link href={`/social/data?month=${report}`} className="font-semibold hover:underline">
+        {monthLabel(report)} raporuna git →
+      </Link>
     </div>
   );
 }

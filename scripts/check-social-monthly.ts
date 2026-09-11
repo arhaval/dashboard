@@ -27,8 +27,10 @@ import {
   topGenreForMonth,
 } from '../src/app/(dashboard)/social/social-overview.constants';
 import {
+  REPORT_DUE_DAY,
   SETTLE_DAYS,
   monthProgress,
+  reportDueDate,
   monthsToRefresh,
   resolveMonth,
   selectableMonths,
@@ -421,6 +423,23 @@ eq('önceki ay (aynı yıl)', previousMonth('2026-08'), '2026-07');
   // Studio "son 28 gün": dün biter, 28 günü tam kapsar.
   eq('pencere: son 28 gün', lastNDaysRange(28, new Date(2026, 8, 11)), { start: '2026-08-14', end: '2026-09-10' });
   eq('pencere: ay başında önceki aya taşar', lastNDaysRange(1, new Date(2026, 8, 1)), { start: '2026-08-31', end: '2026-08-31' });
+}
+
+// ── 12. Rapor günü: ayın raporu bir sonraki ayın 10'unda ─────────────────
+// Gerçek vaka: 11 Eylül'de girilen Ağustos raporu, Eylül açık kaldığı için
+// Eylül'e kaydedildi. Süren aya elle giriş artık hem arayüzde hem sunucuda
+// engelli; raporun hangi gün girileceği tek yerden okunur.
+
+{
+  const aug = reportDueDate('2026-08');
+  eq('rapor: Ağustos raporu 10 Eylül', [aug.getFullYear(), aug.getMonth() + 1, aug.getDate()], [2026, 9, REPORT_DUE_DAY]);
+  const dec = reportDueDate('2026-12');
+  eq('rapor: Aralık raporu 10 Ocak (yıl dönümü)', [dec.getFullYear(), dec.getMonth() + 1, dec.getDate()], [2027, 1, 10]);
+
+  // Rapor günü geldiğinde raporlanacak ay kapanmış olmalı, girilen ay süren ay değil.
+  const dueDay = new Date(2026, 8, REPORT_DUE_DAY);
+  check('rapor günü: raporlanan ay kapanmış', !monthProgress('2026-08', dueDay).inProgress);
+  check('rapor günü: içinde bulunulan ay girişe kapalı', monthProgress('2026-09', dueDay).inProgress);
 }
 
 // ── Sonuç ───────────────────────────────────────────────────────────────────

@@ -99,3 +99,17 @@ export function monthsToRefresh(now: Date = new Date()): string[] {
   const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   return [currentMonthKey(previous), current];
 }
+
+/**
+ * Aylık rapor, ay BİTTİKTEN sonra bir sonraki ayın bu gününde tamamlanır:
+ * Ağustos raporu 10 Eylül'de, Eylül raporu 10 Ekim'de. Ay takvim ayıdır; 10
+ * dönemi değil rapor gününü belirtir.
+ */
+export const REPORT_DUE_DAY = 10;
+
+/** Bir ayın raporunun tamamlanacağı gün: '2026-08' → 10 Eylül 2026. */
+export function reportDueDate(month: string): Date {
+  const [year, m] = month.split('-').map(Number);
+  // Date ayı 0 tabanlı alır: 1 tabanlı `m` doğrudan bir sonraki aya denk gelir.
+  return new Date(year, m, REPORT_DUE_DAY);
+}

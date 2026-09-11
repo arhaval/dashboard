@@ -42,7 +42,7 @@ export default async function SocialDataPage({
   const available = await socialMetricsService.getAvailableMonths();
   const month = resolveMonth(requested, available);
 
-  const [{ completeness }, goals, note, ytStatus, igStatus, health] = await Promise.all([
+  const [{ completeness, progress }, goals, note, ytStatus, igStatus, health] = await Promise.all([
     socialSummaryService.getOverview(month),
     socialMetricsService.getGoalProgress(month),
     socialMetricsService.getNoteForMonth(month),
@@ -77,7 +77,7 @@ export default async function SocialDataPage({
         <MonthPicker month={month} available={available} />
       </div>
 
-      <CompletionPanel completeness={completeness} />
+      <CompletionPanel completeness={completeness} progress={progress} />
 
       <DataSources statuses={sources} />
 
