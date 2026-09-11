@@ -46,8 +46,15 @@ export default async function SocialOverviewPage({
       <ReportBanner completeness={overview.completeness} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[12.5px]" style={{ color: 'var(--color-text-muted)' }}>
-          Tamamlanmış son ayın durumu
+        <p
+          className="text-[12.5px]"
+          style={{
+            color: overview.progress.inProgress ? 'var(--color-warning)' : 'var(--color-text-muted)',
+          }}
+        >
+          {overview.progress.inProgress
+            ? `Ay devam ediyor · ${overview.progress.day}/${overview.progress.days} gün — görüntülenme, etkileşim ve canlı izlenme ay bitmeden önceki ayla kıyaslanmaz`
+            : 'Tamamlanmış ayın durumu'}
         </p>
         <MonthPicker month={month} available={available} />
       </div>

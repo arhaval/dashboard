@@ -24,8 +24,9 @@ import {
   buildInsights,
   buildKpis,
   buildPlatformRows,
+  topGenreForMonth,
 } from '../src/app/(dashboard)/social/social-overview.constants';
-import { resolveMonth, selectableMonths } from '../src/app/(dashboard)/social/month.utils';
+import { monthProgress, resolveMonth, selectableMonths } from '../src/app/(dashboard)/social/month.utils';
 
 let passed = 0;
 const failures: string[] = [];
@@ -304,6 +305,75 @@ eq('önceki ay (aynı yıl)', previousMonth('2026-08'), '2026-07');
   eq('kapatmak yüzdeyi şişirmez', closed.percent, open.percent);
   eq('kapatmak eksik listesini gizlemez', closed.incompletePlatforms, open.incompletePlatforms);
   eq('kapatmak alan sayımını değiştirmez', [closed.filled, closed.total], [open.filled, open.total]);
+}
+
+// ── 8. Yarım ay: ay içinde biriken metrikler kıyaslanmaz ───────────────────
+// Gerçek vaka (11 Eylül 2026): 11 günlük Instagram görüntülenmesi tam
+// Ağustos'la kıyaslanınca "en büyük düşüş %83" çıkıyordu; canlı izlenme
+// ayın 11'inde Ağustos'un %72'sine ulaşmışken "%28 düşüş" deniyordu.
+
+{
+  const sep = new Date(2026, 8, 11);
+  eq('ilerleme: içinde bulunulan ay', monthProgress('2026-09', sep), { inProgress: true, day: 11, days: 30 });
+  eq('ilerleme: biten ay', monthProgress('2026-08', sep), { inProgress: false, day: 31, days: 31 });
+  eq('ilerleme: şubat 2026', monthProgress('2026-02', sep).days, 28);
+  eq('ilerleme: gelecek ay', monthProgress('2026-10', sep), { inProgress: true, day: 0, days: 31 });
+
+  const aug = [
+    { platform: 'INSTAGRAM', followers_total: 10557, views: 1303210, likes: 44863, comments: 2088, saves: 1787, shares: 5288 },
+    { platform: 'YOUTUBE', subscribers_total: 30500, video_views: 4656, total_likes: 9369, total_comments: 96, live_views: 203645 },
+  ];
+  const sepRows = [
+    { platform: 'INSTAGRAM', followers_total: 10510, views: 224978, likes: 7256, comments: 227, saves: 206, shares: 849 },
+    { platform: 'YOUTUBE', subscribers_total: 30800, video_views: 2416, total_likes: 2935, total_comments: 17, live_views: 146597 },
+  ];
+  const tracked: MonthlyPlatform[] = ['INSTAGRAM', 'YOUTUBE'];
+
+  // Hatanın kendisi: seçenek verilmezse eski (yanıltıcı) yüzde üretilir.
+  eq('regresyon: seçeneksiz canlı izlenme yüzdesi', buildKpis(sepRows, aug, tracked).find((x) => x.key === 'liveViews')!.percent, -28);
+
+  const k = Object.fromEntries(buildKpis(sepRows, aug, tracked, { inProgress: true }).map((x) => [x.key, x]));
+  // Takipçi anlık durumdur — ay ortasında da kıyaslanır.
+  eq('yarım ay: takipçi farkı korunur', k.followers.delta, (10510 + 30800) - (10557 + 30500));
+  eq('yarım ay: takipçi STOCK', k.followers.kind, 'STOCK');
+  check('yarım ay: takipçi işaretlenmez', !k.followers.partialMonth);
+  for (const key of ['views', 'engagement', 'liveViews'] as const) {
+    eq(`yarım ay: ${key} farkı üretilmez`, [k[key].delta, k[key].percent], [null, null]);
+    check(`yarım ay: ${key} işaretlenir`, k[key].partialMonth);
+    check(`yarım ay: ${key} değeri yine gösterilir`, k[key].value != null);
+  }
+
+  const rows = buildPlatformRows(sepRows, aug, tracked, { inProgress: true });
+  const ig = rows.find((r) => r.platform === 'INSTAGRAM')!;
+  eq('yarım ay: görüntülenme yüzdesi üretilmez', ig.viewsPercent, null);
+  eq('yarım ay: takipçi farkı tabloda kalır', ig.followersDelta, -47);
+  // Durum görüntülenmeden değil takipçiden türer: gerçek bir 47 kayıp.
+  eq('yarım ay: Instagram durumu takipçiden', ig.status, 'DOWN');
+  eq('yarım ay: YouTube abone artışı', rows.find((r) => r.platform === 'YOUTUBE')!.status, 'UP');
+
+  const insights = buildInsights({ platforms: rows, topGenre: null, missingPlatforms: [] });
+  check('yarım ay: "en büyük düşüş" uydurulmaz', !insights.some((i) => i.title === 'En büyük düşüş'), insights);
+  check('yarım ay: "en hızlı büyüyen" uydurulmaz', !insights.some((i) => i.title === 'En hızlı büyüyen'), insights);
+
+  // Biten ayda davranış değişmez.
+  eq('biten ay: canlı izlenme yüzdesi üretilir', buildKpis(sepRows, aug, tracked, { inProgress: false }).find((x) => x.key === 'liveViews')!.percent, -28);
+}
+
+// ── 9. En güçlü tür yalnızca o ayın videolarından ──────────────────────────
+
+{
+  const v = (publishedAt: string | null, views: number, genreLabel: string) => ({ publishedAt, views, genreLabel });
+  const videos = [
+    v('2026-08-03T10:00:00+00:00', 40000, 'Oyuncu/Takım Hikayesi'),
+    v('2026-08-20T10:00:00+00:00', 60000, 'Oyuncu/Takım Hikayesi'),
+    v('2026-08-10T10:00:00+00:00', 20000, 'Taktik'),
+    v('2026-07-10T10:00:00+00:00', 900000, 'Taktik'),
+    v(null, 500000, 'Haber'),
+    v('2026-08-11T10:00:00+00:00', 0, 'Haber'),
+  ];
+  eq('tür: yalnız o ayın izlenmiş videoları', topGenreForMonth(videos, '2026-08'), { label: 'Oyuncu/Takım Hikayesi', avgViews: 50000 });
+  eq('tür: tek tür varsa sıralanmaz', topGenreForMonth(videos, '2026-07'), null);
+  eq('tür: video yoksa null', topGenreForMonth(videos, '2026-09'), null);
 }
 
 // ── Sonuç ───────────────────────────────────────────────────────────────────

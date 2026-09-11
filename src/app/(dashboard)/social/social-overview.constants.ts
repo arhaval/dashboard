@@ -53,9 +53,31 @@ export const KPI_LABELS: Record<KpiKey, string> = {
   liveViews: 'Canlı İzlenme',
 };
 
+/**
+ * STOCK: anlık durum (takipçi) — ay ortasında da kıyaslanabilir.
+ * FLOW: ay içinde birikir (görüntülenme, etkileşim, canlı izlenme) — yarım ay
+ * tam bir ayla kıyaslanamaz, kıyaslanırsa her şey çöküş gibi görünür.
+ */
+export type KpiKind = 'STOCK' | 'FLOW';
+
+const KPI_KIND: Record<KpiKey, KpiKind> = {
+  followers: 'STOCK',
+  views: 'FLOW',
+  engagement: 'FLOW',
+  liveViews: 'FLOW',
+};
+
+export interface CompareOptions {
+  /** Gösterilen ay henüz bitmedi mi — bkz. monthProgress. */
+  inProgress?: boolean;
+}
+
 export interface Kpi {
   key: KpiKey;
   label: string;
+  kind: KpiKind;
+  /** Ay sürüyor ve bu bir FLOW metriği: kıyas BİLİNÇLİ olarak üretilmedi. */
+  partialMonth: boolean;
   value: number | null;
   /** Önceki aya göre fark. Kapsam değiştiyse üretilmez. */
   delta: number | null;
@@ -82,12 +104,15 @@ function kpiFields(key: KpiKey, platform: MonthlyPlatform): string[] {
 export function buildKpis(
   rows: Row[],
   previousRows: Row[],
-  tracked: MonthlyPlatform[]
+  tracked: MonthlyPlatform[],
+  { inProgress = false }: CompareOptions = {}
 ): Kpi[] {
   const byPlatform = new Map(rows.map((r) => [r.platform, r]));
   const prevByPlatform = new Map(previousRows.map((r) => [r.platform, r]));
 
   return (Object.keys(KPI_LABELS) as KpiKey[]).map((key): Kpi => {
+    const kind = KPI_KIND[key];
+    const partialMonth = inProgress && kind === 'FLOW';
     // Yalnızca bu KPI'ı raporlayabilen platformlar beklenir.
     const relevant = tracked.filter((p) => kpiFields(key, p).length > 0);
 
@@ -117,7 +142,8 @@ export function buildKpis(
     const hasGaps = reporting < relevant.length;
     // Kıyaslanan platform kümesi bu ayın toplamıyla aynı değilse yüzde
     // yanıltıcı olur (elmayla armut): üretmiyoruz.
-    const canCompare = comparable > 0 && comparable === reporting && comparablePrev > 0;
+    const canCompare =
+      !partialMonth && comparable > 0 && comparable === reporting && comparablePrev > 0;
     const delta = canCompare ? comparableNow - comparablePrev : null;
     const percent = canCompare
       ? Math.round(((comparableNow - comparablePrev) / comparablePrev) * 100)
@@ -126,6 +152,8 @@ export function buildKpis(
     return {
       key,
       label: KPI_LABELS[key],
+      kind,
+      partialMonth,
       value,
       delta,
       percent,
@@ -157,7 +185,8 @@ const MOVE_PCT = 5;
 export function buildPlatformRows(
   rows: Row[],
   previousRows: Row[],
-  tracked: MonthlyPlatform[]
+  tracked: MonthlyPlatform[],
+  { inProgress = false }: CompareOptions = {}
 ): PlatformRow[] {
   const byPlatform = new Map(rows.map((r) => [r.platform, r]));
   const prevByPlatform = new Map(previousRows.map((r) => [r.platform, r]));
@@ -174,8 +203,9 @@ export function buildPlatformRows(
     const viewsBefore = num(prev?.[MAIN_METRIC[platform].key]);
     const engagement = sumField(row, ENGAGEMENT_FIELDS[platform]);
 
+    // Yarım ayda görüntülenme tam bir ayla kıyaslanamaz; durum takipçiden türer.
     const viewsPercent =
-      views != null && viewsBefore != null && viewsBefore > 0
+      !inProgress && views != null && viewsBefore != null && viewsBefore > 0
         ? Math.round(((views - viewsBefore) / viewsBefore) * 100)
         : null;
 
@@ -297,4 +327,42 @@ export function compact(n: number): string {
  */
 export function full(n: number): string {
   return n.toLocaleString('tr-TR');
+}
+
+// ── İçerik türü ─────────────────────────────────────────────────────────────
+
+/** "En güçlü tür" diyebilmek için en az bu kadar tür kıyaslanabilmeli. */
+export const MIN_GENRES_TO_RANK = 2;
+
+export interface GenreVideo {
+  /** ISO tarih — yalnızca YYYY-MM kısmı kullanılır. */
+  publishedAt: string | null;
+  views: number;
+  genreLabel: string;
+}
+
+/**
+ * Seçilen ayda YAYINLANAN videolardan en yüksek ortalamalı tür.
+ *
+ * "Bu Ay Ne Oldu?" başlığı altında tüm zamanların ortalamasını göstermek her
+ * ay aynı cevabı verirdi; ay filtresi bu yüzden zorunlu. Tek tür varsa "en
+ * güçlü" demenin kıyası yoktur — null döner.
+ */
+export function topGenreForMonth(
+  videos: GenreVideo[],
+  month: string
+): { label: string; avgViews: number } | null {
+  const acc = new Map<string, { count: number; sum: number }>();
+  for (const v of videos) {
+    if (!v.publishedAt || v.publishedAt.slice(0, 7) !== month) continue;
+    if (!Number.isFinite(v.views) || v.views <= 0) continue;
+    const cur = acc.get(v.genreLabel) ?? { count: 0, sum: 0 };
+    cur.count += 1;
+    cur.sum += v.views;
+    acc.set(v.genreLabel, cur);
+  }
+  if (acc.size < MIN_GENRES_TO_RANK) return null;
+  return [...acc]
+    .map(([label, { count, sum }]) => ({ label, avgViews: Math.round(sum / count) }))
+    .sort((a, b) => b.avgViews - a.avgViews || a.label.localeCompare(b.label, 'tr'))[0];
 }

@@ -57,3 +57,29 @@ export function resolveMonth(
   const any = [...available].sort();
   return any.length > 0 ? any[any.length - 1] : current;
 }
+
+export interface MonthProgress {
+  /** Ay henüz bitmedi mi (içinde bulunulan ya da gelecek ay). */
+  inProgress: boolean;
+  /** Ayın kaçıncı günündeyiz; biten ayda ayın gün sayısı. */
+  day: number;
+  /** Ayın toplam gün sayısı. */
+  days: number;
+}
+
+/**
+ * Seçilen ayın ne kadarı yaşandı.
+ *
+ * resolveMonth VARSAYILAN olarak yarım ayı açmıyor, ama kullanıcı ay
+ * seçicisinden içinde bulunulan ayı seçebilir. O durumda görüntülenme gibi ay
+ * içinde BİRİKEN metrikler tam bir ayla kıyaslanamaz: 11 günlük Eylül'ü 31
+ * günlük Ağustos'la kıyaslamak her şeyi çöküş gibi gösterir.
+ */
+export function monthProgress(month: string, now: Date = new Date()): MonthProgress {
+  const [year, m] = month.split('-').map(Number);
+  const days = new Date(year, m, 0).getDate();
+  const current = currentMonthKey(now);
+  if (month > current) return { inProgress: true, day: 0, days };
+  if (month === current) return { inProgress: true, day: now.getDate(), days };
+  return { inProgress: false, day: days, days };
+}

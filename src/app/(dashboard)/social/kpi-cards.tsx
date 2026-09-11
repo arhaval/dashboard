@@ -53,7 +53,7 @@ function KpiCard({ kpi }: { kpi: Kpi }) {
           </span>
         ) : kpi.value != null ? (
           <span className="text-[11.5px]" style={{ color: 'var(--color-text-muted)' }}>
-            kıyas yok
+            {kpi.partialMonth ? 'ay sürüyor · kıyas ay sonunda' : 'kıyas yok'}
           </span>
         ) : null}
       </div>

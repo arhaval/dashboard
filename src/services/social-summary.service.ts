@@ -21,19 +21,14 @@ import {
   buildInsights,
   buildKpis,
   buildPlatformRows,
+  topGenreForMonth,
   type Insight,
   type Kpi,
   type PlatformRow,
 } from '@/app/(dashboard)/social/social-overview.constants';
+import { monthProgress, type MonthProgress } from '@/app/(dashboard)/social/month.utils';
 
 type MetricRow = { platform: string; [column: string]: unknown };
-
-/** İçerik türü ortalaması — "en güçlü tür" içgörüsünün kaynağı. */
-interface GenreStat {
-  label: string;
-  count: number;
-  avgViews: number;
-}
 
 export interface MonthlyOverview {
   /** Genel Bakış'ın 4 kartı. */
@@ -43,6 +38,8 @@ export interface MonthlyOverview {
   /** "Bu Ay Ne Oldu?" — en fazla 4 satır. */
   insights: Insight[];
   completeness: MonthCompleteness;
+  /** Ay sürüyor mu — yarım ayda birikmeli metrikler kıyaslanmaz. */
+  progress: MonthProgress;
 }
 
 export const socialSummaryService = {
@@ -51,29 +48,6 @@ export const socialSummaryService = {
     const supabase = await createClient();
     const { data } = await supabase.from('social_monthly_metrics').select('*').eq('month', month);
     return (data ?? []) as MetricRow[];
-  },
-
-  /**
-   * Tür ortalamaları — mevcut skorlama servisinden türetilir, yeniden
-   * hesaplanmaz. "Hangi tür tutuyor" sorusunun kaynağı budur.
-   */
-  async getGenreStats(): Promise<GenreStat[]> {
-    const videos = await videoPerformanceService.getAllScored();
-    const acc = new Map<string, { count: number; sum: number }>();
-    for (const v of videos) {
-      const views = Number(v.view_count);
-      if (!Number.isFinite(views) || views <= 0) continue;
-      const label = VIDEO_GENRE_LABELS[v.effective_genre];
-      const cur = acc.get(label) ?? { count: 0, sum: 0 };
-      cur.count += 1;
-      cur.sum += views;
-      acc.set(label, cur);
-    }
-    return [...acc].map(([label, { count, sum }]) => ({
-      label,
-      count,
-      avgViews: Math.round(sum / count),
-    }));
   },
 
   /**
@@ -91,31 +65,52 @@ export const socialSummaryService = {
     return Boolean(data);
   },
 
+  /**
+   * Seçilen ayda yayınlanan videolardan en güçlü tür. Tüm zamanların ortalaması
+   * "bu ay" başlığı altında gösterilmez — her ay aynı cevabı verirdi.
+   */
+  async getTopGenre(month: string): Promise<{ label: string; avgViews: number } | null> {
+    const videos = await videoPerformanceService.getAllScored();
+    return topGenreForMonth(
+      videos.map((v) => ({
+        publishedAt: v.published_at ? String(v.published_at) : null,
+        views: Number(v.view_count),
+        genreLabel: VIDEO_GENRE_LABELS[v.effective_genre],
+      })),
+      month
+    );
+  },
+
   /** Bir ayın Genel Bakış verisi + doluluk haritası. */
   async getOverview(
     month: string,
-    tracked: MonthlyPlatform[] = MONTHLY_PLATFORMS
+    tracked: MonthlyPlatform[] = MONTHLY_PLATFORMS,
+    now: Date = new Date()
   ): Promise<MonthlyOverview> {
-    const [rows, previousRows, genres, closed] = await Promise.all([
+    const progress = monthProgress(month, now);
+    const [rows, previousRows, topGenre, closed] = await Promise.all([
       this.getRows(month),
       this.getRows(previousMonth(month)),
-      this.getGenreStats(),
+      // Yarım ayda yayınlanan videolar henüz görüntülenme toplamadı; tür
+      // kıyası videonun yaşına göre çarpık olurdu, gösterilmez.
+      progress.inProgress ? Promise.resolve(null) : this.getTopGenre(month),
       this.isMonthClosed(month),
     ]);
 
+    const opts = { inProgress: progress.inProgress };
     const completeness = monthCompleteness(month, rows, tracked, closed);
-    const platformRows = buildPlatformRows(rows, previousRows, tracked);
-    const topGenre = [...genres].sort((a, b) => b.avgViews - a.avgViews)[0] ?? null;
+    const platformRows = buildPlatformRows(rows, previousRows, tracked, opts);
 
     return {
-      kpis: buildKpis(rows, previousRows, tracked),
+      kpis: buildKpis(rows, previousRows, tracked, opts),
       platformRows,
       insights: buildInsights({
         platforms: platformRows,
-        topGenre: topGenre ? { label: topGenre.label, avgViews: topGenre.avgViews } : null,
+        topGenre,
         missingPlatforms: completeness.platforms.filter((p) => p.missing).map((p) => p.label),
       }),
       completeness,
+      progress,
     };
   },
 };
