@@ -2,7 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { userService } from '@/services';
-import { youtubeAnalyticsService } from '@/services/youtube-analytics.service';
+import {
+  youtubeAnalyticsService,
+  type ReconcileResult,
+} from '@/services/youtube-analytics.service';
 
 function currentMonth(): string {
   const now = new Date();
@@ -15,12 +18,22 @@ function monthsAgo(n: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-/** Backfill the last 12 months from the Analytics API (admin only). */
-export async function backfillYouTube(): Promise<{ filled?: number; error?: string }> {
+/**
+ * Son 12 ayı Analytics'ten yeniden doldurur (yalnızca admin). Ardından Studio'nun
+ * son 28 günlük penceresi çekilir: panelin saydığı ile Studio'nun toplamı
+ * arasındaki fark ve farkın hangi içerik türünden geldiği görünsün.
+ */
+export async function backfillYouTube(): Promise<{
+  filled?: number;
+  error?: string;
+  reconcile?: ReconcileResult | null;
+}> {
   const user = await userService.getCurrentUser();
   if (!user || user.role !== 'ADMIN') return { error: 'Yetki yok' };
 
   const result = await youtubeAnalyticsService.backfill(monthsAgo(11), currentMonth());
+  const reconcile = await youtubeAnalyticsService.reconcileRange().catch(() => null);
   revalidatePath('/social');
-  return { filled: result.filled, error: result.error };
+  revalidatePath('/social/data');
+  return { filled: result.filled, error: result.error, reconcile };
 }

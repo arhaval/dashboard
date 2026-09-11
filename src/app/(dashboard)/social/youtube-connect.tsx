@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { Youtube, CheckCircle2, RefreshCw, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { backfillYouTube } from './youtube-actions';
+import type { ReconcileResult } from '@/services/youtube-analytics.service';
 
 interface Props {
   connected: boolean;
@@ -12,12 +13,14 @@ interface Props {
 export function YouTubeConnect({ connected }: Props) {
   const [msg, setMsg] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [reconcile, setReconcile] = useState<ReconcileResult | null>(null);
 
   function handleBackfill() {
     setMsg(null);
     startTransition(async () => {
       const res = await backfillYouTube();
       setMsg(res.error ? `Hata: ${res.error}` : `${res.filled} ay Analytics'ten dolduruldu ✓`);
+      setReconcile(res.reconcile ?? null);
     });
   }
 
@@ -66,6 +69,39 @@ export function YouTubeConnect({ connected }: Props) {
       {msg && (
         <p className="mt-3 text-xs" style={{ color: 'var(--color-text-secondary)' }}>{msg}</p>
       )}
+      {reconcile && <StudioReconcile data={reconcile} />}
+    </div>
+  );
+}
+
+/**
+ * Studio kıyası. Aylık tablo yalnızca video/Shorts/canlıyı saklar; bu kutu
+ * Studio'nun toplamıyla aradaki farkı ve farkın kaynağını gösterir.
+ */
+function StudioReconcile({ data }: { data: ReconcileResult }) {
+  const counted = data.byType.video_views + data.byType.shorts_views + data.byType.live_views;
+  const n = (v: number) => v.toLocaleString('tr-TR');
+  return (
+    <div
+      className="mt-3 rounded-[var(--radius-md)] border px-3 py-2 text-xs"
+      style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+    >
+      <p style={{ color: 'var(--color-text-muted)' }}>
+        Studio kıyası · son {data.days} gün ({data.start} – {data.end})
+      </p>
+      <p className="mt-1">
+        YouTube toplam görüntülenme:{' '}
+        <span className="font-mono font-semibold tabular-nums">{n(data.total)}</span>
+      </p>
+      <p>
+        Video {n(data.byType.video_views)} · Shorts {n(data.byType.shorts_views)} · Canlı{' '}
+        {n(data.byType.live_views)} ={' '}
+        <span className="font-mono tabular-nums">{n(counted)}</span>
+      </p>
+      <p>
+        Diğer türler (gönderi, hikâye, sınıflandırılmamış):{' '}
+        <span className="font-mono tabular-nums">{n(data.byType.other_views)}</span>
+      </p>
     </div>
   );
 }

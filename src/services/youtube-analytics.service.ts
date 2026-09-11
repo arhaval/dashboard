@@ -31,6 +31,62 @@ function monthRange(month: string): { start: string; end: string } {
   return { start, end };
 }
 
+/** Studio'nun varsayılan "son N gün" görünümü. */
+export const STUDIO_WINDOW_DAYS = 28;
+
+/** Studio'nun "son N gün" penceresi: dün biter, bugünün verisi henüz yok. */
+export function lastNDaysRange(days: number, now: Date = new Date()): { start: string; end: string } {
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - (days - 1));
+  const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return { start: fmt(start), end: fmt(end) };
+}
+
+export interface ContentTypeTotals {
+  video_views: number;
+  shorts_views: number;
+  live_views: number;
+  total_likes: number;
+  total_comments: number;
+  /**
+   * Video/Shorts/canlı DIŞINDA kalan görüntülenme (gönderi, hikâye,
+   * sınıflandırılmamış). Aylık tabloya yazılmaz; Studio ile kıyasta farkın
+   * nereden geldiğini görünür kılar.
+   */
+  other_views: number;
+}
+
+export interface ReconcileResult {
+  start: string;
+  end: string;
+  days: number;
+  /** Boyutsuz sorgu — Studio'nun toplam görüntülenmesiyle aynı ölçü. */
+  total: number;
+  byType: ContentTypeTotals;
+}
+
+/**
+ * creatorContentType satırlarını kovalara ayırır. Beğeni ve yorum yalnızca
+ * üç kovadan toplanır (aylık tablonun mevcut tanımı); kalan türlerin
+ * görüntülenmesi atılmaz, `other_views`'te sayılır.
+ */
+export function bucketContentTypeRows(rows: [string, number, number, number][]): ContentTypeTotals {
+  const t: ContentTypeTotals = {
+    video_views: 0, shorts_views: 0, live_views: 0, total_likes: 0, total_comments: 0, other_views: 0,
+  };
+  for (const [rawType, views, likes, comments] of rows) {
+    const type = String(rawType).toLowerCase();
+    const v = Number(views) || 0;
+    if (type === 'videoondemand') t.video_views += v;
+    else if (type === 'shorts') t.shorts_views += v;
+    else if (type === 'livestream') t.live_views += v;
+    else { t.other_views += v; continue; }
+    t.total_likes += Number(likes) || 0;
+    t.total_comments += Number(comments) || 0;
+  }
+  return t;
+}
+
 /**
  * Video bazında ÇEKİRDEK metrikler — bu set uzun süredir stabil, her kanalda
  * desteklenir. Sorgu bunlarla başarısız olursa sorun metrik seti değildir.
@@ -249,39 +305,54 @@ export const youtubeAnalyticsService = {
     if (!accessToken) return null;
 
     const { start, end } = monthRange(month);
+    const totals = await this.queryContentTypes(accessToken, start, end);
+    if (!totals) return null;
+    // other_views aylık tabloda kolon değil; fillMonth bu nesneyi DB'ye yazar.
+    return {
+      video_views: totals.video_views,
+      shorts_views: totals.shorts_views,
+      live_views: totals.live_views,
+      total_likes: totals.total_likes,
+      total_comments: totals.total_comments,
+    };
+  },
+
+  /** creatorContentType kırılımıyla bir tarih aralığı. API hatasında null. */
+  async queryContentTypes(
+    accessToken: string,
+    start: string,
+    end: string
+  ): Promise<ContentTypeTotals | null> {
     const url =
       `${REPORTS_URL}?ids=channel==MINE&startDate=${start}&endDate=${end}` +
       `&metrics=views,likes,comments&dimensions=creatorContentType`;
-
     const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
     const data = await res.json();
     if (!res.ok) return null;
+    return bucketContentTypeRows((data.rows ?? []) as [string, number, number, number][]);
+  },
 
-    let video_views = 0;
-    let shorts_views = 0;
-    let live_views = 0;
-    let total_likes = 0;
-    let total_comments = 0;
+  /**
+   * Studio kıyası. Aynı pencerede (1) boyutsuz TOPLAM görüntülenme, (2) türlere
+   * bölünmüş görüntülenme çekilir. Aradaki fark panelin Studio'dan neden düşük
+   * kaldığını gösterir. Hiçbir şey yazmaz.
+   */
+  async reconcileRange(days: number = STUDIO_WINDOW_DAYS): Promise<ReconcileResult | null> {
+    const accessToken = await this.getAccessToken();
+    if (!accessToken) return null;
+    const { start, end } = lastNDaysRange(days);
 
-    for (const row of (data.rows ?? []) as [string, number, number, number][]) {
-      const [rawType, views, likes, comments] = row;
-      // API returns camelCase: videoOnDemand / shorts / liveStream / posts
-      const t = String(rawType).toLowerCase();
-      let bucket: 'video' | 'shorts' | 'live' | null = null;
-      if (t === 'videoondemand') bucket = 'video';
-      else if (t === 'shorts') bucket = 'shorts';
-      else if (t === 'livestream') bucket = 'live';
-      if (!bucket) continue; // ignore 'posts' (community posts) / story / unspecified
+    const totalRes = await fetch(
+      `${REPORTS_URL}?ids=channel==MINE&startDate=${start}&endDate=${end}&metrics=views`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const totalData = await totalRes.json();
+    if (!totalRes.ok) return null;
+    const total = Number(totalData.rows?.[0]?.[0]) || 0;
 
-      const v = Number(views) || 0;
-      if (bucket === 'video') video_views += v;
-      else if (bucket === 'shorts') shorts_views += v;
-      else live_views += v;
-      total_likes += Number(likes) || 0;
-      total_comments += Number(comments) || 0;
-    }
-
-    return { video_views, shorts_views, live_views, total_likes, total_comments };
+    const byType = await this.queryContentTypes(accessToken, start, end);
+    if (!byType) return null;
+    return { start, end, days, total, byType };
   },
 
   /**

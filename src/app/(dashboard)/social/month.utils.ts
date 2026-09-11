@@ -83,3 +83,19 @@ export function monthProgress(month: string, now: Date = new Date()): MonthProgr
   if (month === current) return { inProgress: true, day: now.getDate(), days };
   return { inProgress: false, day: days, days };
 }
+
+/**
+ * Analytics verisi 2-3 gün gecikmeyle oturur. Ay kapanır kapanmaz çekilen
+ * değer son günleri eksik taşır ve cron yalnızca içinde bulunulan ayı
+ * doldurduğu için bir daha düzelmez — Ağustos 2026 satırı 31 Ağustos 06:03'te
+ * donmuştu. Yeni ayın ilk günlerinde önceki ay da yeniden çekilir.
+ */
+export const SETTLE_DAYS = 5;
+
+/** Bu senkron çalıştırmasında yenilenecek aylar, eskiden yeniye. */
+export function monthsToRefresh(now: Date = new Date()): string[] {
+  const current = currentMonthKey(now);
+  if (now.getDate() > SETTLE_DAYS) return [current];
+  const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return [currentMonthKey(previous), current];
+}

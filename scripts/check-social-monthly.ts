@@ -26,7 +26,14 @@ import {
   buildPlatformRows,
   topGenreForMonth,
 } from '../src/app/(dashboard)/social/social-overview.constants';
-import { monthProgress, resolveMonth, selectableMonths } from '../src/app/(dashboard)/social/month.utils';
+import {
+  SETTLE_DAYS,
+  monthProgress,
+  monthsToRefresh,
+  resolveMonth,
+  selectableMonths,
+} from '../src/app/(dashboard)/social/month.utils';
+import { bucketContentTypeRows, lastNDaysRange } from '../src/services/youtube-analytics.service';
 
 let passed = 0;
 const failures: string[] = [];
@@ -374,6 +381,46 @@ eq('önceki ay (aynı yıl)', previousMonth('2026-08'), '2026-07');
   eq('tür: yalnız o ayın izlenmiş videoları', topGenreForMonth(videos, '2026-08'), { label: 'Oyuncu/Takım Hikayesi', avgViews: 50000 });
   eq('tür: tek tür varsa sıralanmaz', topGenreForMonth(videos, '2026-07'), null);
   eq('tür: video yoksa null', topGenreForMonth(videos, '2026-09'), null);
+}
+
+// ── 10. Senkron penceresi: kapanan ay gecikmeli veriyle yenilenir ──────────
+// Gerçek vaka: Ağustos 2026 satırı 31 Ağustos 06:03'te dondu ve son günleri
+// hiç gelmedi; cron yalnızca içinde bulunulan ayı dolduruyordu.
+
+{
+  eq('senkron: ayın 1i önceki ay da', monthsToRefresh(new Date(2026, 8, 1)), ['2026-08', '2026-09']);
+  eq('senkron: pencerenin son günü', monthsToRefresh(new Date(2026, 8, SETTLE_DAYS)), ['2026-08', '2026-09']);
+  eq('senkron: pencere sonrası yalnız bu ay', monthsToRefresh(new Date(2026, 8, SETTLE_DAYS + 1)), ['2026-09']);
+  eq('senkron: yıl dönümü', monthsToRefresh(new Date(2027, 0, 2)), ['2026-12', '2027-01']);
+}
+
+// ── 11. YouTube içerik türü kovaları ve Studio penceresi ───────────────────
+
+{
+  const rows: [string, number, number, number][] = [
+    ['videoOnDemand', 2416, 100, 5],
+    ['shorts', 31062, 900, 10],
+    ['liveStream', 146597, 1935, 2],
+    ['posts', 500, 50, 1],
+    ['UNSPECIFIED', 12000, 0, 0],
+  ];
+  const t = bucketContentTypeRows(rows);
+  eq('kova: video', t.video_views, 2416);
+  eq('kova: shorts', t.shorts_views, 31062);
+  eq('kova: canlı', t.live_views, 146597);
+  // Eskiden sessizce atılan görüntülenmeler artık görünür.
+  eq('kova: dışarıda kalan görüntülenme sayılır', t.other_views, 12500);
+  eq('kova: hiçbir görüntülenme kaybolmaz', t.video_views + t.shorts_views + t.live_views + t.other_views, 192575);
+  // Aylık tablonun mevcut tanımı korunur: beğeni/yorum yalnızca üç kovadan.
+  eq('kova: beğeni üç kovadan', t.total_likes, 2935);
+  eq('kova: yorum üç kovadan', t.total_comments, 17);
+  eq('kova: boş yanıt', bucketContentTypeRows([]), {
+    video_views: 0, shorts_views: 0, live_views: 0, total_likes: 0, total_comments: 0, other_views: 0,
+  });
+
+  // Studio "son 28 gün": dün biter, 28 günü tam kapsar.
+  eq('pencere: son 28 gün', lastNDaysRange(28, new Date(2026, 8, 11)), { start: '2026-08-14', end: '2026-09-10' });
+  eq('pencere: ay başında önceki aya taşar', lastNDaysRange(1, new Date(2026, 8, 1)), { start: '2026-08-31', end: '2026-08-31' });
 }
 
 // ── Sonuç ───────────────────────────────────────────────────────────────────

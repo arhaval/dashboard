@@ -10,6 +10,7 @@ import { instagramService } from '@/services/instagram.service';
 import { contentQueueService } from '@/services/content-queue.service';
 import { publicationMetricsService } from '@/services/publication-metrics.service';
 import { denyCron } from '@/lib/cron-auth';
+import { monthsToRefresh } from '@/app/(dashboard)/social/month.utils';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -20,20 +21,24 @@ export async function GET(request: Request) {
 
   const result = await syncYouTubeVideos();
 
-  // Independent safety net: fill the current month's Analytics metrics even if
-  // the video sync bailed early (e.g. video_performance table not yet created).
-  const now = new Date();
-  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const analytics = await youtubeAnalyticsService
-    .fillMonth(month)
-    .catch((e) => ({ ok: false, error: e instanceof Error ? e.message : 'aylık Analytics dolumu başarısız' }));
-  if (!analytics.ok) console.error('[youtube-sync] aylık Analytics:', (analytics as { error?: string }).error);
+  // Aylık Analytics dolumu, video senkronu erken dönse bile çalışır. Veri 2-3 gün
+  // gecikmeyle oturduğu için yeni ayın ilk günlerinde önceki ay da yeniden
+  // çekilir; yoksa her kapanan ay son günlerini kalıcı olarak kaybeder.
+  const months = monthsToRefresh();
+  const analytics = await fillEach(
+    months,
+    (m) => youtubeAnalyticsService.fillMonth(m),
+    'aylık Analytics dolumu başarısız'
+  );
+  if (!analytics.ok) console.error('[youtube-sync] aylık Analytics:', analytics.error);
 
-  // Instagram: refresh token + current-month account metrics (followers + views).
-  const instagram = await instagramService
-    .fillMonth(month)
-    .catch((e) => ({ ok: false, error: e instanceof Error ? e.message : 'aylık Instagram dolumu başarısız' }));
-  if (!instagram.ok) console.error('[youtube-sync] aylık Instagram:', (instagram as { error?: string }).error);
+  // Instagram: aynı pencere, aynı gecikme.
+  const instagram = await fillEach(
+    months,
+    (m) => instagramService.fillMonth(m),
+    'aylık Instagram dolumu başarısız'
+  );
+  if (!instagram.ok) console.error('[youtube-sync] aylık Instagram:', instagram.error);
   // Only refresh posts linked to published content (not a daily 60-post scan).
   const instagramMedia = await instagramService.syncLinkedMedia().catch(() => ({ refreshed: 0 }));
 
@@ -64,4 +69,21 @@ export async function GET(request: Request) {
     { outcome, failures, ...result, analytics, instagram, instagramMedia, scripts, metrics, at: new Date().toISOString() },
     { status }
   );
+}
+
+/** Ayları sırayla doldurur; biri düşerse diğerleri yine denenir. */
+async function fillEach(
+  months: string[],
+  fill: (month: string) => Promise<{ ok: boolean; error?: string }>,
+  fallback: string
+): Promise<{ ok: boolean; months: string[]; error?: string }> {
+  const errors: string[] = [];
+  for (const month of months) {
+    const r = await fill(month).catch((e: unknown) => ({
+      ok: false,
+      error: e instanceof Error ? e.message : fallback,
+    }));
+    if (!r.ok) errors.push(`${month}: ${r.error ?? fallback}`);
+  }
+  return errors.length > 0 ? { ok: false, months, error: errors.join(' · ') } : { ok: true, months };
 }
