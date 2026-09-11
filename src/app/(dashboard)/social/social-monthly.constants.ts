@@ -182,17 +182,21 @@ export const LIVE_VIEW_FIELD: Record<MonthlyPlatform, string | null> = {
 
 /**
  * Platformun ERİŞİM ölçüsü — "bu ay kaç kişiye ulaştım" sorusunun cevabı.
- * Trend grafiği, aylık özet ve karşılaştırma aynı alanı kullanır ki grafikte
+ * Trend grafiği, aylık özet ve karşılaştırma aynı alanları kullanır ki grafikte
  * gördüğün sayı ile özette okuduğun sayı aynı şeyi anlatsın.
+ *
+ * Birden çok kolon olabilir: YouTube'da erişim video + Shorts + canlı yayının
+ * TOPLAMIDIR. Yalnızca uzun videoyu saymak kanalı olduğundan küçük gösteriyordu
+ * — Ağustos 2026'da 5.447 yazıyordu, gerçek 460.339.
  */
-export const MAIN_METRIC: Record<MonthlyPlatform, { key: string; label: string }> = {
-  TWITCH:    { key: 'live_views',  label: 'Canlı İzlenme' },
-  KICK:      { key: 'live_views',  label: 'Canlı İzlenme' },
-  YOUTUBE:   { key: 'video_views', label: 'Video Görüntülenme' },
-  INSTAGRAM: { key: 'views',       label: 'Görüntülenme' },
-  X:         { key: 'impressions', label: 'Gösterim' },
-  TIKTOK:    { key: 'views',       label: 'Görüntülenme' },
-  WEBSITE:   { key: 'page_views',  label: 'Sayfa Görüntüleme' },
+export const MAIN_METRIC: Record<MonthlyPlatform, { keys: string[]; label: string }> = {
+  TWITCH:    { keys: ['live_views'],  label: 'Canlı İzlenme' },
+  KICK:      { keys: ['live_views'],  label: 'Canlı İzlenme' },
+  YOUTUBE:   { keys: ['video_views', 'shorts_views', 'live_views'], label: 'Görüntülenme' },
+  INSTAGRAM: { keys: ['views'],       label: 'Görüntülenme' },
+  X:         { keys: ['impressions'], label: 'Gösterim' },
+  TIKTOK:    { keys: ['views'],       label: 'Görüntülenme' },
+  WEBSITE:   { keys: ['page_views'],  label: 'Sayfa Görüntüleme' },
 };
 
 /**
@@ -226,6 +230,13 @@ export function expectedFields(platform: MonthlyPlatform): MonthlyField[] {
  */
 export const DERIVED_ENGAGEMENT = '__engagement__';
 
+/**
+ * Türetilmiş metrik: MAIN_METRIC kolonlarının toplamı. YouTube'da
+ * "Görüntülenme" böyle (video + Shorts + canlı); Genel Bakış'ta okunan sayının
+ * grafikte de çizilebilmesi için.
+ */
+export const DERIVED_VIEWS = '__views__';
+
 export interface AnalyticsMetric {
   key: string;
   label: string;
@@ -255,6 +266,7 @@ export const ANALYTICS_METRICS: Record<MonthlyPlatform, AnalyticsMetric[]> = {
   ],
   YOUTUBE: [
     { key: 'subscribers_total', label: tr.metricsForm.subscribersTotal },
+    { key: DERIVED_VIEWS,       label: 'Toplam Görüntülenme' },
     { key: 'video_views',       label: tr.metricsForm.videoViews },
     { key: 'shorts_views',      label: tr.metricsForm.shortsViews },
     { key: 'live_views',        label: tr.metricsForm.liveViews },
@@ -314,24 +326,27 @@ export function readMetric(
     return Number.isFinite(n) && n > 0 ? n : null;
   };
 
-  if (metricKey !== DERIVED_ENGAGEMENT) {
-    const raw = toNum(row[metricKey]);
-    if (raw == null) return null;
-    // Gösterim çarpanı (örn. dakika → saat). Grafik ve tablo aynı yerden
-    // geçtiği için ikisi de aynı birimi gösterir.
-    const factor = ANALYTICS_METRICS[platform].find((m) => m.key === metricKey)?.factor;
-    return factor ? Math.round(raw * factor * 10) / 10 : raw;
-  }
+  const sumOf = (fields: string[]): number | null => {
+    let sum = 0;
+    let has = false;
+    for (const f of fields) {
+      const v = toNum(row[f]);
+      if (v == null) continue;
+      sum += v;
+      has = true;
+    }
+    return has ? sum : null;
+  };
 
-  let sum = 0;
-  let has = false;
-  for (const f of ENGAGEMENT_FIELDS[platform]) {
-    const v = toNum(row[f]);
-    if (v == null) continue;
-    sum += v;
-    has = true;
-  }
-  return has ? sum : null;
+  if (metricKey === DERIVED_VIEWS) return sumOf(MAIN_METRIC[platform].keys);
+  if (metricKey === DERIVED_ENGAGEMENT) return sumOf(ENGAGEMENT_FIELDS[platform]);
+
+  const raw = toNum(row[metricKey]);
+  if (raw == null) return null;
+  // Gösterim çarpanı (örn. dakika → saat). Grafik ve tablo aynı yerden geçtiği
+  // için ikisi de aynı birimi gösterir.
+  const factor = ANALYTICS_METRICS[platform].find((m) => m.key === metricKey)?.factor;
+  return factor ? Math.round(raw * factor * 10) / 10 : raw;
 }
 
 // ── Doluluk ─────────────────────────────────────────────────────────────────

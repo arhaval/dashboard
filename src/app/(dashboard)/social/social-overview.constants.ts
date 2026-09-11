@@ -95,7 +95,7 @@ function kpiFields(key: KpiKey, platform: MonthlyPlatform): string[] {
     const f = FOLLOWER_FIELD[platform];
     return f ? [f] : [];
   }
-  if (key === 'views') return [MAIN_METRIC[platform].key];
+  if (key === 'views') return MAIN_METRIC[platform].keys;
   if (key === 'engagement') return ENGAGEMENT_FIELDS[platform];
   const live = LIVE_VIEW_FIELD[platform];
   return live ? [live] : [];
@@ -199,8 +199,9 @@ export function buildPlatformRows(
     const followers = followerField ? num(row?.[followerField]) : null;
     const followersBefore = followerField ? num(prev?.[followerField]) : null;
 
-    const views = num(row?.[MAIN_METRIC[platform].key]);
-    const viewsBefore = num(prev?.[MAIN_METRIC[platform].key]);
+    // Erişim birden çok kolonun toplamı olabilir (YouTube: video+Shorts+canlı).
+    const views = sumField(row, MAIN_METRIC[platform].keys);
+    const viewsBefore = sumField(prev, MAIN_METRIC[platform].keys);
     const engagement = sumField(row, ENGAGEMENT_FIELDS[platform]);
 
     // Yarım ayda görüntülenme tam bir ayla kıyaslanamaz; durum takipçiden türer.

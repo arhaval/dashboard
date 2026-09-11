@@ -17,6 +17,7 @@ import {
   toStoredValue,
   ANALYTICS_METRICS,
   DERIVED_ENGAGEMENT,
+  DERIVED_VIEWS,
   MONTHLY_PLATFORMS,
   type MonthlyPlatform,
 } from '../src/app/(dashboard)/social/social-monthly.constants';
@@ -440,6 +441,50 @@ eq('önceki ay (aynı yıl)', previousMonth('2026-08'), '2026-07');
   const dueDay = new Date(2026, 8, REPORT_DUE_DAY);
   check('rapor günü: raporlanan ay kapanmış', !monthProgress('2026-08', dueDay).inProgress);
   check('rapor günü: içinde bulunulan ay girişe kapalı', monthProgress('2026-09', dueDay).inProgress);
+}
+
+// ── 13. YouTube erişimi: video + Shorts + canlı ───────────────────────────
+// Panel yalnızca uzun videoyu sayıyordu: Ağustos 2026'da "5,4K görüntülenme,
+// %63 düşüş" yazıyordu; gerçek 460.339 ve Temmuz'a göre %70 ARTIŞ.
+
+{
+  const jul = [{ platform: 'YOUTUBE', subscribers_total: 29800, video_views: 14910, shorts_views: 148601, live_views: 107470 }];
+  const aug = [{ platform: 'YOUTUBE', subscribers_total: 30500, video_views: 5447, shorts_views: 165724, live_views: 289168 }];
+  const tracked: MonthlyPlatform[] = ['YOUTUBE'];
+
+  const row = buildPlatformRows(aug, jul, tracked)[0];
+  eq('YouTube: erişim üç kolonun toplamı', row.views, 5447 + 165724 + 289168);
+  eq('YouTube: yön artış', row.viewsPercent, 70);
+  eq('YouTube: durum yükseliş', row.status, 'UP');
+
+  const views = buildKpis(aug, jul, tracked).find((k) => k.key === 'views')!;
+  eq('YouTube: KPI toplamı aynı', views.value, 460339);
+
+  // Eksik kolon 0 sayılmaz; girilen kadarıyla toplam üretilir.
+  eq('YouTube: yalnız uzun video girilmişse', buildPlatformRows([{ platform: 'YOUTUBE', video_views: 100 }], [], tracked)[0].views, 100);
+  // Hiç görüntülenme kolonu yoksa 0 değil null.
+  eq('YouTube: hiç veri yoksa null', buildPlatformRows([{ platform: 'YOUTUBE', subscribers_total: 30500 }], [], tracked)[0].views, null);
+
+  // Diğer platformlarda tek kolon davranışı değişmedi.
+  const ig = buildPlatformRows(
+    [{ platform: 'INSTAGRAM', views: 1303210 }],
+    [{ platform: 'INSTAGRAM', views: 1544155 }],
+    ['INSTAGRAM']
+  )[0];
+  eq('Instagram: tek kolon korunur', ig.views, 1303210);
+  eq('Instagram: yüzde korunur', ig.viewsPercent, -16);
+}
+
+// ── 13b. Analiz: birleşik görüntülenme aynı sayıyı verir ──────────────────
+// Genel Bakış'ta okunan sayı grafikte de çizilebilmeli, yoksa iki ekran farklı
+// şey anlatır.
+
+{
+  const yt = { platform: 'YOUTUBE', video_views: 5447, shorts_views: 165724, live_views: 289168 };
+  eq('analiz: YouTube toplam görüntülenme', readMetric(yt, 'YOUTUBE', DERIVED_VIEWS), 460339);
+  eq('analiz: toplam görüntülenme verisi yoksa null', readMetric({ platform: 'YOUTUBE', subscribers_total: 30500 }, 'YOUTUBE', DERIVED_VIEWS), null);
+  // Tek kolonlu platformda birleşik metrik o kolona eşittir.
+  eq('analiz: Instagram birleşik = tek kolon', readMetric({ platform: 'INSTAGRAM', views: 1303210 }, 'INSTAGRAM', DERIVED_VIEWS), 1303210);
 }
 
 // ── Sonuç ───────────────────────────────────────────────────────────────────
