@@ -12,8 +12,9 @@ import { videoPerformanceService } from '@/services/video-performance.service';
 import { contentQueueService } from '@/services/content-queue.service';
 import type {
   IdeaDTO, IdeaCategory, VoteType, VoteCounts, VoterDetail, SuggestPlatform,
-  IdeaOutcome, PlatformOutcome,
+  IdeaOutcome, PlatformOutcome, HookType,
 } from '@/app/(dashboard)/fikir-havuzu/idea.constants';
+import { hookColumns, parseHookType } from '@/app/(dashboard)/fikir-havuzu/idea.constants';
 
 export type { IdeaDTO, IdeaCategory, VoteType };
 
@@ -24,6 +25,8 @@ interface IdeaRow {
   author_id: string | null; ai_comment: string | null; ai_score: number | null; ai_genre: string | null;
   content_queue_id: string | null; created_at: string;
   suggested_platforms: SuggestPlatform[] | null; suggested_format: string | null;
+  /** Migration öncesi satırlarda anahtar hiç yok — bu yüzden opsiyonel. */
+  hook_type?: string | null; why_it_works?: string | null;
 }
 interface VoteRow { idea_id: string; voter_id: string; vote: VoteType }
 
@@ -212,6 +215,8 @@ export const ideaService = {
       content_queue_id: i.content_queue_id,
       suggested_platforms: i.suggested_platforms ?? [],
       suggested_format: i.suggested_format,
+      hook_type: parseHookType(i.hook_type),
+      why_it_works: i.why_it_works ?? null,
       created_at: i.created_at,
       counts: countsByIdea.get(i.id) ?? emptyCounts(),
       my_vote: myVoteByIdea.get(i.id) ?? null,
@@ -233,11 +238,13 @@ export const ideaService = {
   async create(input: {
     title: string; summary: string | null; category: IdeaCategory; authorId: string;
     suggestedPlatforms: SuggestPlatform[]; suggestedFormat: string | null;
+    hookType: HookType | null; whyItWorks: string | null;
   }): Promise<{ error?: string }> {
     const admin = createAdminClient();
     const { error } = await admin.from('ideas').insert({
       title: input.title, summary: input.summary, category: input.category, author_id: input.authorId, status: 'OPEN',
       suggested_platforms: input.suggestedPlatforms, suggested_format: input.suggestedFormat,
+      ...hookColumns(input, false),
     });
     return error ? { error: error.message } : {};
   },
@@ -249,6 +256,7 @@ export const ideaService = {
   async update(ideaId: string, input: {
     title: string; summary: string | null; category: IdeaCategory;
     suggestedPlatforms: SuggestPlatform[]; suggestedFormat: string | null;
+    hookType: HookType | null; whyItWorks: string | null;
   }): Promise<{ error?: string }> {
     const admin = createAdminClient();
     const existing = await this.getRaw(ideaId);
@@ -263,6 +271,8 @@ export const ideaService = {
       category: input.category,
       suggested_platforms: input.suggestedPlatforms,
       suggested_format: input.suggestedFormat,
+      // Kolon varsa null da yazılır (alan temizlenebilsin); yoksa boş alan gönderilmez.
+      ...hookColumns(input, 'hook_type' in existing),
       updated_at: new Date().toISOString(),
     };
     if (textChanged) {

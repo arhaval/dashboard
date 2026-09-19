@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Plus, ThumbsUp, ThumbsDown, HelpCircle, Sparkles, Trash2, ArrowRight, Users, X, Check, Pencil, Archive, ArchiveRestore,
+  Plus, ThumbsUp, ThumbsDown, HelpCircle, Sparkles, Trash2, ArrowRight, Users, X, Check, Pencil, Archive, ArchiveRestore, Magnet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,8 @@ import { Select } from '@/components/ui/select';
 import {
   CATEGORY_META, CATEGORY_OPTIONS, VOTE_META, STATUS_META, STATUS_FILTERS,
   SUGGEST_PLATFORM_OPTIONS, SUGGEST_PLATFORM_LABELS, SUGGEST_FORMATS,
-  type IdeaDTO, type IdeaCategory, type VoteType, type IdeaStatus,
+  HOOK_TYPES, HOOK_TYPE_LABELS, HOOK_FILTER_NONE, WHY_IT_WORKS_MAX, matchesHookFilter,
+  type IdeaDTO, type IdeaCategory, type VoteType, type IdeaStatus, type HookFilter, type HookType,
 } from './idea.constants';
 import { CONTENT_FORMATS, PLATFORM_LABELS, PLATFORM_COLORS, type ContentPlatform } from '../icerik-plani/content-queue.constants';
 import { LABEL_META } from '../icerik-performansi/perf.constants';
@@ -93,6 +94,18 @@ function IdeaFormModal({ idea, onClose }: { idea?: IdeaDTO | null; onClose: () =
           <Select name="category" defaultValue={idea?.category ?? 'CONTENT'}>
             {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </Select>
+        </div>
+        <div>
+          <label className={labelCls} style={labelStyle}>Kanca tipi <span style={{ color: 'var(--color-text-muted)' }}>(opsiyonel)</span></label>
+          <Select name="hook_type" defaultValue={idea?.hook_type ?? ''}>
+            <option value="">Seçilmedi</option>
+            {HOOK_TYPES.map((h) => <option key={h} value={h}>{HOOK_TYPE_LABELS[h]}</option>)}
+          </Select>
+        </div>
+        <div>
+          <label className={labelCls} style={labelStyle}>Neden tutar <span style={{ color: 'var(--color-text-muted)' }}>(opsiyonel, tek satır)</span></label>
+          <Input name="why_it_works" defaultValue={idea?.why_it_works ?? ''} maxLength={WHY_IT_WORKS_MAX}
+            placeholder="örn. herkes o finali hatırlıyor ama perde arkasını kimse bilmiyor" />
         </div>
 
         <div className="rounded-[var(--radius-sm)] p-3" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
@@ -232,6 +245,24 @@ function VoteSelector({ idea, disabled, onVote }: { idea: IdeaDTO; disabled: boo
   );
 }
 
+// ── Kanca tipi etiketi ───────────────────────────────────────────────────────
+// Kategori etiketinden ayrışsın diye nötr zemin + ikon; kategori renkleri
+// (turuncu/mavi/yeşil) zaten kullanılıyor.
+
+function HookBadge({ hook, size = 'sm' }: { hook: HookType; size?: 'sm' | 'md' }) {
+  const cls = size === 'md' ? 'px-2.5 py-1 text-[11px]' : 'px-2 py-0.5 text-[10px]';
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full font-semibold ${cls}`}
+      style={{ backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}
+      title="Kanca tipi"
+    >
+      <Magnet className={size === 'md' ? 'h-3.5 w-3.5' : 'h-3 w-3'} />
+      {HOOK_TYPE_LABELS[hook]}
+    </span>
+  );
+}
+
 // ── Compact card ─────────────────────────────────────────────────────────────
 
 function IdeaCard({ idea, onOpen }: { idea: IdeaDTO; onOpen: () => void }) {
@@ -244,6 +275,7 @@ function IdeaCard({ idea, onOpen }: { idea: IdeaDTO; onOpen: () => void }) {
     >
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: cat.bg, color: cat.color }}>{cat.label}</span>
+        {idea.hook_type && <HookBadge hook={idea.hook_type} />}
         {idea.is_mine && (
           <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' }}>senin</span>
         )}
@@ -320,6 +352,7 @@ function IdeaDetail({ idea, isAdmin, commentsEnabled, onClose, onTransfer, onEdi
       <div className="mb-3 flex items-start gap-2">
         <div className="flex flex-1 flex-wrap items-center gap-1.5">
           <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ backgroundColor: cat.bg, color: cat.color }}>{cat.label}</span>
+          {idea.hook_type && <HookBadge hook={idea.hook_type} size="md" />}
           {idea.status !== 'OPEN' && (
             <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ backgroundColor: STATUS_META[idea.status].bg, color: STATUS_META[idea.status].color }}>{STATUS_META[idea.status].label}</span>
           )}
@@ -341,6 +374,13 @@ function IdeaDetail({ idea, isAdmin, commentsEnabled, onClose, onTransfer, onEdi
 
       {idea.summary && (
         <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{idea.summary}</p>
+      )}
+
+      {idea.why_it_works && (
+        <p className="mt-3 text-[12.5px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+          <span className="mr-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Neden tutar</span>
+          {idea.why_it_works}
+        </p>
       )}
 
       {/* Real outcome across every platform this idea's content went out on */}
@@ -502,13 +542,17 @@ export function IdeaBoard({ ideas, isAdmin, commentsEnabled }: { ideas: IdeaDTO[
   // Default to the live pool — decided and archived ideas stay out of the way.
   const [status, setStatus] = useState<'ALL' | IdeaStatus>('OPEN');
   const [filter, setFilter] = useState<'ALL' | IdeaCategory>('ALL');
+  const [hookFilter, setHookFilter] = useState<HookFilter>('ALL');
   const [adding, setAdding] = useState(false);
   const [editIdea, setEditIdea] = useState<IdeaDTO | null>(null);
   const [transferIdea, setTransferIdea] = useState<IdeaDTO | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
 
   const visible = ideas.filter(
-    (i) => (status === 'ALL' || i.status === status) && (filter === 'ALL' || i.category === filter)
+    (i) =>
+      (status === 'ALL' || i.status === status) &&
+      (filter === 'ALL' || i.category === filter) &&
+      matchesHookFilter(i.hook_type, hookFilter)
   );
   const statusCounts: Record<string, number> = { ALL: ideas.length };
   for (const i of ideas) statusCounts[i.status] = (statusCounts[i.status] ?? 0) + 1;
@@ -537,6 +581,17 @@ export function IdeaBoard({ ideas, isAdmin, commentsEnabled }: { ideas: IdeaDTO[
         >
           <option value="ALL">Tüm kategoriler</option>
           {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+        </select>
+        <select
+          value={hookFilter}
+          onChange={(e) => setHookFilter(e.target.value as HookFilter)}
+          aria-label="Kanca tipine göre filtrele"
+          className="rounded-[var(--radius-sm)] px-3 py-2 text-xs font-semibold outline-none"
+          style={{ backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+        >
+          <option value="ALL">Tüm kanca tipleri</option>
+          {HOOK_TYPES.map((h) => <option key={h} value={h}>{HOOK_TYPE_LABELS[h]}</option>)}
+          <option value={HOOK_FILTER_NONE}>Kanca tipi belirtilmemiş</option>
         </select>
         <div className="ml-auto">
           <Button size="sm" onClick={() => setAdding(true)}><Plus className="mr-1.5 h-4 w-4" /> Fikir Ekle</Button>

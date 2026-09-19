@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { userService } from '@/services';
 import { ideaService } from '@/services/idea.service';
 import { notificationService } from '@/services/notification.service';
-import type { IdeaCategory, VoteType, SuggestPlatform } from './idea.constants';
+import type { IdeaCategory, VoteType, SuggestPlatform, HookType } from './idea.constants';
+import { WHY_IT_WORKS_MAX, normalizeWhyItWorks, parseHookType } from './idea.constants';
 
 const VALID_PLATFORMS: SuggestPlatform[] = ['YOUTUBE', 'INSTAGRAM', 'TIKTOK', 'X'];
 
@@ -18,6 +19,24 @@ function str(v: FormDataEntryValue | null): string | null {
   return s === '' ? null : s;
 }
 
+/**
+ * Kanca tipi ve "neden tutar". İkisi de opsiyonel ama gönderilen değer geçerli
+ * olmalı: istemciden gelen rastgele bir değer kolona yazılmaz.
+ */
+function readHookFields(
+  formData: FormData
+): { hookType: HookType | null; whyItWorks: string | null; error?: string } {
+  const rawHook = str(formData.get('hook_type'));
+  const hookType = parseHookType(rawHook);
+  if (rawHook && !hookType) return { hookType: null, whyItWorks: null, error: 'Geçersiz kanca tipi' };
+
+  const whyItWorks = normalizeWhyItWorks(formData.get('why_it_works'));
+  if (whyItWorks && whyItWorks.length > WHY_IT_WORKS_MAX) {
+    return { hookType, whyItWorks, error: `"Neden tutar" en fazla ${WHY_IT_WORKS_MAX} karakter olabilir` };
+  }
+  return { hookType, whyItWorks };
+}
+
 export async function createIdea(formData: FormData): Promise<{ error?: string }> {
   const user = await currentUser();
   if (!user) return { error: 'Oturum gerekli' };
@@ -25,6 +44,8 @@ export async function createIdea(formData: FormData): Promise<{ error?: string }
   const title = str(formData.get('title'));
   const category = (str(formData.get('category')) as IdeaCategory) ?? 'CONTENT';
   if (!title) return { error: 'Başlık zorunlu' };
+  const hook = readHookFields(formData);
+  if (hook.error) return { error: hook.error };
 
   const suggestedPlatforms = formData.getAll('suggested_platforms')
     .map((p) => String(p))
@@ -37,6 +58,8 @@ export async function createIdea(formData: FormData): Promise<{ error?: string }
     authorId: user.id,
     suggestedPlatforms,
     suggestedFormat: str(formData.get('suggested_format')),
+    hookType: hook.hookType,
+    whyItWorks: hook.whyItWorks,
   });
   if (!res.error) {
     await notificationService.notify({
@@ -65,6 +88,8 @@ export async function updateIdea(ideaId: string, formData: FormData): Promise<{ 
 
   const title = str(formData.get('title'));
   if (!title) return { error: 'Başlık zorunlu' };
+  const hook = readHookFields(formData);
+  if (hook.error) return { error: hook.error };
 
   const suggestedPlatforms = formData.getAll('suggested_platforms')
     .map((p) => String(p))
@@ -76,6 +101,8 @@ export async function updateIdea(ideaId: string, formData: FormData): Promise<{ 
     category: (str(formData.get('category')) as IdeaCategory) ?? 'CONTENT',
     suggestedPlatforms,
     suggestedFormat: str(formData.get('suggested_format')),
+    hookType: hook.hookType,
+    whyItWorks: hook.whyItWorks,
   });
   revalidatePath('/fikir-havuzu');
   return res;
