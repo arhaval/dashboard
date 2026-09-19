@@ -25,6 +25,7 @@ import {
   type HookAlternative,
 } from '../src/app/(dashboard)/motor/engine.constants';
 import {
+  HOOK_MAX_WORDS,
   checkGeneratedText,
   connectorLimitFor,
   splitSentences,
@@ -546,6 +547,48 @@ for (const cumle of ["Pekiştirmek gerekiyor.", "Sizcesi böyle."]) {
 }
 eq('"değil miydi" sayılmaz',
   checkGeneratedText("Öyle değil miydi?", "3 dk").connectors.count, 0);
+
+// ── Hook uzunluğu: 3 saniye sınırı ──────────────────────────────────────────
+// DNA hook_logic: ilk cümle seslendirmede 3 saniyeyi geçmez, en fazla 8-10
+// kelime. Denetim yalnızca bildirir; onaylamayı engellemez.
+
+{
+  const kisa = "Dani Olmo neden Barcelona'yı bıraktı?";
+  const r = checkGeneratedText(kisa + " Devamı burada.", "3 dk");
+  eq("kısa hook kelime sayısı", r.hook.words, 5);
+  check("kısa hook sınırı aşmaz", !r.hook.over);
+  check("kısa hookta uyarı yok", !r.hasWarning);
+}
+{
+  const uzun = "Bazen hayatta bizim için neyin daha iyi olacağını hiçbir zaman bilemeyiz.";
+  const r = checkGeneratedText(uzun + " Devamı burada.", "3 dk");
+  eq("uzun hook kelime sayısı", r.hook.words, 11);
+  check("sınır aşılınca işaretlenir", r.hook.over);
+  eq("sınır on kelime", r.hook.limit, HOOK_MAX_WORDS);
+  eq("uyarıda gösterilecek cümle ilk cümledir", r.hook.sentence, uzun);
+  check("uyarı üretilir", r.hasWarning);
+}
+{
+  // Tam sınırda uyarı yok: 8-10 bandının üst ucu geçerli sayılır.
+  const tam = "Bir iki üç dört beş altı yedi sekiz dokuz on.";
+  const r = checkGeneratedText(tam, "3 dk");
+  eq("on kelime sayılır", r.hook.words, 10);
+  check("tam sınırda uyarı yok", !r.hook.over);
+}
+{
+  // Satır sonu ve fazla boşluk kelime sayısını şişirmez.
+  const r = checkGeneratedText("Bir  iki\n  üç dört.", "3 dk");
+  eq("boşluklar sayıya karışmaz", r.hook.words, 4);
+}
+eq("boş metinde hook raporu boş",
+  checkGeneratedText("", "3 dk").hook, { words: null, limit: HOOK_MAX_WORDS, over: false, sentence: null });
+
+// Hook uzunluğu diğer kuralların sonucunu değiştirmez.
+{
+  const r = checkGeneratedText("Bazen hayatta bizim için neyin daha iyi olacağını hiçbir zaman bilemeyiz. Gerisi sade.", "3 dk");
+  check("uzun hook bağlaç sayımını etkilemez", r.connectors.count === 0);
+  check("uzun hook klişe kapanış üretmez", r.clichePayoff.hits.length === 0);
+}
 
 // ── Sonuç ───────────────────────────────────────────────────────────────────
 

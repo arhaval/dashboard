@@ -92,6 +92,26 @@ function countIn(folded: string, p: Pattern): number {
   return (folded.match(new RegExp(p.source, 'g')) ?? []).length;
 }
 
+/**
+ * Hook seslendirmede 3 saniyeyi geçmemeli — DNA hook_logic bunu 8-10 kelime
+ * olarak tanımlıyor. Üst uç sınır alınır: 10 kelimede uyarı yok, 11'de var.
+ */
+export const HOOK_MAX_WORDS = 10;
+
+/** Boşluğa göre kelime sayısı. */
+function countWords(sentence: string): number {
+  return sentence.trim().split(/\s+/).filter(Boolean).length;
+}
+
+export interface HookLengthReport {
+  /** İlk cümlenin kelime sayısı; metin boşsa null. */
+  words: number | null;
+  limit: number;
+  over: boolean;
+  /** Uyarıda gösterilecek ilk cümle. */
+  sentence: string | null;
+}
+
 export interface GuardHit {
   label: string;
   /** Kalıbın geçtiği cümle, orijinal hâliyle. */
@@ -113,14 +133,15 @@ export interface ClichePayoffReport {
 }
 
 export interface TextGuardReport {
+  hook: HookLengthReport;
   connectors: ConnectorReport;
   clichePayoff: ClichePayoffReport;
   hasWarning: boolean;
 }
 
 /**
- * Metni denetler. Bağlaç sayımı metnin TAMAMINDA, klişe kapanış yalnızca SON
- * cümlede aranır (kural payoff'a özgüdür).
+ * Metni denetler. Hook uzunluğu İLK cümlede, bağlaç sayımı metnin TAMAMINDA,
+ * klişe kapanış yalnızca SON cümlede aranır (her kural kendi yerine bakar).
  */
 export function checkGeneratedText(
   text: string,
@@ -141,6 +162,10 @@ export function checkGeneratedText(
     }
   }
 
+  const firstSentence = sentences.length > 0 ? sentences[0] : null;
+  const hookWords = firstSentence ? countWords(firstSentence) : null;
+  const hookOver = hookWords != null && hookWords > HOOK_MAX_WORDS;
+
   const lastSentence = sentences.length ? sentences[sentences.length - 1] : null;
   const clicheHits: GuardHit[] = [];
   if (lastSentence) {
@@ -152,8 +177,9 @@ export function checkGeneratedText(
 
   const over = limit !== null && count > limit;
   return {
+    hook: { words: hookWords, limit: HOOK_MAX_WORDS, over: hookOver, sentence: firstSentence },
     connectors: { count, limit, over, hits },
     clichePayoff: { hits: clicheHits, lastSentence },
-    hasWarning: over || clicheHits.length > 0,
+    hasWarning: hookOver || over || clicheHits.length > 0,
   };
 }

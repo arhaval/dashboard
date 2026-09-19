@@ -17,11 +17,23 @@ function labelSummary(hits: { label: string }[]): string {
  */
 export function TextGuardNotice({ report }: { report: TextGuardReport }) {
   if (!report.hasWarning) return null;
-  const { connectors, clichePayoff } = report;
+  const { hook, connectors, clichePayoff } = report;
 
   return (
     <div className="rounded-[var(--radius-md)] border border-[var(--color-warning)] bg-[var(--color-warning-muted)] px-4 py-3 text-sm text-[var(--color-warning)]">
       <p className="font-medium">Kural uyarısı — engelleyici değil, istersen yok say.</p>
+
+      {hook.over && (
+        <div className="mt-2">
+          <p>
+            Hook 3 saniye sınırını aşıyor:{' '}
+            <span className="font-mono tabular-nums">{hook.words}</span> kelime
+          </p>
+          <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+            Sınır {hook.limit} kelime. {hook.sentence}
+          </p>
+        </div>
+      )}
 
       {connectors.over && (
         <div className="mt-2">
