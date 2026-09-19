@@ -6,7 +6,7 @@ export type ReferenceSourceType = 'SRT' | 'TEXT' | 'VIDEO';
 
 /** The prompt template revision — bump when the generation prompt changes so we
  *  can later tell which prompt shape produced which output. */
-export const PROMPT_VERSION = 'v7';
+export const PROMPT_VERSION = 'v8';
 
 /** Arhaval DNA sections (Layer 1) — the same keys stored in ai_dna.sections. */
 export const DNA_SECTIONS: { key: string; label: string; hint: string }[] = [
@@ -307,15 +307,23 @@ export function readVarietyTags(row: {
 /** Kaç seçenek istiyoruz. Dört aile var; üçü farklı olmak zorunda. */
 export const HOOK_ALTERNATIVE_COUNT = 3;
 
+/**
+ * Bir hook seçeneği: kanca cümlesi ve ONA AİT tez cümlesi birlikte üretilir.
+ * Yalnızca hook değişip tez yerinde kalsaydı, "bu soruya aynı cevabı veriyor"
+ * gibi önceki hook'a gönderme yapan bir tez yeni hook'un ardında anlamsız kalırdı.
+ */
 export interface HookAlternative {
   family: HookFamily;
-  text: string;
+  hook: string;
+  thesis: string;
 }
 
 /**
- * Modelin döndürdüğü seçenek listesini güvene alır: sözlük dışı aile, boş metin
- * ve aynı aileden ikinci seçenek elenir. Kalan liste kısa olabilir — eksik
- * seçeneği uydurmak, "üç farklı aile" vaadini sahte biçimde yerine getirirdi.
+ * Modelin döndürdüğü seçenek listesini güvene alır: sözlük dışı aile, boş hook,
+ * boş tez ve aynı aileden ikinci seçenek elenir. Kalan liste kısa olabilir —
+ * eksik seçeneği uydurmak "üç farklı aile" vaadini sahte biçimde yerine
+ * getirirdi. Tezi olmayan eski kayıtlar ({family, text}) da elenir: tek başına
+ * hook'u değiştirmek tam da düzeltilen hataydı.
  */
 export function coerceHookAlternatives(raw: unknown): HookAlternative[] {
   if (!Array.isArray(raw)) return [];
@@ -323,21 +331,50 @@ export function coerceHookAlternatives(raw: unknown): HookAlternative[] {
   const seen = new Set<string>();
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue;
-    const row = item as { family?: unknown; text?: unknown };
+    const row = item as { family?: unknown; hook?: unknown; thesis?: unknown };
     const family = coerceTag(HOOK_FAMILIES, row.family);
-    const text = typeof row.text === 'string' ? row.text.trim() : '';
-    if (!family || !text || seen.has(family)) continue;
+    const hook = typeof row.hook === 'string' ? row.hook.trim() : '';
+    const thesis = typeof row.thesis === 'string' ? row.thesis.trim() : '';
+    if (!family || !hook || !thesis || seen.has(family)) continue;
     seen.add(family);
-    out.push({ family, text });
+    out.push({ family, hook, thesis });
     if (out.length === HOOK_ALTERNATIVE_COUNT) break;
   }
   return out;
 }
 
 /**
- * Seçilen hook'u metne uygular. Metin, seçeneklerden birinin metniyle BİREBİR
- * başlamak zorundadır; başlamıyorsa değiştirme yapılmaz (ok=false) ve kullanıcı
- * elle düzenler. Cümle sınırı tahmin edip metni kesmek, sessizce bozardı.
+ * Metnin açılışı (hook + tez) bu seçeneğe mi ait? İkisi de BİREBİR ve sırayla
+ * durmalı. Aradaki boşluk (tek boşluk ya da satır sonu) korunmak üzere döner.
+ */
+function matchOpening(
+  body: string,
+  alt: HookAlternative
+): { separator: string; rest: string } | null {
+  if (!alt.hook || !alt.thesis || !body.startsWith(alt.hook)) return null;
+  const afterHook = body.slice(alt.hook.length);
+  const trimmed = afterHook.trimStart();
+  if (!trimmed.startsWith(alt.thesis)) return null;
+  return {
+    separator: afterHook.slice(0, afterHook.length - trimmed.length),
+    rest: trimmed.slice(alt.thesis.length),
+  };
+}
+
+/** Metnin başında şu an hangi seçenek duruyor; hook ya da tez elle değiştiyse null. */
+export function findAppliedHook(
+  script: string,
+  alternatives: HookAlternative[]
+): HookAlternative | null {
+  const body = script.trimStart();
+  return alternatives.find((a) => matchOpening(body, a) != null) ?? null;
+}
+
+/**
+ * Seçilen hook'u TEZİYLE BİRLİKTE metne uygular. Metin, seçeneklerden birinin
+ * hook'u ve tezi ile BİREBİR başlamak zorundadır; başlamıyorsa değiştirme
+ * yapılmaz (ok=false) ve kullanıcı elle düzenler. Tez elle değiştirilmişse de
+ * dokunulmaz — yeni tezi üstüne yazmak kullanıcının düzeltmesini silerdi.
  */
 export function applyHook(
   script: string,
@@ -345,7 +382,10 @@ export function applyHook(
   chosen: HookAlternative
 ): { text: string; ok: boolean } {
   const body = script.trimStart();
-  const current = alternatives.find((a) => a.text && body.startsWith(a.text));
-  if (!current) return { text: script, ok: false };
-  return { text: chosen.text + body.slice(current.text.length), ok: true };
+  for (const alt of alternatives) {
+    const match = matchOpening(body, alt);
+    if (!match) continue;
+    return { text: chosen.hook + (match.separator || ' ') + chosen.thesis + match.rest, ok: true };
+  }
+  return { text: script, ok: false };
 }

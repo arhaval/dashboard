@@ -10,6 +10,7 @@ import {
   PLATFORM_OPTIONS,
   DRAFT_SAFETY_NOTE,
   applyHook,
+  findAppliedHook,
   type FormatDTO,
   type GenerationDTO,
   type HookAlternative,
@@ -64,8 +65,7 @@ export function ScriptEditor({
   // düzenlerse eşleşme düşer ve panel "seçili" göstermeye devam etmez.
   const activeGen = generations.find((g) => g.id === basedOn) ?? null;
   const hookOptions: HookAlternative[] = activeGen?.hook_alternatives ?? [];
-  const currentHook =
-    hookOptions.find((a) => finalText.trimStart().startsWith(a.text)) ?? null;
+  const currentHook = findAppliedHook(finalText, hookOptions);
 
   // Deterministik kural denetimi. Sadece bilgilendirir; onayı engellemez.
   const guard = React.useMemo(
@@ -149,7 +149,7 @@ export function ScriptEditor({
     const res = applyHook(finalText, hookOptions, alt);
     if (!res.ok) {
       setErr(
-        'Hook değiştirilemedi: metnin başı seçeneklerin hiçbiriyle birebir eşleşmiyor. Hook’u elle düzenleyebilirsin.'
+        'Hook değiştirilemedi: metnin ilk iki cümlesi (hook + tez) seçeneklerin hiçbiriyle birebir eşleşmiyor. Elle düzenleyebilirsin.'
       );
       return;
     }
@@ -316,7 +316,7 @@ export function ScriptEditor({
           {hookOptions.length > 0 && status !== 'FINAL' && (
             <div>
               <label className="text-xs text-[var(--color-text-muted)]">
-                Hook seçenekleri — birine bas, metnin başı değişsin
+                Hook seçenekleri — birine bas, hook ve tez birlikte değişsin
               </label>
               <div className="mt-1.5 space-y-1.5">
                 {hookOptions.map((alt) => {
@@ -335,14 +335,15 @@ export function ScriptEditor({
                         {alt.family}
                         {active ? ' · uygulandı' : ''}
                       </span>
-                      <p className="mt-0.5 text-[var(--color-text-primary)]">{alt.text}</p>
+                      <p className="mt-0.5 text-[var(--color-text-primary)]">{alt.hook}</p>
+                      <p className="mt-0.5 text-[var(--color-text-secondary)]">{alt.thesis}</p>
                     </button>
                   );
                 })}
               </div>
               {!currentHook && (
                 <p className="mt-1.5 text-xs text-[var(--color-text-muted)]">
-                  Metnin başı seçeneklerin hiçbiriyle eşleşmiyor — hook elle düzenlenmiş. Onayda
+                  Metnin ilk iki cümlesi seçeneklerin hiçbiriyle eşleşmiyor — hook ya da tez elle düzenlenmiş. Onayda
                   üretimin bildirdiği aile kaydedilir.
                 </p>
               )}

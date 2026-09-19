@@ -17,6 +17,7 @@ import {
   HOOK_ALTERNATIVE_COUNT,
   applyHook,
   coerceHookAlternatives,
+  findAppliedHook,
   coerceTag,
   readVarietyTags,
   wordTargetFor,
@@ -152,7 +153,7 @@ check('tanınmayan süre yine de prompt\'a yazılır',
   buildArhavalizePrompt(ctx('4 dk')).user.includes('# Hedef süre/uzunluk: 4 dk'));
 
 // Prompt biçimi değiştiği için sürüm ilerlemiş olmalı.
-eq('prompt sürümü', PROMPT_VERSION, 'v7');
+eq('prompt sürümü', PROMPT_VERSION, 'v8');
 
 // ── Öğrenme sinyalleri ──────────────────────────────────────────────────────
 
@@ -263,59 +264,85 @@ check('etiketi boş finaller bölüm açtırmaz',
 eq("seçenek sayısı üçtür", HOOK_ALTERNATIVE_COUNT, 3);
 
 const RAW3 = [
-  { family: "sahne", text: "Bir stadyum, boş tribün." },
-  { family: "Çıplak Sayı", text: "18,9." },
-  { family: "soru", text: "Bu adam neden gitti?" },
+  { family: "sahne", hook: "Bir stadyum, boş tribün.", thesis: "O tribünü dolduran tek adam oydu." },
+  { family: "Çıplak Sayı", hook: "18,9.", thesis: "Bu sayı bir şehrin fikrini değiştirdi." },
+  { family: "soru", hook: "Bu adam neden gitti?", thesis: "Herkes bu soruya aynı cevabı veriyor." },
 ];
 eq("geçerli üçlü aynen geçer",
   coerceHookAlternatives(RAW3).map((a) => a.family), ["sahne", "çıplak sayı", "soru"]);
+eq("hook ve tez birlikte korunur", coerceHookAlternatives(RAW3)[2],
+  { family: "soru", hook: "Bu adam neden gitti?", thesis: "Herkes bu soruya aynı cevabı veriyor." });
 
 eq("sözlük dışı aile elenir",
-  coerceHookAlternatives([{ family: "metafor", text: "x" }, RAW3[0]]).map((a) => a.family), ["sahne"]);
-eq("boş metin elenir", coerceHookAlternatives([{ family: "sahne", text: "   " }]), []);
+  coerceHookAlternatives([{ family: "metafor", hook: "x", thesis: "y" }, RAW3[0]]).map((a) => a.family), ["sahne"]);
+eq("boş hook elenir", coerceHookAlternatives([{ family: "sahne", hook: "   ", thesis: "y" }]), []);
+eq("tezsiz seçenek elenir", coerceHookAlternatives([{ family: "sahne", hook: "x", thesis: "  " }]), []);
+// Eski kayıt biçimi ({family, text}) tez taşımıyor: tek başına hook değiştirmek düzeltilen hataydı.
+eq("eski biçim (text) elenir", coerceHookAlternatives([{ family: "sahne", text: "Bir stadyum." }]), []);
 eq("aynı aileden ikinci seçenek elenir",
-  coerceHookAlternatives([RAW3[0], { family: "sahne", text: "başka cümle" }, RAW3[2]])
+  coerceHookAlternatives([RAW3[0], { family: "sahne", hook: "başka", thesis: "tez" }, RAW3[2]])
     .map((a) => a.family), ["sahne", "soru"]);
 eq("dördüncü seçenek alınmaz",
-  coerceHookAlternatives([...RAW3, { family: "aforizma", text: "dört" }]).length, 3);
+  coerceHookAlternatives([...RAW3, { family: "aforizma", hook: "dört", thesis: "tez" }]).length, 3);
 eq("dizi olmayan girdi → boş", coerceHookAlternatives("sahne"), []);
 eq("null → boş", coerceHookAlternatives(null), []);
-eq("metin kırpılır",
-  coerceHookAlternatives([{ family: "soru", text: "  Neden?  " }])[0].text, "Neden?");
+eq("hook ve tez kırpılır",
+  coerceHookAlternatives([{ family: "soru", hook: "  Neden?  ", thesis: "  Çünkü.  " }])[0],
+  { family: "soru", hook: "Neden?", thesis: "Çünkü." });
 
-// applyHook: önek değişimi. Eşleşme yoksa TAHMİN YÜRÜTÜLMEZ.
+// applyHook: hook + tez BİRLİKTE değişir. Eşleşme yoksa TAHMİN YÜRÜTÜLMEZ.
 const ALTS: HookAlternative[] = coerceHookAlternatives(RAW3);
 const BODY = " Devamı burada. Son cümle.";
+const opening = (a: HookAlternative, sep = " ") => a.hook + sep + a.thesis;
 
+// Asıl hata: "soru" hook'unun tezi "bu soruya" diye gönderme yapıyordu;
+// "sahne" seçilince yalnız ilk cümle değişiyor, tez anlamsız kalıyordu.
 {
-  const r = applyHook(ALTS[0].text + BODY, ALTS, ALTS[2]);
-  check("eşleşen önek değişir", r.ok);
-  eq("gövde korunur", r.text, ALTS[2].text + BODY);
+  const r = applyHook(opening(ALTS[2]) + BODY, ALTS, ALTS[0]);
+  check("hook ve tez birlikte değişir", r.ok);
+  eq("yeni açılış + gövde korunur", r.text, opening(ALTS[0]) + BODY);
+  check("eski hooka gönderme yapan tez kalmaz", !r.text.includes("bu soruya"));
 }
 {
-  const r = applyHook(ALTS[1].text + BODY, ALTS, ALTS[1]);
+  const r = applyHook(opening(ALTS[1]) + BODY, ALTS, ALTS[1]);
   check("aynı seçenek seçilince değişmez", r.ok);
-  eq("metin aynı kalır", r.text, ALTS[1].text + BODY);
+  eq("metin aynı kalır", r.text, opening(ALTS[1]) + BODY);
 }
 {
-  const elle = "Kullanıcı hooku elle yazdı." + BODY;
-  const r = applyHook(elle, ALTS, ALTS[0]);
-  check("eşleşme yoksa uygulanmaz", !r.ok);
+  const r = applyHook(opening(ALTS[0], "\n") + BODY, ALTS, ALTS[1]);
+  eq("hook ile tez arasındaki satır sonu korunur", r.text, opening(ALTS[1], "\n") + BODY);
+}
+{
+  // Hook yerinde ama tez elle değiştirilmiş: yeni tezi üstüne yazmak düzeltmeyi silerdi.
+  const elle = ALTS[0].hook + " Elle yazılmış bir tez." + BODY;
+  const r = applyHook(elle, ALTS, ALTS[1]);
+  check("tez elle değiştiyse uygulanmaz", !r.ok);
   eq("metne dokunulmaz", r.text, elle);
 }
+check("hook elle değiştiyse uygulanmaz",
+  !applyHook("Kullanıcı hooku elle yazdı. " + ALTS[0].thesis + BODY, ALTS, ALTS[1]).ok);
 {
-  const r = applyHook("\n  " + ALTS[0].text + BODY, ALTS, ALTS[1]);
+  const r = applyHook("\n  " + opening(ALTS[0]) + BODY, ALTS, ALTS[1]);
   check("baştaki boşluk eşleşmeyi bozmaz", r.ok);
-  eq("boşluk kırpılarak yeni hook yazılır", r.text, ALTS[1].text + BODY);
+  eq("boşluk kırpılarak yeni açılış yazılır", r.text, opening(ALTS[1]) + BODY);
 }
 eq("seçenek yokken uygulanamaz", applyHook("metin", [], ALTS[0]).ok, false);
+
+// findAppliedHook: panel hangi seçeneği "uygulandı" gösterecek.
+eq("uygulanan seçenek bulunur", findAppliedHook(opening(ALTS[2]) + BODY, ALTS)?.family, "soru");
+eq("tez elle değiştiyse hiçbiri uygulanmış sayılmaz",
+  findAppliedHook(ALTS[2].hook + " Başka bir tez." + BODY, ALTS), null);
 
 // Prompt sözleşmesi
 {
   const sys = withRecent([]);
   check("hook_alternatives JSON alanı istenir", sys.includes('"hook_alternatives"'));
+  check("her seçenekte hook alanı istenir", sys.includes('"hook": '));
+  check("her seçenekte tez alanı istenir", sys.includes('"thesis": '));
   check("üç farklı aile şartı yazılı", sys.includes("FARKLI bir kanca ailesinden"));
-  check("birebir eşleşme şartı yazılı", sys.includes("BİREBİR aynı metin"));
+  check("tez kuralı kullanıcının yazdığı gibi",
+    sys.includes("Her hook alternatifi kendi tez cümlesiyle birlikte üretilir. Tez cümlesi başka bir hook'a gönderme yapamaz."));
+  check("açılış (hook + tez) birebir şartı yazılı", sys.includes("BİREBİR aynı metin"));
   check("seçenek sayısı prompta geçer", sys.includes(`tam ${HOOK_ALTERNATIVE_COUNT} seçenek`));
 }
 

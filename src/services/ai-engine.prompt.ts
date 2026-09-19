@@ -131,7 +131,7 @@ export function buildArhavalizePrompt(ctx: PromptContext): { system: string; use
     "8. Konuşma bağlaçları ('E', 'e işte', 'ya tamam', 'hatta'), izleyiciye dönüş ifadeleri ('bakın', 'dikkat edin') ve kendi kendine itiraz kalıpları TOPLAMDA sayılır. 60 saniyenin altında en fazla 1, 60-120 saniye arası en fazla 2, daha uzun metinlerde en fazla 3 kullanılabilir.",
     '',
     '## ÇIKTI BİÇİMİ',
-    'Yalnızca şu JSON yapısında yanıt ver: {"script": "<Arhavalize edilmiş tam metin>", "notes": ["<AI olarak eklemeyi önerdiğin ama metne koymadığın her şey>"], "hook_family": "<...>", "payoff_type": "<...>", "cta_type": "<...>", "hook_alternatives": [{"family": "<kanca ailesi>", "text": "<hook cümlesi>"}]}',
+    'Yalnızca şu JSON yapısında yanıt ver: {"script": "<Arhavalize edilmiş tam metin>", "notes": ["<AI olarak eklemeyi önerdiğin ama metne koymadığın her şey>"], "hook_family": "<...>", "payoff_type": "<...>", "cta_type": "<...>", "hook_alternatives": [{"family": "<kanca ailesi>", "hook": "<hook cümlesi>", "thesis": "<bu hook için yazılmış tez cümlesi>"}]}',
     'notes boş olabilir ([]). script alanı düz metin olmalı (Markdown başlığı zorunlu değil).',
     `hook_family şunlardan biri olmalı: ${HOOK_FAMILIES.join(' | ')}`,
     `payoff_type şunlardan biri olmalı: ${PAYOFF_TYPES.join(' | ')}`,
@@ -139,7 +139,8 @@ export function buildArhavalizePrompt(ctx: PromptContext): { system: string; use
     'Bu üç alan yazdığın metnin GERÇEKTE ne kullandığını bildirir. Metni etikete uydurma; etiketi metne göre seç.',
     `hook_alternatives tam ${HOOK_ALTERNATIVE_COUNT} seçenek içerir ve her seçenek FARKLI bir kanca ailesinden olur.`,
     'Her seçenek aynı metne açılan gerçek bir alternatiftir: aynı konuyu, aynı vaadi, aynı tonu taşır — yalnızca kanca ailesi değişir.',
-    'İlk seçenek, script alanının başındaki hook ile BİREBİR aynı metin olmalıdır (kelimesi kelimesine, noktalama dahil). Kullanıcı diğerini seçtiğinde metnin başı bu eşleşmeyle değiştirilir; eşleşme tutmazsa seçim uygulanamaz.',
+    "Her hook alternatifi kendi tez cümlesiyle birlikte üretilir. Tez cümlesi başka bir hook'a gönderme yapamaz.",
+    'script alanı ilk seçeneğin hook cümlesiyle başlar ve hemen ardından AYNI seçeneğin tez cümlesi gelir. Bu iki cümle, ilk seçenekteki hook ve thesis ile BİREBİR aynı metin olmalıdır (kelimesi kelimesine, noktalama dahil). Kullanıcı başka bir seçeneği seçtiğinde bu iki cümle birlikte değiştirilir; eşleşme tutmazsa seçim uygulanamaz.',
     'hook_family alanı ilk seçeneğin ailesidir.',
     'Çeşitlilik listesindeki aileleri mümkün olduğunca seçeneklerin dışında bırak; dört aileden üçünü seçmek zorunda olduğun için hepsinden kaçınman gerekmez.',
   ].join('\n');
