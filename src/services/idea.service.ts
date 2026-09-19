@@ -14,7 +14,7 @@ import type {
   IdeaDTO, IdeaCategory, VoteType, VoteCounts, VoterDetail, SuggestPlatform,
   IdeaOutcome, PlatformOutcome, HookType,
 } from '@/app/(dashboard)/fikir-havuzu/idea.constants';
-import { hookColumns, parseHookType } from '@/app/(dashboard)/fikir-havuzu/idea.constants';
+import { hookColumns, parseHookType, transferNote } from '@/app/(dashboard)/fikir-havuzu/idea.constants';
 
 export type { IdeaDTO, IdeaCategory, VoteType };
 
@@ -360,14 +360,20 @@ export const ideaService = {
     if (!idea) return { error: 'Fikir bulunamadı' };
     if (idea.content_queue_id) return { error: 'Bu fikir zaten aktarıldı' };
 
-    const noteParts = [idea.summary?.trim(), idea.ai_comment ? `AI: ${idea.ai_comment}` : null].filter(Boolean);
+    // Karta fikrin neden seçildiği de gider: metni yazan kişi kancayı görsün.
+    const note = transferNote({
+      summary: idea.summary,
+      hookType: parseHookType(idea.hook_type),
+      whyItWorks: idea.why_it_works ?? null,
+      aiComment: idea.ai_comment,
+    });
     const { data: cq, error: cqError } = await admin.from('content_queue').insert({
       title: idea.title,
       platforms: transfer.platforms,
       content_type: transfer.content_type,
       status: 'HAZIRLANIYOR',          // → "Metin Yazılıyor" stage
       created_by: adminId,
-      notes: noteParts.join('\n\n') || null,
+      notes: note,
     }).select('id').single();
     if (cqError) return { error: cqError.message };
 

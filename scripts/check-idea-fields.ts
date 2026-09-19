@@ -17,6 +17,7 @@ import {
   matchesHookFilter,
   normalizeWhyItWorks,
   parseHookType,
+  transferNote,
 } from '../src/app/(dashboard)/fikir-havuzu/idea.constants';
 
 let passed = 0;
@@ -80,6 +81,23 @@ eq('kolon var + boş alanlar: temizlemek için null',
 eq('kolon var + dolu alanlar',
   hookColumns({ hookType: 'KNOWN_NAME_DEBATE', whyItWorks: 'herkes hatırlıyor' }, true),
   { hook_type: 'KNOWN_NAME_DEBATE', why_it_works: 'herkes hatırlıyor' });
+
+// ── 5. İçerik Planı'na aktarılan not ────────────────────────────────────────
+// Kanca alanları boşsa not eskisiyle birebir aynı kalmalı.
+
+eq('not: yalnız özet (eski davranış)',
+  transferNote({ summary: 'Özet', hookType: null, whyItWorks: null, aiComment: null }), 'Özet');
+eq('not: özet + AI (eski davranış)',
+  transferNote({ summary: 'Özet', hookType: null, whyItWorks: null, aiComment: 'iyi fikir' }), 'Özet\n\nAI: iyi fikir');
+eq('not: kanca ve gerekçe aynı blokta, özetle AI arasında',
+  transferNote({ summary: 'Özet', hookType: 'CURRENT_NEWS', whyItWorks: 'transfer dönemi', aiComment: 'iyi fikir' }),
+  'Özet\n\nKanca: Güncel haber\nNeden tutar: transfer dönemi\n\nAI: iyi fikir');
+eq('not: yalnız kanca tipi',
+  transferNote({ summary: null, hookType: 'SYSTEM_EXPLAINER', whyItWorks: null, aiComment: null }), 'Kanca: Sistem/kural anlatımı');
+eq('not: yalnız gerekçe',
+  transferNote({ summary: null, hookType: null, whyItWorks: 'herkes hatırlıyor', aiComment: null }), 'Neden tutar: herkes hatırlıyor');
+eq('not: hiçbir şey yoksa null',
+  transferNote({ summary: '   ', hookType: null, whyItWorks: null, aiComment: null }), null);
 
 // ── Sonuç ───────────────────────────────────────────────────────────────────
 

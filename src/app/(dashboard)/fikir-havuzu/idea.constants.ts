@@ -174,3 +174,28 @@ export function hookColumns(
   if (columnsExist || input.whyItWorks != null) out.why_it_works = input.whyItWorks;
   return out;
 }
+
+/**
+ * Fikir İçerik Planı'na aktarılırken karta yazılan not. Metni yazacak kişi
+ * fikrin NEDEN seçildiğini görsün diye kanca tipi ve gerekçesi de taşınır.
+ * Bu alanlar boşsa not eskisiyle birebir aynıdır (özet + AI yorumu).
+ */
+export function transferNote(input: {
+  summary: string | null;
+  hookType: HookType | null;
+  whyItWorks: string | null;
+  aiComment: string | null;
+}): string | null {
+  const hookBlock = [
+    input.hookType ? `Kanca: ${HOOK_TYPE_LABELS[input.hookType]}` : null,
+    input.whyItWorks ? `Neden tutar: ${input.whyItWorks}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const parts = [
+    input.summary?.trim() || null,
+    hookBlock || null,
+    input.aiComment ? `AI: ${input.aiComment}` : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join('\n\n') : null;
+}
