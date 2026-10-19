@@ -2,8 +2,8 @@ import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
 import { contentQueueService } from '@/services/content-queue.service';
-import { ROLE_STAGES, CONTENT_EDITOR_ROLES, type PublicationInput } from './content-queue.constants';
-import { ContentPlanner } from './content-planner';
+import { ROLE_STAGES, CONTENT_EDITOR_ROLES } from './content-queue.constants';
+import { ContentTable } from './content-table';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,26 +23,20 @@ export default async function IcerikPlaniPage() {
   ]);
   const voicePeople = voiceRows.map((u) => ({ id: u.id, name: u.full_name }));
 
-  // Published cards carry platform records; the kanban lets editors fix links
-  // and refresh the hand-entered TikTok/X numbers.
-  const publishedIds = items.filter((i) => i.status === 'YAYINLANDI').map((i) => i.id);
-  const pubRows = await contentQueueService.getPublicationsForCards(publishedIds);
-  const publicationsByCard: Record<string, PublicationInput[]> = {};
-  for (const { content_queue_id, ...pub } of pubRows) {
-    // Alan seçmiyoruz: servis zaten tam PublicationInput döndürüyor. Burada
-    // elle liste yazmak paylaşım/kaydetme/takipçi/yayın anını düşürüyordu.
-    (publicationsByCard[content_queue_id] ??= []).push(pub);
-  }
-
   const desc = canEdit
-    ? 'Hazır içerikler ve yayın takvimi'
+    ? 'Hangi iş kimde, hangi adımda ve ne kadar bekliyor'
     : handoffStages.length > 0
-      ? 'Yayın planı — kendi aşamandaki işleri teslim et'
-      : 'Yayın planını görüntüle';
+      ? 'Kendi aşamandaki işleri teslim et'
+      : 'İçerik takibini görüntüle';
 
   return (
-    <PageShell title="İçerik Planı" description={desc}>
-      <ContentPlanner items={items} canEdit={canEdit} handoffStages={handoffStages} voicePeople={voicePeople} publicationsByCard={publicationsByCard} />
+    <PageShell title="İçerik Takip" description={desc}>
+      <ContentTable
+        items={items}
+        canEdit={canEdit}
+        handoffStages={handoffStages}
+        voicePeople={voicePeople}
+      />
     </PageShell>
   );
 }

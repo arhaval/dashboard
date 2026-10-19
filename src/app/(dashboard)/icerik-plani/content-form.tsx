@@ -58,9 +58,7 @@ function ContentFormBody({
     () => new Set(item ? item.platforms : ['YOUTUBE'])
   );
   const [contentType, setContentType] = useState(item?.content_type ?? '');
-  // Formda tarih alanı yok: yayın tarihi Takvim'den sürüklenerek verilir.
-  // Mevcut kartın tarihi korunur, yeni kart açılan günün tarihini alır.
-  const plannedDate = item?.planned_date ?? defaultDate ?? '';
+  const [plannedDate, setPlannedDate] = useState(item?.planned_date ?? defaultDate ?? '');
   const [details,     setDetails]     = useState<ContentDetails>(() =>
     item
       ? {
@@ -243,8 +241,19 @@ function ContentFormBody({
                   <option key={f} value={f}>{f}</option>
                 ))}
               </Select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+                Planlanan yayın tarihi
+              </label>
+              <Input
+                type="date"
+                value={plannedDate}
+                onChange={(e) => setPlannedDate(e.target.value)}
+              />
               <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-                Yayın tarihini üretim bitince Takvim görünümünden sürükleyerek verirsin.
+                Takip listesi bu tarihe göre sıralanır. Boş bırakırsan kart listenin sonuna düşer.
               </p>
             </div>
 

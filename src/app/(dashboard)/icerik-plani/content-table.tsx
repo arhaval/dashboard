@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { ChevronRight, ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, Download, ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   PLATFORM_COLORS,
@@ -16,14 +16,14 @@ import {
   isOverdue,
   stageRequirement,
   staleLevel,
+  csvFileName,
+  toCsv,
   type ContentPlatform,
   type ContentQueueItem,
   type ContentStage,
-  type PublicationInput,
 } from './content-queue.constants';
 import { advanceContentStage, assignContentPerson, deleteContentItem } from './queue-actions';
 import { ContentForm } from './content-form';
-import { PublishModal } from './publish-modal';
 import { ScriptReader } from './script-reader';
 
 const MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
@@ -68,7 +68,6 @@ interface ContentTableProps {
   /** Bu kullanıcının teslim edebileceği aşamalar (rolünden gelir). */
   handoffStages: string[];
   voicePeople: { id: string; name: string }[];
-  publicationsByCard: Record<string, PublicationInput[]>;
 }
 
 /**
@@ -86,14 +85,12 @@ export function ContentTable({
   canEdit,
   handoffStages,
   voicePeople,
-  publicationsByCard,
 }: ContentTableProps) {
   const [stageFilter, setStageFilter] = useState<ContentStage | 'TUMU'>('TUMU');
   const [platformFilter, setPlatformFilter] = useState<ContentPlatform | 'TUMU'>('TUMU');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editItem, setEditItem] = useState<ContentQueueItem | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [publishItem, setPublishItem] = useState<ContentQueueItem | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const nameById = useMemo(
@@ -119,13 +116,52 @@ export function ContentTable({
       if (platformFilter !== 'TUMU' && !item.platforms.includes(platformFilter)) return false;
       return true;
     });
-    // Hat sırasına göre: bekleyen işler üstte, yayınlananlar en altta.
+    // Tarihe göre: en yakın yayın günü üstte. Tarihi olmayan kartlar en altta
+    // (sıralanacak bir günleri yok, listenin başını kapatmasınlar).
     return filtered.sort((a, b) => {
-      const byStage = STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage);
-      if (byStage !== 0) return byStage;
-      return (a.item.planned_date ?? '9999').localeCompare(b.item.planned_date ?? '9999');
+      const byDate = (a.item.planned_date ?? '9999-99-99').localeCompare(
+        b.item.planned_date ?? '9999-99-99'
+      );
+      if (byDate !== 0) return byDate;
+      return STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage);
     });
   }, [withStage, stageFilter, platformFilter]);
+
+  /**
+   * Görünen tabloyu e-tablo dosyası olarak indirir.
+   *
+   * Panele girmeyen birine (editör, seslendirmen) takip tablosunu göndermenin
+   * yolu bu: dosya Excel ve Google Sheets ile açılır. Filtre uygulanmışsa
+   * yalnızca görünen satırlar iner — ekranda ne varsa o gider.
+   */
+  function handleDownload() {
+    const today = new Date().toISOString().slice(0, 10);
+    const headers = [
+      'Başlık', 'Platformlar', 'Format', 'Aşama', 'Bekleyen',
+      'Bekleme (gün)', 'Planlanan Tarih', 'Gecikme', 'Ses Linki', 'Video Linki', 'Not',
+    ];
+    const body = rows.map(({ item, stage }) => [
+      item.title,
+      item.platforms.map((p) => PLATFORM_LABELS[p]).join(', '),
+      item.content_type,
+      STAGE_LABELS_MAP[stage],
+      item.assigned_to ? nameById.get(item.assigned_to) ?? '' : stage === 'EDITOR' ? 'Editör' : '',
+      stage === 'YAYINLANDI' ? '' : daysWaiting(item.updated_at),
+      item.planned_date ?? '',
+      isOverdue(item.planned_date, stage, today) ? 'GECİKTİ' : '',
+      item.voice_url ?? '',
+      item.video_url ?? '',
+      item.notes ?? '',
+    ]);
+
+    const blob = new Blob([toCsv(headers, body)], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = csvFileName(today);
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   function handleDelete(id: string) {
     if (!confirm('Bu içeriği silmek istediğine emin misin?')) return;
@@ -170,13 +206,18 @@ export function ContentTable({
           );
         })}
 
-        {canEdit && (
-          <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {rows.length > 0 && (
+            <Button size="sm" variant="secondary" onClick={handleDownload} title="Excel / Google Sheets ile açılır">
+              <Download className="mr-1.5 h-3.5 w-3.5" /> E-tablo indir
+            </Button>
+          )}
+          {canEdit && (
             <Button size="sm" onClick={() => { setEditItem(null); setFormOpen(true); }}>
               <Plus className="mr-1.5 h-3.5 w-3.5" /> Yeni İçerik
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Platform filtresi */}
@@ -240,7 +281,6 @@ export function ContentTable({
                   isPending={isPending}
                   onEdit={() => { setEditItem(item); setFormOpen(true); }}
                   onDelete={() => handleDelete(item.id)}
-                  onPublish={() => setPublishItem(item)}
                 />
               ))}
             </tbody>
@@ -257,13 +297,6 @@ export function ContentTable({
         />
       )}
 
-      {publishItem && (
-        <PublishModal
-          item={publishItem}
-          existing={publishItem.status === 'YAYINLANDI' ? (publicationsByCard[publishItem.id] ?? []) : undefined}
-          onClose={() => setPublishItem(null)}
-        />
-      )}
     </div>
   );
 }
@@ -283,7 +316,6 @@ interface ContentRowProps {
   isPending: boolean;
   onEdit: () => void;
   onDelete: () => void;
-  onPublish: () => void;
 }
 
 function ContentRow({
@@ -299,7 +331,6 @@ function ContentRow({
   isPending,
   onEdit,
   onDelete,
-  onPublish,
 }: ContentRowProps) {
   const [link, setLink] = useState('');
   const [busy, startTransition] = useTransition();
@@ -413,16 +444,6 @@ function ContentRow({
         {/* Eylem */}
         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
           <div className="flex items-center justify-end gap-1">
-            {/* Yayın tek tuş: ek bilgi modalda isteniyor, satırı açmaya gerek yok */}
-            {requirement === 'PUBLISH' && mayAdvance && (
-              <button
-                onClick={onPublish}
-                className="rounded-[var(--radius-sm)] px-2.5 py-1 text-[11px] font-semibold"
-                style={{ backgroundColor: style.color, color: '#fff' }}
-              >
-                Yayınla
-              </button>
-            )}
             {canEdit && (
               <>
                 <button

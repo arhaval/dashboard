@@ -220,6 +220,54 @@ export const STAGE_LABELS_MAP: Record<ContentStage, string> = {
   YAYINLANDI: 'Yayınlandı',
 };
 
+// ── E-tablo ciktisi ─────────────────────────────────────────────────────────
+// Takip tablosunu panele girmeyen birine (editor, seslendirmen) gondermenin
+// yolu: ayni tabloyu dosya olarak indir, Excel/Sheets ile acilir.
+
+/** Türkçe Excel'in varsayılan liste ayırıcısı. */
+const CSV_SEPARATOR = ';';
+
+/** Excel'in beklediği satır sonu. */
+const CSV_NEWLINE = '\r\n';
+
+/**
+ * Dosyanın başına konan byte-order mark.
+ * Excel bunu görmezse Türkçe karakterler bozuk açılır (ş, ğ, ı).
+ */
+const CSV_BOM = '\ufeff';
+
+/**
+ * Tek hücreyi CSV için güvene alır.
+ *
+ * Ayırıcı, çift tırnak veya satır sonu içeren metin tırnak içine alınır ve
+ * içindeki tırnaklar ikilenir. Bu kaçırılırsa bir not satırındaki noktalı
+ * virgül bütün sütunları kaydırır.
+ */
+function csvCell(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return '';
+  const text = String(value);
+  if (!text) return '';
+  const needsQuotes =
+    text.includes(CSV_SEPARATOR) || text.includes('"') || text.includes('\n') || text.includes('\r');
+  return needsQuotes ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+/**
+ * Satır ve başlıkları CSV metnine çevirir.
+ *
+ * Başa BOM konur: Excel bunu görmezse Türkçe karakterler bozuk açılır
+ * (ş, ğ, ı). Satır sonu CRLF — Excel'in beklediği biçim.
+ */
+export function toCsv(headers: string[], rows: (string | number | null)[][]): string {
+  const lines = [headers, ...rows].map((row) => row.map(csvCell).join(CSV_SEPARATOR));
+  return CSV_BOM + lines.join(CSV_NEWLINE) + CSV_NEWLINE;
+}
+
+/** İndirilen dosyanın adı — tarih içerir ki art arda indirilenler karışmasın. */
+export function csvFileName(today: string): string {
+  return `arhaval-icerik-takip-${today}.csv`;
+}
+
 // ── Takip: is ne kadar bekliyor, gecikti mi ─────────────────────────────────
 // Takip merkezinin asil sorusu "hangi is takildi". Asama kimde oldugunu
 // soyler; bu iki olcu ne kadar suredir orada durdugunu soyler.
