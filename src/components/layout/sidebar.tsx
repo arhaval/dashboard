@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Sparkles,
   Swords,
+  NotebookPen,
   Wallet,
   ChevronDown,
   type LucideIcon,
@@ -69,6 +70,7 @@ const navSections: NavSection[] = [
     label: 'ANA MENÜ',
     items: [
       { label: tr.nav.dashboard, href: '/', icon: LayoutDashboard, perm: 'dashboard' },
+      { label: 'Günlük',         href: '/gunluk', icon: NotebookPen, perm: 'journal' },
     ],
   },
   {

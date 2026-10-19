@@ -1,5 +1,7 @@
 /** İçerik Motoru — client-safe types, section keys & labels (no server imports). */
 
+import { foldTurkish } from '@/lib/turkish';
+
 export type ScriptStatus = 'DRAFT' | 'AI_EDITED' | 'FINAL';
 export type EnginePlatform = 'REELS' | 'SHORTS' | 'TIKTOK' | 'YOUTUBE_LONG' | 'X';
 export type ReferenceSourceType = 'SRT' | 'TEXT' | 'VIDEO';
@@ -267,15 +269,7 @@ export interface VarietyTags {
  * Aksan/büyük harf farklarını eler: "Çıplak Sayı" ile "ciplak sayi" eşleşsin.
  * Etiket sözlüğü de metin denetimi de aynı normalleştirmeyi kullanır.
  */
-export function foldTurkish(raw: string): string {
-  return raw
-    .trim()
-    .toLocaleLowerCase('tr')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // NFD sonrasi aksan isaretleri
-    .replace(/ı/g, 'i')
-    .replace(/\s+/g, ' ');
-}
+export { foldTurkish };
 
 /**
  * Modelin döndürdüğü etiketi sözlüğe oturtur. Sözlükte olmayan bir değer null
