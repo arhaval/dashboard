@@ -339,6 +339,54 @@ export function extractYouTubeId(input: string): string | null {
   return m ? m[1] : null;
 }
 
+/**
+ * Yayın linkinden yayın kaydı kurar — elle sayı girmeden.
+ *
+ * Yayınlamak iki işi birden yapar: kartı kapatır ve seslendirme/kurgu iş
+ * kalemlerini açar (ödeme tarafı oradan besleniyor). Ama eski yayın ekranı
+ * bunun için platform platform metrik girmeyi istiyordu. Gerekli olan tek şey
+ * linkte zaten var: platform ve içeriğin kimliği. Kimlik yazılınca YouTube ve
+ * Instagram sayıları senkrondan kendiliğinden geliyor.
+ *
+ * Link tanınmazsa ve kartın tek platformu varsa o platforma linksiz-kimliksiz
+ * bir kayıt yazılır (hangi platformda yayınlandığı bilgisi korunur). Link boşsa
+ * hiç kayıt yazılmaz: kart yine kapanır, iş kalemleri yine açılır.
+ */
+export function publicationsFromUrl(
+  url: string | null | undefined,
+  cardPlatforms: ContentPlatform[]
+): PublicationInput[] {
+  const link = url?.trim();
+  if (!link) return [];
+
+  const base = { views: null, likes: null, comments: null };
+
+  const youtubeId = extractYouTubeId(link);
+  // Çıplak 11 karakterlik kimlik de YouTube sayılır, ama yalnızca bağlantı
+  // gerçekten YouTube'u gösteriyorsa: başka platformun linkinde 11 karakterlik
+  // bir parça yakalanıp YouTube'a yazılmasın.
+  const looksYouTube = /youtu\.?be/i.test(link) || link === youtubeId;
+  if (youtubeId && looksYouTube) {
+    return [{ platform: 'YOUTUBE', url: link, external_id: youtubeId, ...base }];
+  }
+
+  const igCode = extractInstagramShortcode(link);
+  if (igCode) {
+    return [{ platform: 'INSTAGRAM', url: link, external_id: igCode, ...base }];
+  }
+
+  if (/tiktok\.com/i.test(link))            return [{ platform: 'TIKTOK',  url: link, external_id: null, ...base }];
+  if (/(?:^|\/\/|\.)(?:x|twitter)\.com/i.test(link)) return [{ platform: 'X', url: link, external_id: null, ...base }];
+  if (/twitch\.tv/i.test(link))             return [{ platform: 'TWITCH',  url: link, external_id: null, ...base }];
+
+  // Tanınmayan link: kartın tek platformu varsa ona yaz, birden fazlaysa
+  // hangisi olduğunu uydurmak yerine kayıt yazmayız.
+  if (cardPlatforms.length === 1) {
+    return [{ platform: cardPlatforms[0], url: link, external_id: null, ...base }];
+  }
+  return [];
+}
+
 /** Roles that may write/edit content cards and hand off the Metin stage. */
 export const CONTENT_EDITOR_ROLES = ['ADMIN', 'PUBLISHER', 'YOUTUBER'] as const;
 

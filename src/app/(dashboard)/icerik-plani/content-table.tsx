@@ -14,13 +14,14 @@ import {
   daysWaiting,
   deriveStage,
   isOverdue,
+  publicationsFromUrl,
   stageRequirement,
   staleLevel,
   type ContentPlatform,
   type ContentQueueItem,
   type ContentStage,
 } from './content-queue.constants';
-import { advanceContentStage, assignContentPerson, deleteContentItem } from './queue-actions';
+import { advanceContentStage, assignContentPerson, deleteContentItem, publishContent } from './queue-actions';
 import { ContentForm } from './content-form';
 import { ScriptReader } from './script-reader';
 
@@ -316,6 +317,13 @@ function ContentRow({
     });
   }
 
+  function publish() {
+    startTransition(async () => {
+      await publishContent(item.id, publicationsFromUrl(link, item.platforms));
+      setLink('');
+    });
+  }
+
   function assign(personId: string | null) {
     startTransition(async () => { await assignContentPerson(item.id, personId); });
   }
@@ -517,6 +525,33 @@ function ContentRow({
                     >
                       {STAGE_ADVANCE_LABELS[stage]}
                     </button>
+                  </div>
+                )}
+
+                {/* Hazır: kartı kapat ve iş kalemlerini aç. Sayı istemiyoruz;
+                    link varsa platform ve kimlik ondan çıkarılır, YouTube ve
+                    Instagram sayıları senkrondan gelir. */}
+                {requirement === 'PUBLISH' && mayAdvance && (
+                  <div className="space-y-2">
+                    <input
+                      value={link}
+                      onChange={(e) => setLink(e.target.value)}
+                      type="url"
+                      placeholder="Yayın linkini yapıştır (isteğe bağlı)"
+                      className="w-full rounded-[var(--radius-sm)] px-2 py-1.5 text-xs outline-none"
+                      style={{ backgroundColor: 'var(--color-surface-sunken)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+                    />
+                    <button
+                      onClick={publish}
+                      disabled={pending}
+                      className="w-full rounded-[var(--radius-sm)] py-1.5 text-[11px] font-semibold disabled:opacity-50"
+                      style={{ backgroundColor: style.color, color: '#fff' }}
+                    >
+                      Yayınlandı ✓
+                    </button>
+                    <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                      Seslendirme ve kurgu iş kalemleri bu adımda açılır.
+                    </p>
                   </div>
                 )}
 

@@ -14,6 +14,7 @@ import {
   decideHandoff,
   deriveStage,
   isOverdue,
+  publicationsFromUrl,
   staleLevel,
   voiceRequestNotification,
 } from '../src/app/(dashboard)/icerik-plani/content-queue.constants';
@@ -118,7 +119,44 @@ eq('yayınlanan içerik gecikmez',
 eq('tarihi olmayan kart gecikmez',
   isOverdue(null, 'SES', '2026-10-19'), false);
 
-// ── 7. Bildirim metni ───────────────────────────────────────────────────────
+// ── 7. Yayın linkinden yayın kaydı ──────────────────────────────────────────
+// Yayınlamak seslendirme/kurgu iş kalemlerini açar, yani ödeme zinciri buradan
+// besleniyor. Platform yanlış çıkarsa performans kaydı yanlış içeriğe yazılır.
+
+eq('YouTube linki → kimlikle YOUTUBE',
+  publicationsFromUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ', []),
+  [{ platform: 'YOUTUBE', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', external_id: 'dQw4w9WgXcQ', views: null, likes: null, comments: null }]);
+eq('youtu.be kısa link de YOUTUBE',
+  publicationsFromUrl('https://youtu.be/dQw4w9WgXcQ', [])[0].external_id, 'dQw4w9WgXcQ');
+eq('Shorts linki de YOUTUBE',
+  publicationsFromUrl('https://www.youtube.com/shorts/dQw4w9WgXcQ', [])[0].platform, 'YOUTUBE');
+
+eq('Instagram reel → kısa kodla INSTAGRAM',
+  publicationsFromUrl('https://www.instagram.com/reel/C9xYzAbCdEf/', [])[0],
+  { platform: 'INSTAGRAM', url: 'https://www.instagram.com/reel/C9xYzAbCdEf/', external_id: 'C9xYzAbCdEf', views: null, likes: null, comments: null });
+
+eq('TikTok linki TIKTOK', publicationsFromUrl('https://www.tiktok.com/@arhaval/video/123', [])[0].platform, 'TIKTOK');
+eq('X linki X', publicationsFromUrl('https://x.com/arhaval/status/123', [])[0].platform, 'X');
+eq('Twitch linki TWITCH', publicationsFromUrl('https://twitch.tv/arhaval', [])[0].platform, 'TWITCH');
+
+// Instagram linkinin içinde 11 karakterlik bir parça yakalanıp YouTube'a
+// yazılmasın: platform tespiti linkin kendisine bakar.
+eq('Instagram linki YouTube sanılmaz',
+  publicationsFromUrl('https://www.instagram.com/p/ABCDEFGHIJK/', [])[0].platform, 'INSTAGRAM');
+
+eq('link boşsa kayıt yazılmaz', publicationsFromUrl('', ['YOUTUBE']), []);
+eq('link yoksa kayıt yazılmaz', publicationsFromUrl(null, ['YOUTUBE']), []);
+eq('yalnız boşluk da boş sayılır', publicationsFromUrl('   ', ['YOUTUBE']), []);
+
+// Tanınmayan link: tek platformlu kartta o platforma yazılır, çok platformluda
+// hangisi olduğu uydurulmaz.
+eq('tanınmayan link + tek platform → o platform',
+  publicationsFromUrl('https://ornek.com/video', ['TIKTOK'])[0],
+  { platform: 'TIKTOK', url: 'https://ornek.com/video', external_id: null, views: null, likes: null, comments: null });
+eq('tanınmayan link + çok platform → kayıt yok',
+  publicationsFromUrl('https://ornek.com/video', ['YOUTUBE', 'INSTAGRAM']), []);
+
+// ── 8. Bildirim metni ───────────────────────────────────────────────────────
 
 const notice = voiceRequestNotification('Soulfly');
 check('bildirim başlığı seslendirmeyi söyler', notice.title.includes('Seslendirme'), notice.title);
