@@ -10,6 +10,7 @@ import { userService, workItemService, paymentService, financeService } from '@/
 import { getCurrentMonth } from '@/services/finance.service';
 import { contentGoalService } from '@/services/content-goal.service';
 import { weeklyScheduleService } from '@/services/weekly-schedule.service';
+import { contentQueueService } from '@/services/content-queue.service';
 import { DashboardAdmin } from './dashboard-admin';
 import { DashboardMember } from './dashboard-member';
 
@@ -32,6 +33,7 @@ export default async function DashboardPage() {
       monthlyFinanceStats,
       weeklyGoalProgress,
       weeklySchedule,
+      contentQueue,
     ] = await Promise.all([
       workItemService.getDashboardData(currentMonth, 6),
       userService.getAll(),
@@ -39,12 +41,16 @@ export default async function DashboardPage() {
       financeService.getStatsByMonth(currentMonth),
       contentGoalService.getWeeklyProgress(),
       weeklyScheduleService.getAll(),
+      // "Bugün" şeridi için: takılan içerik, seslendirmede/kurguda olan,
+      // yayına hazır bekleyen.
+      contentQueueService.getAll(),
     ]);
 
     const { allWorkItems, unpaidTotal, contentStats, contentTrend, teamContentStats } = dash;
 
     return (
       <DashboardAdmin
+        contentQueue={contentQueue}
         allWorkItems={allWorkItems}
         allUsers={allUsers}
         paymentStats={paymentStats}

@@ -21,6 +21,9 @@ import {
   Lightbulb,
   ShieldCheck,
   Sparkles,
+  Swords,
+  Wallet,
+  ChevronDown,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -40,8 +43,27 @@ interface NavItem {
 interface NavSection {
   label: string;
   items: NavItem[];
+  /**
+   * Arşiv bölümü: kapalı başlar, başlığına basınca açılır.
+   * Aylardır kayıt girilmemiş modüller burada durur — silinmiyorlar, sadece
+   * her açılışta göz önünde olmuyorlar.
+   */
+  archive?: boolean;
 }
 
+/**
+ * Menü modüllere göre değil İŞE göre bölünmüş.
+ *
+ * Eskiden "YÖNETİM / ANALİTİK / YAYIN / DİĞER" diye bölünüyordu; bu, kodun
+ * klasörlerine benziyordu ama günlük işe benzemiyordu — içerik işi üç ayrı
+ * bölüme dağılmıştı, para işi başka bir bölümde duruyordu. Şimdi başlıklar
+ * yapılan işi söylüyor: İÇERİK, PARA, EKİP.
+ *
+ * Arşivdekiler veriyle seçildi (son kayıt tarihine bakarak): Sponsorluklar
+ * Temmuz'dan beri 1 kayıt, Haftalık Program Nisan'dan beri durgun, Maçlar
+ * Mayıs'ta kalmış. Maçlar ve Nakit menüde HİÇ yoktu — sayfa vardı, bağlantı
+ * yoktu; Nakit'in sıfır kaydı olmasının sebebi de buydu.
+ */
 const navSections: NavSection[] = [
   {
     label: 'ANA MENÜ',
@@ -50,37 +72,46 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    label: 'YÖNETİM',
+    label: 'İÇERİK',
+    items: [
+      { label: 'İçerik Takip',       href: '/icerik-plani',       icon: ClipboardList, perm: 'content-plan' },
+      { label: 'İçerik Motoru',      href: '/motor',              icon: Sparkles,      perm: 'content-engine' },
+      { label: 'Fikir Havuzu',       href: '/fikir-havuzu',       icon: Lightbulb,     perm: 'idea-pool' },
+      { label: 'İçerik Performansı', href: '/icerik-performansi', icon: PlayCircle,    perm: 'content-performance' },
+      { label: tr.nav.social,        href: '/social',             icon: BarChart3,     perm: 'social' },
+    ],
+  },
+  {
+    label: 'PARA',
+    items: [
+      { label: tr.nav.workItems, href: '/work-items', icon: FileText,   perm: 'work-items' },
+      { label: tr.nav.payments,  href: '/payments',   icon: CreditCard, perm: 'payments' },
+      { label: tr.nav.finance,   href: '/finance',    icon: PiggyBank,  perm: 'finance' },
+    ],
+  },
+  {
+    label: 'EKİP',
     items: [
       { label: tr.nav.team, href: '/team', icon: Users, perm: 'team' },
-      { label: tr.nav.workItems, href: '/work-items', icon: FileText, perm: 'work-items' },
-      { label: tr.nav.payments, href: '/payments', icon: CreditCard, perm: 'payments' },
-      { label: tr.nav.finance,  href: '/finance', icon: PiggyBank,   perm: 'finance' },
-      { label: 'Sponsorluklar', href: '/sponsorluklar', icon: Handshake, perm: 'sponsors' },
     ],
   },
   {
-    label: 'ANALİTİK',
+    label: 'RAPOR',
     items: [
-      { label: 'Haftalık Program', href: '/content/schedule',icon: CalendarDays, perm: 'schedule' },
-      { label: tr.nav.social,     href: '/social',           icon: BarChart3,    perm: 'social' },
-      { label: 'İçerik Planı',    href: '/icerik-plani',     icon: Users,        perm: 'content-plan' },
-      { label: 'Fikir Havuzu',    href: '/fikir-havuzu',     icon: Lightbulb,    perm: 'idea-pool' },
-      { label: 'İçerik Performansı', href: '/icerik-performansi', icon: PlayCircle, perm: 'content-performance' },
-      { label: 'İçerik Motoru',    href: '/motor',            icon: Sparkles,     perm: 'content-engine' },
-    ],
-  },
-  {
-    label: 'YAYIN',
-    items: [
-      { label: 'OBS Overlay', href: '/obs', icon: Tv2, perm: 'obs' },
-    ],
-  },
-  {
-    label: 'DİĞER',
-    items: [
-      { label: 'Aylık Rapor', href: '/reports', icon: FileOutput, perm: 'reports' },
+      { label: 'Aylık Rapor',    href: '/reports',        icon: FileOutput,    perm: 'reports' },
       { label: 'Haftalık Rapor', href: '/reports/weekly', icon: ClipboardList, perm: 'reports' },
+    ],
+  },
+  {
+    label: 'ARŞİV',
+    archive: true,
+    items: [
+      { label: 'Sponsorluklar',    href: '/sponsorluklar',   icon: Handshake,    perm: 'sponsors' },
+      { label: 'Haftalık Program', href: '/content/schedule', icon: CalendarDays, perm: 'schedule' },
+      { label: 'OBS Overlay',      href: '/obs',             icon: Tv2,          perm: 'obs' },
+      // Bu ikisinin yetki matrisinde karşılığı yok; yöneticiye açık.
+      { label: 'Maçlar',           href: '/matches',         icon: Swords,       adminOnly: true },
+      { label: 'Nakit Akışı',      href: '/nakit',           icon: Wallet,       adminOnly: true },
     ],
   },
   {
@@ -100,6 +131,12 @@ interface SidebarProps {
 
 export function Sidebar({ userRole = 'ADMIN', allowedPages = [], isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
+  // Arşiv kapalı başlar; içindeki bir sayfadaysan kendiliğinden açık olsun ki
+  // bulunduğun yer menüde görünmeden kalmasın.
+  const inArchive = navSections
+    .filter((s) => s.archive)
+    .some((s) => s.items.some((i) => i.href !== '/' && pathname.startsWith(i.href)));
+  const [archiveOpen, setArchiveOpen] = React.useState(inArchive);
 
   return (
     <aside
@@ -153,15 +190,34 @@ export function Sidebar({ userRole = 'ADMIN', allowedPages = [], isOpen = false,
 
             if (visibleItems.length === 0) return null;
 
+            const collapsed = Boolean(section.archive) && !archiveOpen;
+
             return (
               <div key={section.label} className="mb-6">
-                <p
-                  className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest"
-                  style={{ color: 'var(--color-sidebar-label)' }}
-                >
-                  {section.label}
-                </p>
-                <ul className="space-y-0.5">
+                {section.archive ? (
+                  <button
+                    onClick={() => setArchiveOpen((v) => !v)}
+                    className="mb-2 flex w-full items-center gap-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest"
+                    style={{ color: 'var(--color-sidebar-label)' }}
+                  >
+                    <ChevronDown
+                      className="h-3 w-3 transition-transform"
+                      style={{ transform: archiveOpen ? 'none' : 'rotate(-90deg)' }}
+                    />
+                    {section.label}
+                    <span className="ml-auto font-normal normal-case tracking-normal">
+                      {visibleItems.length}
+                    </span>
+                  </button>
+                ) : (
+                  <p
+                    className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest"
+                    style={{ color: 'var(--color-sidebar-label)' }}
+                  >
+                    {section.label}
+                  </p>
+                )}
+                <ul className={cn('space-y-0.5', collapsed && 'hidden')}>
                   {visibleItems.map((item) => {
                     const isActive =
                       pathname === item.href ||

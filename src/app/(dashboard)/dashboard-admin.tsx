@@ -6,6 +6,8 @@
 
 import Link from 'next/link';
 import { PageShell } from '@/components/layout';
+import { TodayPanel } from './today-panel';
+import type { ContentQueueItem } from './icerik-plani/content-queue.constants';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { ContentTrendChart, TeamContentChart } from '@/components/charts/content-charts';
@@ -25,7 +27,6 @@ import {
   CalendarDays,
 } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
-import { tr } from '@/lib/i18n';
 import type { WorkItem, User, WeeklyGoalProgress } from '@/types';
 import type { DaySchedule } from '@/services/weekly-schedule.utils';
 import { ACTIVITY_LABELS, DAY_SHORT } from '@/services/weekly-schedule.utils';
@@ -73,6 +74,8 @@ interface TeamContentEntry {
 
 export interface DashboardAdminProps {
   allWorkItems: WorkItem[];
+  /** "Bugün" şeridi için içerik hattının tamamı. */
+  contentQueue: ContentQueueItem[];
   allUsers: User[];
   paymentStats: PaymentStats;
   monthlyFinanceStats: MonthlyFinanceStats;
@@ -93,30 +96,13 @@ function getWorkItemTitle(item: WorkItem): string {
   return item.match_name || item.content_name || item.work_type;
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    DRAFT: 'bg-[var(--color-warning-muted)] text-[var(--color-warning)]',
-    APPROVED: 'bg-[var(--color-info-muted)] text-[var(--color-info)]',
-    PAID: 'bg-[var(--color-success-muted)] text-[var(--color-success)]',
-  };
-  const labels: Record<string, string> = {
-    DRAFT: 'Taslak',
-    APPROVED: 'Onaylı',
-    PAID: 'Ödendi',
-  };
-  return (
-    <span className={cn('inline-block rounded-full px-2 py-0.5 text-xs font-medium', map[status] ?? '')}>
-      {labels[status] ?? status}
-    </span>
-  );
-}
-
 // ─────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────
 
 export function DashboardAdmin({
   allWorkItems,
+  contentQueue,
   allUsers,
   paymentStats,
   monthlyFinanceStats,
@@ -152,6 +138,13 @@ export function DashboardAdmin({
       title="Genel Bakış"
       description={`${monthLabel} ayı operasyon özeti`}
     >
+      {/* ═══════════════════════════════════════════════
+          BÖLÜM 0: BUGÜN NE VAR
+          Ayın özeti aşağıda duruyor; en üstte "şimdi ne yapmam lazım"
+          olsun. Her kutu işin yapıldığı sayfaya götürür.
+          ═══════════════════════════════════════════════ */}
+      <TodayPanel workItems={allWorkItems} content={contentQueue} />
+
       {/* ═══════════════════════════════════════════════
           BÖLÜM 1: FİNANSAL KONTROL
           ═══════════════════════════════════════════════ */}
