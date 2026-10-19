@@ -6,10 +6,15 @@ import { Button } from '@/components/ui/button';
 import {
   PLATFORM_LABELS,
   PLATFORM_COLORS,
+  STAGE_ADVANCE_LABELS,
+  STAGE_LABELS_MAP,
+  STAGE_ORDER,
+  STAGE_STYLES,
+  canAdvanceStage,
+  deriveStage,
   type ContentQueueItem,
   type ContentPlatform,
-  type ContentStatus,
-  type UpdateContentQueueInput,
+  type ContentStage,
   type PublicationInput,
 } from './content-queue.constants';
 import { advanceContentStage, deleteContentItem, assignContentPerson } from './queue-actions';
@@ -18,8 +23,11 @@ import { PublishModal } from './publish-modal';
 import { ScriptReader } from './script-reader';
 
 // ── Pipeline stage derivation ──────────────────────────────────────────────────
+// Aşama etiketleri, renkleri ve ileri düğmesinin metni content-queue.constants
+// içinde: pano ve liste görünümü aynı tanımı kullansın. Burada yalnızca o
+// tanımdan kolon yapısı kuruluyor.
 
-type Stage = 'METIN' | 'SES' | 'EDITOR' | 'HAZIR' | 'YAYINLANDI';
+type Stage = ContentStage;
 
 interface StageConfig {
   id: Stage;
@@ -27,65 +35,20 @@ interface StageConfig {
   color: string;
   bg: string;
   borderColor: string;
-  advance: (item: ContentQueueItem) => UpdateContentQueueInput | null;
+  /** Bu aşamada ileri taşınacak bir adım var mı (yama sunucuda kurulur). */
+  advanceable: boolean;
   advanceLabel: string;
 }
 
-const STAGES: StageConfig[] = [
-  {
-    id: 'METIN',
-    label: 'Metin Yazılıyor',
-    color: '#EAB308',
-    bg: 'rgba(234,179,8,0.07)',
-    borderColor: 'rgba(234,179,8,0.25)',
-    advance: () => ({ has_text: true }),
-    advanceLabel: 'Metin Tamam →',
-  },
-  {
-    id: 'SES',
-    label: 'Ses Bekleniyor',
-    color: '#3B82F6',
-    bg: 'rgba(59,130,246,0.07)',
-    borderColor: 'rgba(59,130,246,0.25)',
-    advance: () => ({ has_voice: true }),
-    advanceLabel: 'Ses Atıldı →',
-  },
-  {
-    id: 'EDITOR',
-    label: 'Editörde',
-    color: '#9146FF',
-    bg: 'rgba(145,70,255,0.07)',
-    borderColor: 'rgba(145,70,255,0.25)',
-    advance: () => ({ has_video: true, status: 'HAZIR' as ContentStatus }),
-    advanceLabel: 'Video Hazır →',
-  },
-  {
-    id: 'HAZIR',
-    label: 'Hazır',
-    color: '#22C55E',
-    bg: 'rgba(34,197,94,0.07)',
-    borderColor: 'rgba(34,197,94,0.25)',
-    advance: () => ({ status: 'YAYINLANDI' as ContentStatus }),
-    advanceLabel: 'Yayınlandı ✓',
-  },
-  {
-    id: 'YAYINLANDI',
-    label: 'Yayınlandı',
-    color: '#6B6B6B',
-    bg: 'rgba(107,107,107,0.05)',
-    borderColor: 'rgba(107,107,107,0.2)',
-    advance: () => null,
-    advanceLabel: '',
-  },
-];
+const STAGES: StageConfig[] = STAGE_ORDER.map((id) => ({
+  id,
+  label: STAGE_LABELS_MAP[id],
+  ...STAGE_STYLES[id],
+  advanceable: canAdvanceStage(id),
+  advanceLabel: STAGE_ADVANCE_LABELS[id],
+}));
 
-function getStage(item: ContentQueueItem): Stage {
-  if (item.status === 'YAYINLANDI') return 'YAYINLANDI';
-  if (item.has_video)              return 'HAZIR';
-  if (item.has_voice)              return 'EDITOR';
-  if (item.has_text)               return 'SES';
-  return 'METIN';
-}
+
 
 // ── Card ───────────────────────────────────────────────────────────────────────
 
@@ -138,7 +101,7 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, onAss
   const hasDetails = Boolean(item.content_text || item.voice_url || item.video_url);
   const assigneeName = voicePeople.find((p) => p.id === item.assigned_to)?.name;
 
-  const base = stage.advance(item);
+  const base = stage.advanceable;
   // Full editors advance anything; stage owners advance only their own stage.
   const canAdvanceThis = canEdit || handoffStages.includes(stage.id);
   // Advancing "Metin Tamam" requires choosing who voices it.
@@ -477,7 +440,7 @@ function KanbanColumn({ stage, items, onEdit, onDelete, onAdvance, onAssign, isP
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 function formatDate(d: string) {
-  const [y, m, day] = d.split('-');
+  const [, m, day] = d.split('-');
   const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
   return `${parseInt(day)} ${months[parseInt(m) - 1]}`;
 }
@@ -517,7 +480,7 @@ export function ContentKanban({ items, canEdit = true, handoffStages = [], voice
   }
 
   const grouped = Object.fromEntries(
-    STAGES.map((s) => [s.id, items.filter((i) => getStage(i) === s.id)])
+    STAGES.map((s) => [s.id, items.filter((i) => deriveStage(i) === s.id)])
   ) as Record<Stage, ContentQueueItem[]>;
 
   return (

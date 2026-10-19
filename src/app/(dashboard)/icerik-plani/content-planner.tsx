@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { LayoutGrid, CalendarDays } from 'lucide-react';
+import { CalendarDays, LayoutGrid, List } from 'lucide-react';
 import { ContentKanban } from './content-kanban';
 import { ContentCalendar } from './content-calendar';
+import { ContentTable } from './content-table';
 import type { ContentQueueItem } from './content-queue.constants';
 
-type View = 'kanban' | 'calendar';
+type View = 'list' | 'kanban' | 'calendar';
 
 interface ContentPlannerProps {
   items: ContentQueueItem[];
@@ -17,17 +18,23 @@ interface ContentPlannerProps {
 }
 
 export function ContentPlanner({ items, canEdit = true, handoffStages = [], voicePeople = [], publicationsByCard = {} }: ContentPlannerProps) {
-  const [view, setView] = useState<View>('kanban');
+  // Liste varsayılan: "ne yapıldı, ne yapılmadı, kimde bekliyor" sorusunun
+  // cevabı tek ekranda. Pano akışı, Takvim yayın gününü göstermek için kalıyor.
+  const [view, setView] = useState<View>('list');
 
-  // Viewers get a read-only board only; the calendar is an editing surface.
+  // Viewers get the read-only list + board; the calendar is an editing surface.
   const tabs: { id: View; label: string; icon: typeof LayoutGrid }[] = canEdit
     ? [
+        { id: 'list', label: 'Liste', icon: List },
         { id: 'kanban', label: 'Pano', icon: LayoutGrid },
         { id: 'calendar', label: 'Takvim', icon: CalendarDays },
       ]
-    : [{ id: 'kanban', label: 'Pano', icon: LayoutGrid }];
+    : [
+        { id: 'list', label: 'Liste', icon: List },
+        { id: 'kanban', label: 'Pano', icon: LayoutGrid },
+      ];
 
-  const activeView: View = canEdit ? view : 'kanban';
+  const activeView: View = !canEdit && view === 'calendar' ? 'list' : view;
 
   return (
     <div>
@@ -56,9 +63,13 @@ export function ContentPlanner({ items, canEdit = true, handoffStages = [], voic
         })}
       </div>
 
-      {activeView === 'kanban' ? (
+      {activeView === 'list' && (
+        <ContentTable items={items} canEdit={canEdit} handoffStages={handoffStages} voicePeople={voicePeople} publicationsByCard={publicationsByCard} />
+      )}
+      {activeView === 'kanban' && (
         <ContentKanban items={items} canEdit={canEdit} handoffStages={handoffStages} voicePeople={voicePeople} publicationsByCard={publicationsByCard} />
-      ) : (
+      )}
+      {activeView === 'calendar' && (
         <ContentCalendar items={items} voicePeople={voicePeople} />
       )}
     </div>

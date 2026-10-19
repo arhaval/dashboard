@@ -220,6 +220,61 @@ export const STAGE_LABELS_MAP: Record<ContentStage, string> = {
   YAYINLANDI: 'Yayınlandı',
 };
 
+/** Aşamaların hat sırası — pano kolonları ve liste sıralaması bunu kullanır. */
+export const STAGE_ORDER: ContentStage[] = ['METIN', 'SES', 'EDITOR', 'HAZIR', 'YAYINLANDI'];
+
+export interface StageStyle {
+  color: string;
+  bg: string;
+  borderColor: string;
+}
+
+/**
+ * Aşama renkleri — pano ve liste aynı renkleri kullanır.
+ *
+ * Tek kaynak olması önemli: iki görünüm aynı işi farklı renkte gösterirse
+ * "hangisi doğru" sorusu çıkar. Renkler panonun özgün renkleri.
+ */
+export const STAGE_STYLES: Record<ContentStage, StageStyle> = {
+  METIN:      { color: '#EAB308', bg: 'rgba(234,179,8,0.07)',   borderColor: 'rgba(234,179,8,0.25)' },
+  SES:        { color: '#3B82F6', bg: 'rgba(59,130,246,0.07)',  borderColor: 'rgba(59,130,246,0.25)' },
+  EDITOR:     { color: '#9146FF', bg: 'rgba(145,70,255,0.07)',  borderColor: 'rgba(145,70,255,0.25)' },
+  HAZIR:      { color: '#22C55E', bg: 'rgba(34,197,94,0.07)',   borderColor: 'rgba(34,197,94,0.25)' },
+  YAYINLANDI: { color: '#6B6B6B', bg: 'rgba(107,107,107,0.05)', borderColor: 'rgba(107,107,107,0.2)' },
+};
+
+/** Aşamayı ileri taşıyan düğmenin metni. */
+export const STAGE_ADVANCE_LABELS: Record<ContentStage, string> = {
+  METIN:      'Metin Tamam →',
+  SES:        'Ses Atıldı →',
+  EDITOR:     'Video Hazır →',
+  HAZIR:      'Yayınlandı ✓',
+  YAYINLANDI: '',
+};
+
+/**
+ * Bu aşamada ileri taşınacak bir adım var mı. Yayınlanan içerik hattın sonu.
+ */
+export function canAdvanceStage(stage: ContentStage): boolean {
+  return stage !== 'YAYINLANDI';
+}
+
+/**
+ * İleri taşımak için bu aşamada neyin girilmesi gerekir.
+ *
+ * Liste görünümü buna bakarak satır içinde düğme mi göstereceğine, yoksa
+ * satırı açıp kutu mu isteyeceğine karar verir.
+ */
+export type StageRequirement = 'ASSIGNEE' | 'LINK' | 'PUBLISH' | null;
+
+export function stageRequirement(stage: ContentStage): StageRequirement {
+  if (stage === 'METIN')  return 'ASSIGNEE'; // seslendirecek kişi seçilmeli
+  if (stage === 'SES')    return 'LINK';     // ses linki
+  if (stage === 'EDITOR') return 'LINK';     // video linki
+  if (stage === 'HAZIR')  return 'PUBLISH';  // yayın bilgileri (modal)
+  return null;
+}
+
 export function deriveStage(item: Pick<ContentQueueItem, 'status' | 'has_text' | 'has_voice' | 'has_video'>): ContentStage {
   if (item.status === 'YAYINLANDI') return 'YAYINLANDI';
   if (item.has_video) return 'HAZIR';
