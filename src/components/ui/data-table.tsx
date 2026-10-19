@@ -68,19 +68,21 @@ export function DataTable<T>({
   const isPaginated = pageSize > 0 && totalItems > pageSize;
   const totalPages = isPaginated ? Math.ceil(totalItems / pageSize) : 1;
 
+  /**
+   * Geçerli sayfa okunurken sınırlanıyor, saklanırken değil.
+   *
+   * Eskiden veri kısaldığında `useMemo` içinden `setCurrentPage(1)` çağrılıyordu
+   * — render sırasında durum değişikliği. React uyarır, fazladan render doğar
+   * ve filtre daraltıldığı anda tablo bir kare boş görünebilir. Türetince
+   * filtre sonucu küçüldüğü anda son geçerli sayfa gösterilir.
+   */
+  const page = Math.min(currentPage, totalPages);
+
   const paginatedData = useMemo(() => {
     if (!isPaginated) return data;
-    const start = (currentPage - 1) * pageSize;
+    const start = (page - 1) * pageSize;
     return data.slice(start, start + pageSize);
-  }, [data, currentPage, pageSize, isPaginated]);
-
-  // Reset page when data changes
-  const dataLength = data.length;
-  useMemo(() => {
-    if (currentPage > 1 && (currentPage - 1) * pageSize >= dataLength) {
-      setCurrentPage(1);
-    }
-  }, [dataLength, currentPage, pageSize]);
+  }, [data, page, pageSize, isPaginated]);
 
   const cellPadding = compact ? 'px-2 py-2 sm:px-3' : 'px-3 py-3 sm:px-4';
 
@@ -126,7 +128,7 @@ export function DataTable<T>({
             <tbody>
               {paginatedData.map((row, index) => {
                 const globalIndex = isPaginated
-                  ? (currentPage - 1) * pageSize + index
+                  ? (page - 1) * pageSize + index
                   : index;
 
                 return (
@@ -159,27 +161,27 @@ export function DataTable<T>({
         <div className="mt-4 flex items-center justify-between gap-4">
           <p className="text-xs text-[var(--color-text-muted)] sm:text-sm">
             <span className="hidden sm:inline">{totalItems} kayıttan </span>
-            {(currentPage - 1) * pageSize + 1}–
-            {Math.min(currentPage * pageSize, totalItems)}
+            {(page - 1) * pageSize + 1}–
+            {Math.min(page * pageSize, totalItems)}
             <span className="hidden sm:inline"> arası gösteriliyor</span>
           </p>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(Math.max(1, page - 1))}
+              disabled={page === 1}
               className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] disabled:pointer-events-none disabled:opacity-40"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
 
             <span className="min-w-[60px] text-center text-sm text-[var(--color-text-secondary)]">
-              {currentPage} / {totalPages}
+              {page} / {totalPages}
             </span>
 
             <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(Math.min(totalPages, page + 1))}
+              disabled={page === totalPages}
               className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] disabled:pointer-events-none disabled:opacity-40"
             >
               <ChevronRight className="h-4 w-4" />

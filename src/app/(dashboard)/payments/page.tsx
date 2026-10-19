@@ -8,6 +8,8 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
+import { Pager } from '@/components/ui/pager';
+import { paginate, parsePage } from '@/lib/paginate';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
@@ -155,6 +157,7 @@ interface PageProps {
     user_id?: string;
     type?: string;
     category?: string;
+    sayfa?: string;
   }>;
 }
 
@@ -246,8 +249,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
     const payments = await paymentService.getAll(filters);
 
-    // Calculate stats from fetched data
+    // Toplamlar TÜM ödemeden hesaplanıyor, tablo sayfalanıyor: kümülatif
+    // tutarın görünen sayfaya göre değişmesi yanlış olurdu.
     const totalPaidAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const paged = paginate(payments, parsePage(params.sayfa));
 
     return (
       <PageShell
@@ -271,7 +276,8 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         />
 
         {/* Completed Payments Table */}
-        <CompletedPaymentsTable payments={payments} />
+        <CompletedPaymentsTable payments={paged.rows} />
+        <Pager paged={paged} basePath="/payments" params={params} label="ödeme" />
       </PageShell>
     );
   }

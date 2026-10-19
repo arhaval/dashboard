@@ -6,6 +6,8 @@
 
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
+import { Pager } from '@/components/ui/pager';
+import { paginate, parsePage } from '@/lib/paginate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { MonthlyTrendChart, CategoryDonut } from '@/components/charts/finance-charts';
@@ -154,6 +156,7 @@ interface PageProps {
     type?: string;
     category?: string;
     month?: string;
+    sayfa?: string;
   }>;
 }
 
@@ -196,6 +199,11 @@ export default async function FinancePage({ searchParams }: PageProps) {
       financeService.getCategoryBreakdown(activeMonth, 'EXPENSE'),
       financeService.getCategoryBreakdown(activeMonth, 'INCOME'),
     ]);
+
+  // Yalnızca TABLO sayfalanıyor. Dışa aktarma ve grafikler tüm kayıtla
+  // çalışmaya devam ediyor — sayfalanmış listeyi dışa aktarmak, raporu tek
+  // sayfaya indirgemek olurdu.
+  const paged = paginate(transactions, parsePage(params.sayfa));
 
   // Map trend data for the chart component
   const chartTrendData = trendData.map((d) => ({
@@ -322,7 +330,8 @@ export default async function FinancePage({ searchParams }: PageProps) {
           categories={categories}
         />
         <div className="mt-4">
-          <TransactionsTable transactions={transactions} />
+          <TransactionsTable transactions={paged.rows} />
+          <Pager paged={paged} basePath="/finance" params={params} label="kayı" />
         </div>
       </div>
     </PageShell>

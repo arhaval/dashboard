@@ -8,6 +8,8 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
+import { Pager } from '@/components/ui/pager';
+import { paginate, parsePage } from '@/lib/paginate';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
@@ -242,6 +244,7 @@ interface PageProps {
     status?: string;
     type?: string;
     user_id?: string;
+    sayfa?: string;
   }>;
 }
 
@@ -284,9 +287,15 @@ export default async function WorkItemsPage({ searchParams }: PageProps) {
     isAdmin ? userService.getAll() : Promise.resolve([]),
   ]);
 
-  // Get payment statuses for approved items
+  // Tablo sayfalanıyor: 173 kaydı birden basmak sayfayı ağırlaştırıyor ve
+  // aradığın kayıt ekranda kayboluyordu. Analitik kutuları hâlâ TÜM kayıttan
+  // hesaplanıyor (allItems), yalnızca tablo dilimleniyor.
+  const paged = paginate(items, parsePage(params.sayfa));
+
+  // Ödeme durumları yalnızca ekranda görünen satırlar için sorgulanıyor —
+  // eskiden filtrelenen her onaylı iş için sorgu atılıyordu.
   const approvedItemIds = isAdmin
-    ? items.filter((i) => i.status === 'APPROVED' && i.cost).map((i) => i.id)
+    ? paged.rows.filter((i) => i.status === 'APPROVED' && i.cost).map((i) => i.id)
     : [];
   const paymentStatuses =
     approvedItemIds.length > 0
@@ -453,11 +462,12 @@ export default async function WorkItemsPage({ searchParams }: PageProps) {
         />
         <div className="mt-4">
           <WorkItemsTable
-            items={items}
+            items={paged.rows}
             currentUserId={currentUser.id}
             isAdmin={isAdmin}
             paymentStatuses={paymentStatuses}
           />
+          <Pager paged={paged} basePath="/work-items" params={params} label="iş" />
         </div>
       </div>
     </PageShell>

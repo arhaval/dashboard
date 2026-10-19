@@ -30,19 +30,23 @@ export function usePagination({
   totalItems,
   pageSize = PAGINATION.DEFAULT_PAGE_SIZE,
 }: UsePaginationOptions): UsePaginationReturn {
-  const [currentPage, setCurrentPage] = useState(1);
+  const [requestedPage, setCurrentPage] = useState(1);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(totalItems / pageSize)),
     [totalItems, pageSize],
   );
 
-  // Reset to page 1 if current page exceeds total
-  useMemo(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(1);
-    }
-  }, [totalPages, currentPage]);
+  /**
+   * Geçerli sayfa okunurken sınırlanıyor, saklanırken değil.
+   *
+   * Eskiden liste kısaldığında `useMemo` içinden `setCurrentPage(1)`
+   * çağrılıyordu — yani render sırasında durum değiştiriliyordu. React bunu
+   * uyarıyla karşılar, fazladan render doğurur ve bazı durumlarda sayfa
+   * sayısıyla içerik bir an için uyuşmaz. Türetmek bu sorunların hepsini
+   * ortadan kaldırıyor: liste kısaldığı anda son geçerli sayfa gösterilir.
+   */
+  const currentPage = Math.min(requestedPage, totalPages);
 
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalItems);
@@ -54,8 +58,10 @@ export function usePagination({
     startIndex,
     endIndex,
     goToPage: (page: number) => setCurrentPage(Math.max(1, Math.min(page, totalPages))),
-    nextPage: () => setCurrentPage((p) => Math.min(p + 1, totalPages)),
-    prevPage: () => setCurrentPage((p) => Math.max(p - 1, 1)),
+    // Hareket, sınırlanmış sayfaya göre: saklanan değer sınırın üstünde
+    // kaldıysa "geri" tıklamaları boşa gitmesin.
+    nextPage: () => setCurrentPage(Math.min(currentPage + 1, totalPages)),
+    prevPage: () => setCurrentPage(Math.max(currentPage - 1, 1)),
     canGoNext: currentPage < totalPages,
     canGoPrev: currentPage > 1,
   };
