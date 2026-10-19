@@ -43,7 +43,7 @@ export default async function DashboardLayout({
   const pathname = (await headers()).get('x-pathname') ?? '';
   const pageKey = pageKeyForPath(pathname);
   if (pageKey && !allowedPages.includes(pageKey)) {
-    const landing = landingPathFor(allowedPages);
+    const landing = landingPathFor(allowedPages, user.role);
     if (landing !== pathname) redirect(landing);
   }
 

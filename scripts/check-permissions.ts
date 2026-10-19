@@ -14,6 +14,7 @@ import {
   ALL_PAGE_KEYS,
   DEFAULT_PAGES,
   PAGE_DEFS,
+  ROLE_LANDING,
   landingPathFor,
   pageKeyForPath,
   type PageKey,
@@ -60,6 +61,38 @@ for (const [role, pages] of Object.entries(DEFAULT_PAGES)) {
 for (const def of PAGE_DEFS) {
   if (def.key === 'dashboard') continue;
   eq(`tek yetki ${def.key} → ${def.route}`, landingPathFor([def.key]), def.route);
+}
+
+// ── 1b. Role özel açılış ────────────────────────────────────────────────────
+// Menü sırası tek başına yetmiyor: Ödemeler ve İş Takibi, İçerik Takip'ten
+// önce geliyor. İçerik rolleri günlük işine açılmalı, ödeme ekranına değil.
+
+eq('yayıncı içerik tarafına açılır',
+  landingPathFor(['content-plan', 'work-items', 'payments', 'idea-pool'], 'PUBLISHER'),
+  '/icerik-plani');
+eq('youtuber içerik tarafına açılır',
+  landingPathFor(['content-plan', 'work-items', 'payments', 'social'], 'YOUTUBER'),
+  '/icerik-plani');
+eq('seslendirmen içerik tarafına açılır',
+  landingPathFor(['content-plan'], 'VOICE'), '/icerik-plani');
+eq('editör içerik tarafına açılır',
+  landingPathFor(['content-plan'], 'EDITOR'), '/icerik-plani');
+
+// Role özel açılış, o sayfaya erişim yoksa kullanılmaz; yoksa yönlendirme
+// yine engele çarpar ve döngü kurulur.
+eq('erişimi olmayan açılış tercihi yok sayılır',
+  landingPathFor(['work-items', 'payments'], 'PUBLISHER'), '/work-items');
+eq('tercihi olmayan rol eski kurala düşer',
+  landingPathFor(['work-items', 'payments'], 'TEAM_MEMBER'), '/work-items');
+// Rol verilmezse davranış değişmez (eski çağrılar bozulmasın).
+eq('rolsüz çağrı eski kuralla çalışır',
+  landingPathFor(['content-plan', 'work-items']), '/work-items');
+eq('ana sayfası olan rol köke açılır (tercih yoksa)',
+  landingPathFor(['dashboard', 'work-items'], 'TEAM_MEMBER'), '/');
+
+for (const [role, page] of Object.entries(ROLE_LANDING)) {
+  check(`${role}: açılış tercihi geçerli bir sayfa`,
+    (ALL_PAGE_KEYS as string[]).includes(page as string), { role, page });
 }
 
 // ── 2. Yol → sayfa eşlemesi ─────────────────────────────────────────────────

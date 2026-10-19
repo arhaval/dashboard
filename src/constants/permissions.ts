@@ -76,6 +76,24 @@ export const DEFAULT_PAGES: Record<UserRole, PageKey[]> = {
 };
 
 /**
+ * Rolün tercih edilen açılış sayfası.
+ *
+ * Menü sırası (PAGE_DEFS) yetkiye göre açılışı seçmek için yeterli değil:
+ * İş Takibi ve Ödemeler, İçerik Takip'ten önce geliyor. Yayıncı/Youtuber'ın
+ * günlük işi içerik tarafında, o yüzden onlar için açılış açıkça yazılıyor.
+ * Burada yazmayan rol eski kurala düşer: eriştiği ilk sayfa.
+ *
+ * Yetkisi olmayan bir sayfa buraya yazılsa bile kullanılmaz — yönlendirme yine
+ * engele çarpar ve döngü olur.
+ */
+export const ROLE_LANDING: Partial<Record<UserRole, PageKey>> = {
+  PUBLISHER: 'content-plan',
+  YOUTUBER:  'content-plan',
+  EDITOR:    'content-plan',
+  VOICE:     'content-plan',
+};
+
+/**
  * Rolün açılış sayfası: eriştiği ilk sayfanın yolu.
  *
  * Neden gerekli: eskiden erişilemeyen bir sayfa istendiğinde `/` adresine
@@ -87,7 +105,13 @@ export const DEFAULT_PAGES: Record<UserRole, PageKey[]> = {
  * Sıra PAGE_DEFS sırası, yani menüdeki sıra. Hiç sayfası olmayan rol için
  * `/` döner (orada "yetkin yok" ekranı gösterilir, döngü olmaz).
  */
-export function landingPathFor(allowedPages: PageKey[]): string {
+export function landingPathFor(allowedPages: PageKey[], role?: UserRole): string {
+  // Role özel açılış, yalnızca o sayfaya gerçekten erişebiliyorsa.
+  const preferred = role ? ROLE_LANDING[role] : undefined;
+  if (preferred && allowedPages.includes(preferred)) {
+    const def = PAGE_DEFS.find((p) => p.key === preferred);
+    if (def) return def.route;
+  }
   if (allowedPages.includes('dashboard')) return '/';
   for (const def of PAGE_DEFS) {
     if (def.key !== 'dashboard' && allowedPages.includes(def.key)) return def.route;
