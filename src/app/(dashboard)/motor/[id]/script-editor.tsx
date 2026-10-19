@@ -16,6 +16,8 @@ import {
   type HookAlternative,
   type ScriptDTO,
 } from '../engine.constants';
+import { VoiceHandoffPanel, type VoicePerson } from './voice-handoff-panel';
+import type { ScriptHandoff } from '../voice-handoff.constants';
 import { DurationSelect } from '../duration-select';
 import { TextGuardNotice } from '../text-guard-notice';
 import { checkGeneratedText } from '../text-guard.constants';
@@ -31,10 +33,14 @@ export function ScriptEditor({
   script,
   formats,
   keyReady,
+  voicePeople,
+  handoff,
 }: {
   script: ScriptDTO;
   formats: FormatDTO[];
   keyReady: boolean;
+  voicePeople: VoicePerson[];
+  handoff: ScriptHandoff | null;
 }) {
   const router = useRouter();
 
@@ -393,6 +399,15 @@ export function ScriptEditor({
               </Button>
             )}
           </div>
+
+          {status === 'FINAL' && (
+            <VoiceHandoffPanel
+              scriptId={script.id}
+              platform={script.platform}
+              voicePeople={voicePeople}
+              handoff={handoff}
+            />
+          )}
 
           {generations.length > 0 && (
             <div className="pt-2 border-t border-[var(--color-border)]">

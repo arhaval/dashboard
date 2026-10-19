@@ -15,6 +15,7 @@ import {
 import { advanceContentStage, deleteContentItem, assignContentPerson } from './queue-actions';
 import { ContentForm } from './content-form';
 import { PublishModal } from './publish-modal';
+import { ScriptReader } from './script-reader';
 
 // ── Pipeline stage derivation ──────────────────────────────────────────────────
 
@@ -234,18 +235,7 @@ function KanbanCard({ item, stage, onEdit, onDelete, isPending, onAdvance, onAss
 
             {expanded && (
               <div className="mt-2 space-y-2">
-                {item.content_text && (
-                  <div
-                    className="rounded-[var(--radius-sm)] p-2.5 text-[11px] leading-relaxed whitespace-pre-wrap"
-                    style={{
-                      backgroundColor: 'var(--color-surface-sunken)',
-                      border: '1px solid var(--color-border)',
-                      color: 'var(--color-text-primary)',
-                    }}
-                  >
-                    {item.content_text}
-                  </div>
-                )}
+                {item.content_text && <ScriptReader text={item.content_text} />}
                 <div className="flex flex-wrap gap-1.5">
                   {item.voice_url && (
                     <a

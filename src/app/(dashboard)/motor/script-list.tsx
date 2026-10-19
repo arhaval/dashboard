@@ -16,15 +16,19 @@ import {
   type FormatDTO,
   type ScriptDTO,
 } from './engine.constants';
+import { HANDOFF_LABELS, type ScriptHandoff } from './voice-handoff.constants';
 import { DurationSelect } from './duration-select';
 import { createScript } from './actions';
 
 export function ScriptList({
   scripts,
   formats,
+  handoffs,
 }: {
   scripts: ScriptDTO[];
   formats: FormatDTO[];
+  /** metin kimliği → teslim durumu; gönderilmemiş metinler listede yoktur. */
+  handoffs: Record<string, ScriptHandoff>;
 }) {
   const router = useRouter();
   const [showForm, setShowForm] = React.useState(scripts.length === 0);
@@ -128,6 +132,7 @@ export function ScriptList({
         <div className="grid gap-2.5">
           {scripts.map((s) => {
             const meta = STATUS_META[s.status];
+            const handoff = handoffs[s.id] ?? null;
             return (
               <Link
                 key={s.id}
@@ -142,14 +147,38 @@ export function ScriptList({
                     {s.format_label && <span>{s.format_label}</span>}
                     {s.platform && <span>· {PLATFORM_LABELS[s.platform as EnginePlatform] ?? s.platform}</span>}
                     {s.target_duration && <span>· {s.target_duration}</span>}
+                    {handoff && <span>· {HANDOFF_LABELS[handoff.stage]}</span>}
                   </div>
                 </div>
-                <span
-                  className="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium"
-                  style={{ backgroundColor: meta.bg, color: meta.color }}
-                >
-                  {meta.label}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  {handoff?.voiceUrl && (
+                    <span
+                      role="link"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.open(handoff.voiceUrl as string, '_blank', 'noopener,noreferrer');
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter') return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.open(handoff.voiceUrl as string, '_blank', 'noopener,noreferrer');
+                      }}
+                      title="Seslendirmenin bıraktığı ses dosyası"
+                      className="rounded-full border border-[var(--color-info)] bg-[var(--color-info-muted)] px-2.5 py-0.5 text-xs font-medium text-[var(--color-info)]"
+                    >
+                      🎙 Ses
+                    </span>
+                  )}
+                  <span
+                    className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+                    style={{ backgroundColor: meta.bg, color: meta.color }}
+                  >
+                    {meta.label}
+                  </span>
+                </div>
               </Link>
             );
           })}

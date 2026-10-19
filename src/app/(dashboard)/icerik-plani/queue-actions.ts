@@ -6,6 +6,7 @@ import { userService, workItemService } from '@/services';
 import { notificationService } from '@/services/notification.service';
 import { publicationMetricsService } from '@/services/publication-metrics.service';
 import { deriveStage, ROLE_STAGES, CONTENT_EDITOR_ROLES } from './content-queue.constants';
+import { voiceRequestNotification } from '@/app/(dashboard)/motor/voice-handoff.constants';
 import type { PublicationInput } from './content-queue.constants';
 import type {
   ContentPlatform,
@@ -59,9 +60,8 @@ export async function assignContentPerson(id: string, assigneeId: string | null)
 
   if (assigneeId) {
     await notificationService.notify({
+      ...voiceRequestNotification(item.title),
       userIds: [assigneeId],
-      title: '🎙 Seslendirme senden bekleniyor',
-      body: `Metin hazır. "${item.title}" için sesi kaydedip linkini yükle.`,
       url: '/icerik-plani',
       tag: `content-${id}`,
       excludeUserId: user.id,
@@ -201,9 +201,8 @@ export async function advanceContentStage(id: string, link?: string | null, assi
   if (stage === 'METIN' && assigneeId) {
     await notificationService.notify({
       ...notifyBase,
+      ...voiceRequestNotification(item.title),
       userIds: [assigneeId],
-      title: '🎙 Seslendirme senden bekleniyor',
-      body: `Metin hazır. "${item.title}" için sesi kaydedip linkini yükle.`,
     });
   } else if (stage === 'SES') {
     await notificationService.notify({

@@ -22,6 +22,8 @@ export interface ContentQueueItem {
   assigned_to: string | null;
   voiced_by: string | null;
   edited_by: string | null;
+  /** Motor'da onaylanan final metinden doğduysa o metnin kimliği. */
+  script_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +42,9 @@ export interface CreateContentQueueInput {
   planned_date?: string | null;
   notes?: string | null;
   created_by: string;
+  /** Motor teslimi — aynı final iki kez gönderilmesin diye saklanır. */
+  script_id?: string | null;
+  assigned_to?: string | null;
 }
 
 export interface UpdateContentQueueInput {

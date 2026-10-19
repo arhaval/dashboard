@@ -13,6 +13,7 @@ import {
   toPublicationInput,
   type PublicationInput,
 } from '@/app/(dashboard)/icerik-plani/content-queue.constants';
+import type { ScriptHandoff } from '@/app/(dashboard)/motor/voice-handoff.constants';
 
 export type { ContentPlatform, ContentStatus, ContentQueueItem, CreateContentQueueInput, UpdateContentQueueInput };
 
@@ -254,6 +255,104 @@ export const contentQueueService = {
     const { data, error } = await admin.from('content_queue').update(payload).eq('id', id).select().single();
     if (error) return { item: null, error: error.message };
     return { item: data as ContentQueueItem };
+  },
+
+  /**
+   * Motor'da onaylanan final metni hattın "Ses" adımına koyar.
+   *
+   * has_text=true + assigned_to dolu = kart doğrudan Ses kolonunda açılır;
+   * metin zaten bitmiş, sıradaki iş seslendirme. Admin istemci kullanılır
+   * çünkü çağıran Motor (admin-only) ve kart başkasına atanıyor.
+   *
+   * Aynı final iki kez gönderilmez: script_id zaten varsa mevcut kart döner.
+   */
+  async createFromScript(input: {
+    scriptId: string;
+    title: string;
+    text: string;
+    platforms: ContentPlatform[];
+    contentType: string;
+    assignedTo: string;
+    plannedDate: string | null;
+    notes: string | null;
+    createdBy: string;
+  }): Promise<{ item: ContentQueueItem | null; duplicate?: boolean; error?: string }> {
+    const admin = createAdminClient();
+
+    const { data: existing } = await admin
+      .from('content_queue')
+      .select('*')
+      .eq('script_id', input.scriptId)
+      .maybeSingle();
+    if (existing) return { item: existing as ContentQueueItem, duplicate: true };
+
+    const { data, error } = await admin
+      .from('content_queue')
+      .insert({
+        title: input.title,
+        platforms: input.platforms,
+        content_type: input.contentType,
+        content_text: input.text,
+        has_text: true,
+        assigned_to: input.assignedTo,
+        planned_date: input.plannedDate,
+        notes: input.notes,
+        script_id: input.scriptId,
+        created_by: input.createdBy,
+      })
+      .select()
+      .single();
+    if (error) {
+      // script_id kolonu migration uygulanmadan once yok. Hata mesaji
+      // PostgREST dilinde geliyor; ne yapilacagini soyleyen bir karsilik ver.
+      if (/script_id/.test(error.message)) {
+        return { item: null, error: 'Veritabani guncellemesi bekliyor: 20261019_content_queue_script_link.sql' };
+      }
+      return { item: null, error: error.message };
+    }
+    return { item: data as ContentQueueItem };
+  },
+
+  /**
+   * Motor listesinde her metnin teslim durumu — hangi aşamada ve ses linki
+   * geldi mi. Ses linki Motor'da görünsün ki teslim alınırken İçerik Planı'na
+   * geçmek gerekmesin.
+   */
+  async getHandoffsForScripts(scriptIds: string[]): Promise<Record<string, ScriptHandoff>> {
+    if (scriptIds.length === 0) return {};
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from('content_queue')
+      .select('id, script_id, status, has_text, has_voice, has_video, voice_url, assigned_to')
+      .in('script_id', scriptIds);
+    if (!data || data.length === 0) return {};
+
+    type Row = Pick<ContentQueueItem,
+      'id' | 'script_id' | 'status' | 'has_text' | 'has_voice' | 'has_video' | 'voice_url' | 'assigned_to'>;
+    const rows = data as Row[];
+
+    const assigneeIds = [...new Set(rows.map((r) => r.assigned_to).filter((v): v is string => Boolean(v)))];
+    const names: Record<string, string> = {};
+    if (assigneeIds.length > 0) {
+      const { data: users } = await admin.from('users').select('id, full_name').in('id', assigneeIds);
+      for (const u of (users ?? []) as { id: string; full_name: string }[]) names[u.id] = u.full_name;
+    }
+
+    const out: Record<string, ScriptHandoff> = {};
+    for (const r of rows) {
+      if (!r.script_id) continue;
+      const stage = deriveStage(r);
+      // METIN asamasi burada olusmaz (kart has_text=true ile dogar); tip
+      // guvenligi icin yine de disarida tutulur.
+      if (stage === 'METIN') continue;
+      out[r.script_id] = {
+        cardId: r.id,
+        stage,
+        voiceUrl: r.voice_url,
+        assigneeName: r.assigned_to ? names[r.assigned_to] ?? null : null,
+      };
+    }
+    return out;
   },
 
   async create(
