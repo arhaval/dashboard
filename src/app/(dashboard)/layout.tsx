@@ -9,7 +9,7 @@ import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { userService } from '@/services';
 import { permissionService } from '@/services/permission.service';
-import { pageKeyForPath } from '@/constants/permissions';
+import { landingPathFor, pageKeyForPath } from '@/constants/permissions';
 import { DashboardShell } from './dashboard-shell';
 
 export default async function DashboardLayout({
@@ -38,10 +38,26 @@ export default async function DashboardLayout({
   const allowedPages = await permissionService.getAllowedPages(user.role);
 
   // URL-level guard: block direct navigation to a page the role can't access.
+  // Hedef, rolün açılış sayfası — `/` değil: ana sayfası kapalı bir rolde `/`
+  // de yasak olduğu için sonsuz yönlendirme oluyordu.
   const pathname = (await headers()).get('x-pathname') ?? '';
   const pageKey = pageKeyForPath(pathname);
   if (pageKey && !allowedPages.includes(pageKey)) {
-    redirect('/');
+    const landing = landingPathFor(allowedPages);
+    if (landing !== pathname) redirect(landing);
+  }
+
+  // Hiç sayfası olmayan rol: yönlendirecek yer yok, sayfa da gösterilmemeli.
+  if (allowedPages.length === 0) {
+    return (
+      <DashboardShell user={user} allowedPages={allowedPages}>
+        <div className="p-6">
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            Hesabına henüz sayfa yetkisi tanımlanmamış. Yönetici ile iletişime geç.
+          </p>
+        </div>
+      </DashboardShell>
+    );
   }
 
   return (

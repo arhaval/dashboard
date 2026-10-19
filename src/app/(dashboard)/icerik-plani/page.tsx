@@ -36,6 +36,7 @@ export default async function IcerikPlaniPage() {
         canEdit={canEdit}
         handoffStages={handoffStages}
         voicePeople={voicePeople}
+        currentUserId={currentUser.id}
       />
     </PageShell>
   );

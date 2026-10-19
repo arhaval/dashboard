@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { ChevronRight, Download, ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   PLATFORM_COLORS,
@@ -16,8 +16,6 @@ import {
   isOverdue,
   stageRequirement,
   staleLevel,
-  csvFileName,
-  toCsv,
   type ContentPlatform,
   type ContentQueueItem,
   type ContentStage,
@@ -68,6 +66,8 @@ interface ContentTableProps {
   /** Bu kullanıcının teslim edebileceği aşamalar (rolünden gelir). */
   handoffStages: string[];
   voicePeople: { id: string; name: string }[];
+  /** Oturumdaki kişi — seslendirmen yalnızca KENDİ işine link bırakabilsin. */
+  currentUserId: string;
 }
 
 /**
@@ -85,6 +85,7 @@ export function ContentTable({
   canEdit,
   handoffStages,
   voicePeople,
+  currentUserId,
 }: ContentTableProps) {
   const [stageFilter, setStageFilter] = useState<ContentStage | 'TUMU'>('TUMU');
   const [platformFilter, setPlatformFilter] = useState<ContentPlatform | 'TUMU'>('TUMU');
@@ -126,42 +127,6 @@ export function ContentTable({
       return STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage);
     });
   }, [withStage, stageFilter, platformFilter]);
-
-  /**
-   * Görünen tabloyu e-tablo dosyası olarak indirir.
-   *
-   * Panele girmeyen birine (editör, seslendirmen) takip tablosunu göndermenin
-   * yolu bu: dosya Excel ve Google Sheets ile açılır. Filtre uygulanmışsa
-   * yalnızca görünen satırlar iner — ekranda ne varsa o gider.
-   */
-  function handleDownload() {
-    const today = new Date().toISOString().slice(0, 10);
-    const headers = [
-      'Başlık', 'Platformlar', 'Format', 'Aşama', 'Bekleyen',
-      'Bekleme (gün)', 'Planlanan Tarih', 'Gecikme', 'Ses Linki', 'Video Linki', 'Not',
-    ];
-    const body = rows.map(({ item, stage }) => [
-      item.title,
-      item.platforms.map((p) => PLATFORM_LABELS[p]).join(', '),
-      item.content_type,
-      STAGE_LABELS_MAP[stage],
-      item.assigned_to ? nameById.get(item.assigned_to) ?? '' : stage === 'EDITOR' ? 'Editör' : '',
-      stage === 'YAYINLANDI' ? '' : daysWaiting(item.updated_at),
-      item.planned_date ?? '',
-      isOverdue(item.planned_date, stage, today) ? 'GECİKTİ' : '',
-      item.voice_url ?? '',
-      item.video_url ?? '',
-      item.notes ?? '',
-    ]);
-
-    const blob = new Blob([toCsv(headers, body)], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = csvFileName(today);
-    a.click();
-    URL.revokeObjectURL(url);
-  }
 
   function handleDelete(id: string) {
     if (!confirm('Bu içeriği silmek istediğine emin misin?')) return;
@@ -206,18 +171,13 @@ export function ContentTable({
           );
         })}
 
-        <div className="ml-auto flex items-center gap-2">
-          {rows.length > 0 && (
-            <Button size="sm" variant="secondary" onClick={handleDownload} title="Excel / Google Sheets ile açılır">
-              <Download className="mr-1.5 h-3.5 w-3.5" /> E-tablo indir
-            </Button>
-          )}
-          {canEdit && (
+        {canEdit && (
+          <div className="ml-auto">
             <Button size="sm" onClick={() => { setEditItem(null); setFormOpen(true); }}>
               <Plus className="mr-1.5 h-3.5 w-3.5" /> Yeni İçerik
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Platform filtresi */}
@@ -277,6 +237,7 @@ export function ContentTable({
                   assigneeName={item.assigned_to ? nameById.get(item.assigned_to) ?? null : null}
                   canEdit={canEdit}
                   canHandoff={handoffStages.includes(stage)}
+                  currentUserId={currentUserId}
                   voicePeople={voicePeople}
                   isPending={isPending}
                   onEdit={() => { setEditItem(item); setFormOpen(true); }}
@@ -312,6 +273,7 @@ interface ContentRowProps {
   assigneeName: string | null;
   canEdit: boolean;
   canHandoff: boolean;
+  currentUserId: string;
   voicePeople: { id: string; name: string }[];
   isPending: boolean;
   onEdit: () => void;
@@ -327,6 +289,7 @@ function ContentRow({
   assigneeName,
   canEdit,
   canHandoff,
+  currentUserId,
   voicePeople,
   isPending,
   onEdit,
@@ -338,9 +301,12 @@ function ContentRow({
   const style = STAGE_STYLES[stage];
   const requirement = stageRequirement(stage);
   const overdue = isOverdue(item.planned_date, stage, new Date().toISOString().slice(0, 10));
-  // Panodaki kuralın aynısı: tam yetkili her aşamayı, diğerleri yalnızca
-  // kendi rolünün aşamasını (ve ses için kendine atanmış işi) ilerletir.
-  const mayAdvance = canAdvanceStage(stage) && (canEdit || canHandoff);
+  // Tam yetkili (Admin/Yayıncı/Youtuber) her aşamayı ilerletir. Diğerleri
+  // yalnızca kendi rolünün aşamasını; Ses'te ek olarak işin KENDİSİNE atanmış
+  // olması gerekir. Sunucu da aynı kuralı uyguluyor (advanceContentStage);
+  // burada kutuyu hiç göstermemek, reddedilecek bir işi teklif etmemek için.
+  const ownsStage = stage === 'SES' ? item.assigned_to === currentUserId : true;
+  const mayAdvance = canAdvanceStage(stage) && (canEdit || (canHandoff && ownsStage));
   const published = stage === 'YAYINLANDI';
 
   function advance(assigneeId?: string) {

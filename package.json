@@ -13,10 +13,11 @@
     "check:content-impact": "tsx scripts/check-content-impact.ts",
     "check:engine-prompt": "tsx scripts/check-engine-prompt.ts",
     "check:idea-fields": "tsx scripts/check-idea-fields.ts",
+    "check:permissions": "tsx scripts/check-permissions.ts",
     "check:publication-metrics": "tsx scripts/check-publication-metrics.ts",
     "check:social-monthly": "tsx scripts/check-social-monthly.ts",
     "check:srt-clean": "tsx scripts/check-srt-clean.ts",
-    "test": "npm run check:content-handoff && npm run check:content-impact && npm run check:engine-prompt && npm run check:idea-fields && npm run check:publication-metrics && npm run check:social-monthly && npm run check:srt-clean"
+    "test": "npm run check:content-handoff && npm run check:content-impact && npm run check:engine-prompt && npm run check:idea-fields && npm run check:permissions && npm run check:publication-metrics && npm run check:social-monthly && npm run check:srt-clean"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

@@ -75,6 +75,26 @@ export const DEFAULT_PAGES: Record<UserRole, PageKey[]> = {
   TEAM_MEMBER: ['dashboard', 'work-items', 'payments', 'content-plan', 'idea-pool'],
 };
 
+/**
+ * Rolün açılış sayfası: eriştiği ilk sayfanın yolu.
+ *
+ * Neden gerekli: eskiden erişilemeyen bir sayfa istendiğinde `/` adresine
+ * yönlendiriliyordu. Ana sayfası kapalı olan bir rol için bu sonsuz döngü
+ * demek — `/` da yasak olduğu için yine `/` deniyor. Artık rolün gerçekten
+ * görebildiği ilk sayfaya gidiliyor; tek sayfası olan biri girişte doğrudan
+ * o sayfayı görür.
+ *
+ * Sıra PAGE_DEFS sırası, yani menüdeki sıra. Hiç sayfası olmayan rol için
+ * `/` döner (orada "yetkin yok" ekranı gösterilir, döngü olmaz).
+ */
+export function landingPathFor(allowedPages: PageKey[]): string {
+  if (allowedPages.includes('dashboard')) return '/';
+  for (const def of PAGE_DEFS) {
+    if (def.key !== 'dashboard' && allowedPages.includes(def.key)) return def.route;
+  }
+  return '/';
+}
+
 /** Map a pathname to the page it belongs to (longest route prefix wins). */
 export function pageKeyForPath(pathname: string): PageKey | null {
   const candidates = PAGE_DEFS

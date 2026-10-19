@@ -10,13 +10,11 @@
  */
 
 import {
-  csvFileName,
   daysWaiting,
   decideHandoff,
   deriveStage,
   isOverdue,
   staleLevel,
-  toCsv,
   voiceRequestNotification,
 } from '../src/app/(dashboard)/icerik-plani/content-queue.constants';
 
@@ -120,30 +118,7 @@ eq('yayınlanan içerik gecikmez',
 eq('tarihi olmayan kart gecikmez',
   isOverdue(null, 'SES', '2026-10-19'), false);
 
-// ── 7. E-tablo çıktısı ──────────────────────────────────────────────────────
-// Kaçış bozulursa bir not satırındaki noktalı virgül bütün sütunları kaydırır
-// ve editöre yanlış tablo gider — hata ekranda görünmez, dosyada görünür.
-
-const csv = toCsv(['Başlık', 'Not'], [['Woxic masa', 'kısa olsun']]);
-const lines = csv.split('\r\n');
-eq('ilk satır başlıklar', lines[0], '﻿Başlık;Not');
-eq('veri satırı noktalı virgülle ayrılır', lines[1], 'Woxic masa;kısa olsun');
-check('dosya BOM ile başlar', csv.startsWith('﻿'), csv.slice(0, 3));
-check('satır sonu CRLF', csv.includes('\r\n'), true);
-
-eq('ayırıcı içeren hücre tırnaklanır',
-  toCsv(['A'], [['bir;iki']]).split('\r\n')[1], '"bir;iki"');
-eq('tırnak içeren hücrede tırnak ikilenir',
-  toCsv(['A'], [['o "efsane" an']]).split('\r\n')[1], '"o ""efsane"" an"');
-eq('satır sonu içeren hücre tırnaklanır',
-  toCsv(['A'], [['birinci\nikinci']]).split('\r\n')[1], '"birinci\nikinci"');
-eq('boş hücreler boş kalır', toCsv(['A', 'B'], [[null, '']]).split('\r\n')[1], ';');
-eq('sayı hücresi yazıya çevrilir', toCsv(['A'], [[11]]).split('\r\n')[1], '11');
-
-check('dosya adı tarih taşır', csvFileName('2026-10-19').includes('2026-10-19'), csvFileName('2026-10-19'));
-check('dosya adı .csv uzantılı', csvFileName('2026-10-19').endsWith('.csv'), csvFileName('2026-10-19'));
-
-// ── 8. Bildirim metni ───────────────────────────────────────────────────────
+// ── 7. Bildirim metni ───────────────────────────────────────────────────────
 
 const notice = voiceRequestNotification('Soulfly');
 check('bildirim başlığı seslendirmeyi söyler', notice.title.includes('Seslendirme'), notice.title);
