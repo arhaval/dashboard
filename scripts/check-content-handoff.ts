@@ -10,8 +10,11 @@
  */
 
 import {
+  daysWaiting,
   decideHandoff,
   deriveStage,
+  isOverdue,
+  staleLevel,
   voiceRequestNotification,
 } from '../src/app/(dashboard)/icerik-plani/content-queue.constants';
 
@@ -86,7 +89,36 @@ eq('ses linki gelince Kurgu aşamasına geçer',
   deriveStage({ status: 'HAZIRLANIYOR', has_text: true, has_voice: true, has_video: false }),
   'EDITOR');
 
-// ── 6. Bildirim metni ───────────────────────────────────────────────────────
+// ── 6. Takip ölçüleri: ne kadar bekliyor, gecikti mi ────────────────────────
+// Liste görünümünün "hangi iş takıldı" sinyali bunlar. Yanlış hesaplanırsa
+// takılı iş normal görünür — takip merkezinin tek işi bunu göstermek.
+
+const NOW = new Date('2026-10-19T12:00:00Z');
+
+eq('aynı gün hareket = 0 gün', daysWaiting('2026-10-19T09:00:00Z', NOW), 0);
+eq('dün hareket = 1 gün',      daysWaiting('2026-10-18T09:00:00Z', NOW), 1);
+eq('on gün önce = 10 gün',     daysWaiting('2026-10-09T09:00:00Z', NOW), 10);
+eq('tarih yoksa null',         daysWaiting(null, NOW), null);
+eq('geçersiz tarih null',      daysWaiting('bozuk', NOW), null);
+// Saat farkından negatif gün çıkmasın.
+eq('gelecek tarih 0 gün',      daysWaiting('2026-10-20T09:00:00Z', NOW), 0);
+
+eq('6 gün normal',      staleLevel(6), 'OK');
+eq('7 gün dikkat',      staleLevel(7), 'WARN');
+eq('13 gün dikkat',     staleLevel(13), 'WARN');
+eq('14 gün geç kaldı',  staleLevel(14), 'LATE');
+eq('ölçülemeyen normal', staleLevel(null), 'OK');
+
+eq('planlanan gün geçti, yayınlanmadı → gecikme',
+  isOverdue('2026-10-18', 'SES', '2026-10-19'), true);
+eq('bugün planlı → gecikme değil',
+  isOverdue('2026-10-19', 'SES', '2026-10-19'), false);
+eq('yayınlanan içerik gecikmez',
+  isOverdue('2026-09-01', 'YAYINLANDI', '2026-10-19'), false);
+eq('tarihi olmayan kart gecikmez',
+  isOverdue(null, 'SES', '2026-10-19'), false);
+
+// ── 7. Bildirim metni ───────────────────────────────────────────────────────
 
 const notice = voiceRequestNotification('Soulfly');
 check('bildirim başlığı seslendirmeyi söyler', notice.title.includes('Seslendirme'), notice.title);

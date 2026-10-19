@@ -220,6 +220,50 @@ export const STAGE_LABELS_MAP: Record<ContentStage, string> = {
   YAYINLANDI: 'Yayınlandı',
 };
 
+// ── Takip: is ne kadar bekliyor, gecikti mi ─────────────────────────────────
+// Takip merkezinin asil sorusu "hangi is takildi". Asama kimde oldugunu
+// soyler; bu iki olcu ne kadar suredir orada durdugunu soyler.
+
+/** Bir günün milisaniyesi. */
+const DAY_MS = 86_400_000;
+
+/**
+ * Kart en son hareket ettiğinden beri geçen tam gün sayısı.
+ *
+ * Hareket = updated_at. Her aşama geçişi, atama ve düzenleme bunu günceller,
+ * yani "3 gündür Ses Bekleniyor'da duruyor" cümlesinin dayanağı bu.
+ * Gelecek bir tarih için 0 döner (saat farkından negatif gün çıkmasın).
+ */
+export function daysWaiting(updatedAt: string | null | undefined, now: Date = new Date()): number | null {
+  if (!updatedAt) return null;
+  const then = new Date(updatedAt).getTime();
+  if (Number.isNaN(then)) return null;
+  return Math.max(0, Math.floor((now.getTime() - then) / DAY_MS));
+}
+
+export type StaleLevel = 'OK' | 'WARN' | 'LATE';
+
+/** Bir haftadır duran iş dikkat çeker, iki haftadır duran iş geç kalmıştır. */
+export function staleLevel(days: number | null): StaleLevel {
+  if (days === null) return 'OK';
+  if (days >= 14) return 'LATE';
+  if (days >= 7) return 'WARN';
+  return 'OK';
+}
+
+/**
+ * Planlanan yayın günü geçmiş ama içerik hâlâ yayınlanmamış mı.
+ * Yayınlanan içerik için gecikme kavramı yoktur.
+ */
+export function isOverdue(
+  plannedDate: string | null | undefined,
+  stage: ContentStage,
+  today: string
+): boolean {
+  if (!plannedDate || stage === 'YAYINLANDI') return false;
+  return plannedDate < today;
+}
+
 /** Aşamaların hat sırası — pano kolonları ve liste sıralaması bunu kullanır. */
 export const STAGE_ORDER: ContentStage[] = ['METIN', 'SES', 'EDITOR', 'HAZIR', 'YAYINLANDI'];
 

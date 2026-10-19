@@ -11,8 +11,11 @@ import {
   STAGE_ORDER,
   STAGE_STYLES,
   canAdvanceStage,
+  daysWaiting,
   deriveStage,
+  isOverdue,
   stageRequirement,
+  staleLevel,
   type ContentPlatform,
   type ContentQueueItem,
   type ContentStage,
@@ -31,30 +34,31 @@ function formatDate(d: string | null) {
   return `${parseInt(day, 10)} ${MONTHS[parseInt(m, 10) - 1]} ${y}`;
 }
 
-/** Üç üretim adımı tek bakışta: yapılan yeşil, yapılmayan soluk. */
-function StepDots({ item }: { item: ContentQueueItem }) {
-  const steps = [
-    { done: item.has_text,  letter: 'M', label: 'Metin' },
-    { done: item.has_voice, letter: 'S', label: 'Ses' },
-    { done: item.has_video, letter: 'V', label: 'Video' },
-  ];
+/**
+ * İşin ne kadar süredir hareketsiz olduğu. Takip merkezinin asıl sinyali:
+ * aşama kimde beklediğini, bu ne kadar beklediğini söyler.
+ */
+function WaitingCell({ item, stage }: { item: ContentQueueItem; stage: ContentStage }) {
+  if (stage === 'YAYINLANDI') {
+    return <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>—</span>;
+  }
+  const days = daysWaiting(item.updated_at);
+  if (days === null) {
+    return <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>—</span>;
+  }
+  const level = staleLevel(days);
+  const color =
+    level === 'LATE' ? 'var(--color-error)'
+    : level === 'WARN' ? 'var(--color-warning)'
+    : 'var(--color-text-muted)';
   return (
-    <div className="flex items-center gap-1">
-      {steps.map(({ done, letter, label }) => (
-        <span
-          key={letter}
-          title={`${label}: ${done ? 'tamam' : 'bekliyor'}`}
-          className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold"
-          style={{
-            backgroundColor: done ? 'rgba(34,197,94,0.15)' : 'var(--color-surface-2)',
-            color: done ? '#22C55E' : 'var(--color-text-muted)',
-            border: `1px solid ${done ? 'rgba(34,197,94,0.4)' : 'var(--color-border)'}`,
-          }}
-        >
-          {letter}
-        </span>
-      ))}
-    </div>
+    <span
+      className="text-xs"
+      style={{ color, fontWeight: level === 'OK' ? 400 : 600 }}
+      title={`Son hareket: ${new Date(item.updated_at).toLocaleDateString('tr-TR')}`}
+    >
+      {days === 0 ? 'bugün' : `${days} gün`}
+    </span>
   );
 }
 
@@ -128,7 +132,7 @@ export function ContentTable({
     startTransition(async () => { await deleteContentItem(id); });
   }
 
-  const headers = ['İçerik', 'Aşama', 'Bekleyen', 'Adımlar', 'Tarih', ''];
+  const headers = ['İçerik', 'Aşama', 'Bekleyen', 'Bekleme', 'Tarih', ''];
 
   return (
     <div>
@@ -302,6 +306,7 @@ function ContentRow({
 
   const style = STAGE_STYLES[stage];
   const requirement = stageRequirement(stage);
+  const overdue = isOverdue(item.planned_date, stage, new Date().toISOString().slice(0, 10));
   // Panodaki kuralın aynısı: tam yetkili her aşamayı, diğerleri yalnızca
   // kendi rolünün aşamasını (ve ses için kendine atanmış işi) ilerletir.
   const mayAdvance = canAdvanceStage(stage) && (canEdit || canHandoff);
@@ -386,14 +391,23 @@ function ContentRow({
           )}
         </td>
 
-        {/* Adımlar */}
-        <td className="px-4 py-3">
-          <StepDots item={item} />
+        {/* Bekleme: kac gundur hareketsiz */}
+        <td className="px-4 py-3" style={{ whiteSpace: 'nowrap' }}>
+          <WaitingCell item={item} stage={stage} />
         </td>
 
-        {/* Tarih */}
-        <td className="px-4 py-3" style={{ whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}>
-          {formatDate(item.planned_date)}
+        {/* Planlanan yayin tarihi — gecmisse kirmizi */}
+        <td className="px-4 py-3" style={{ whiteSpace: 'nowrap' }}>
+          <span
+            className="text-xs"
+            style={{
+              color: overdue ? 'var(--color-error)' : 'var(--color-text-muted)',
+              fontWeight: overdue ? 600 : 400,
+            }}
+            title={overdue ? 'Planlanan gün geçti, hâlâ yayınlanmadı' : undefined}
+          >
+            {formatDate(item.planned_date)}
+          </span>
         </td>
 
         {/* Eylem */}
@@ -407,15 +421,6 @@ function ContentRow({
                 style={{ backgroundColor: style.color, color: '#fff' }}
               >
                 Yayınla
-              </button>
-            )}
-            {published && canEdit && (
-              <button
-                onClick={onPublish}
-                className="rounded-[var(--radius-sm)] px-2.5 py-1 text-[11px] font-medium"
-                style={{ backgroundColor: 'var(--color-surface-sunken)', color: 'var(--color-text-secondary)' }}
-              >
-                İstatistik
               </button>
             )}
             {canEdit && (
