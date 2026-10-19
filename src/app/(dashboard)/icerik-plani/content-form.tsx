@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -8,11 +8,11 @@ import {
   CONTENT_FORMATS,
   PLATFORM_LABELS,
   PLATFORM_COLORS,
-  STATUS_LABELS,
+  decideHandoff,
   type ContentQueueItem,
   type ContentPlatform,
-  type ContentStatus,
 } from './content-queue.constants';
+import { ContentDetailsSection, EMPTY_DETAILS, type ContentDetails } from './content-form-details';
 import { createContentItem, updateContentItem } from './queue-actions';
 
 interface ContentFormProps {
@@ -20,58 +20,60 @@ interface ContentFormProps {
   onClose: () => void;
   item?: ContentQueueItem | null;
   defaultDate?: string;
+  /** Seslendirebilecek kişiler — boşsa kişi seçimi gösterilmez. */
+  voicePeople?: { id: string; name: string }[];
 }
 
 const ALL_PLATFORMS = Object.keys(PLATFORM_LABELS) as ContentPlatform[];
-const ALL_STATUSES  = Object.keys(STATUS_LABELS) as ContentStatus[];
 
-export function ContentForm({ open, onClose, item, defaultDate }: ContentFormProps) {
+/**
+ * Yeni içerik: metni yaz, seslendireni seç, gönder.
+ *
+ * Eskiden iki adımdı — kartı kaydet, sonra panoda kişiyi seçip "Metin Tamam"a
+ * bas. Kişi seçimi forma geldi: metin + kişi doluysa kart doğrudan "Ses
+ * Bekleniyor"da açılır ve o kişiye bildirim gider. Çoğu zaman gerekmeyen
+ * alanlar (üretim adımları, teslim linkleri, durum, not) Detaylar'da kapalı.
+ */
+export function ContentForm({ open, item, ...rest }: ContentFormProps) {
+  // Kapalıyken gövde hiç kurulmaz; açıldığında ya da başka bir karta
+  // geçildiğinde `key` yüzünden sıfırdan kurulur. Böylece alanları efekt
+  // içinde elle sıfırlamak gerekmiyor — her açılış zaten temiz başlıyor.
+  if (!open) return null;
+  return <ContentFormBody key={item?.id ?? 'new'} item={item} {...rest} />;
+}
+
+function ContentFormBody({
+  onClose,
+  item,
+  defaultDate,
+  voicePeople = [],
+}: Omit<ContentFormProps, 'open'>) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [platforms,    setPlatforms]    = useState<Set<ContentPlatform>>(new Set(['YOUTUBE']));
-  const [contentType,  setContentType]  = useState('');
-  const [title,        setTitle]        = useState('');
-  const [status,       setStatus]       = useState<ContentStatus>('HAZIRLANIYOR');
-  const [contentText,  setContentText]  = useState('');
-  const [voiceUrl,     setVoiceUrl]     = useState('');
-  const [videoUrl,     setVideoUrl]     = useState('');
-  const [hasText,      setHasText]      = useState(false);
-  const [hasVoice,     setHasVoice]     = useState(false);
-  const [hasVideo,     setHasVideo]     = useState(false);
-  const [plannedDate,  setPlannedDate]  = useState('');
-  const [notes,        setNotes]        = useState('');
-
-  useEffect(() => {
-    if (item) {
-      setPlatforms(new Set(item.platforms));
-      setContentType(item.content_type);
-      setTitle(item.title);
-      setStatus(item.status);
-      setContentText(item.content_text || '');
-      setVoiceUrl(item.voice_url || '');
-      setVideoUrl(item.video_url || '');
-      setHasText(item.has_text);
-      setHasVoice(item.has_voice);
-      setHasVideo(item.has_video);
-      setPlannedDate(item.planned_date || '');
-      setNotes(item.notes || '');
-    } else {
-      setPlatforms(new Set(['YOUTUBE']));
-      setContentType('');
-      setTitle('');
-      setStatus('HAZIRLANIYOR');
-      setContentText('');
-      setVoiceUrl('');
-      setVideoUrl('');
-      setHasText(false);
-      setHasVoice(false);
-      setHasVideo(false);
-      setPlannedDate(defaultDate || '');
-      setNotes('');
-    }
-    setError(null);
-  }, [item, open, defaultDate]);
+  const [title,       setTitle]       = useState(item?.title ?? '');
+  const [contentText, setContentText] = useState(item?.content_text ?? '');
+  const [assignee,    setAssignee]    = useState(item?.assigned_to ?? '');
+  const [platforms,   setPlatforms]   = useState<Set<ContentPlatform>>(
+    () => new Set(item ? item.platforms : ['YOUTUBE'])
+  );
+  const [contentType, setContentType] = useState(item?.content_type ?? '');
+  // Formda tarih alanı yok: yayın tarihi Takvim'den sürüklenerek verilir.
+  // Mevcut kartın tarihi korunur, yeni kart açılan günün tarihini alır.
+  const plannedDate = item?.planned_date ?? defaultDate ?? '';
+  const [details,     setDetails]     = useState<ContentDetails>(() =>
+    item
+      ? {
+          hasText:  item.has_text,
+          hasVoice: item.has_voice,
+          hasVideo: item.has_video,
+          voiceUrl: item.voice_url || '',
+          videoUrl: item.video_url || '',
+          status:   item.status,
+          notes:    item.notes || '',
+        }
+      : EMPTY_DETAILS
+  );
 
   function togglePlatform(p: ContentPlatform) {
     setPlatforms((prev) => {
@@ -82,11 +84,22 @@ export function ContentForm({ open, onClose, item, defaultDate }: ContentFormPro
     });
   }
 
+  // Düğme metni ve "gönderilecek mi" kararı sunucuyla aynı saf fonksiyondan.
+  const handoff = decideHandoff({
+    text: contentText,
+    assigneeId: assignee,
+    hasTextChecked: details.hasText,
+  });
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim())        { setError('Başlık zorunludur.');          return; }
-    if (platforms.size === 0) { setError('En az bir platform seçin.');   return; }
-    if (!contentType)         { setError('Format seçimi zorunludur.');   return; }
+    if (!title.trim())        { setError('Başlık zorunludur.');        return; }
+    if (platforms.size === 0) { setError('En az bir platform seçin.'); return; }
+    if (!contentType)         { setError('Format seçimi zorunludur.'); return; }
+    if (handoff.blocked === 'NO_TEXT') {
+      setError('Seslendirmeye göndermek için metni de yaz.');
+      return;
+    }
 
     setError(null);
     startTransition(async () => {
@@ -94,15 +107,16 @@ export function ContentForm({ open, onClose, item, defaultDate }: ContentFormPro
         title:        title.trim(),
         platforms:    Array.from(platforms),
         content_type: contentType,
-        status,
+        status:       details.status,
         content_text: contentText.trim() || null,
-        voice_url:    voiceUrl.trim()    || null,
-        video_url:    videoUrl.trim()    || null,
-        has_text:     hasText,
-        has_voice:    hasVoice,
-        has_video:    hasVideo,
+        voice_url:    details.voiceUrl.trim() || null,
+        video_url:    details.videoUrl.trim() || null,
+        has_text:     handoff.hasText,
+        has_voice:    details.hasVoice,
+        has_video:    details.hasVideo,
         planned_date: plannedDate || null,
-        notes:        notes.trim() || null,
+        notes:        details.notes.trim() || null,
+        assigned_to:  handoff.assignedTo,
       };
       const result = item
         ? await updateContentItem(item.id, payload)
@@ -112,13 +126,23 @@ export function ContentForm({ open, onClose, item, defaultDate }: ContentFormPro
     });
   }
 
-  if (!open) return null;
-
   const inputStyle = {
     backgroundColor: 'var(--color-bg-secondary)',
     border: '1px solid var(--color-border)',
     color: 'var(--color-text-primary)',
   };
+
+  const submitLabel = item
+    ? 'Güncelle'
+    : handoff.notify
+      ? '🎙 Seslendirmeye Gönder'
+      : 'Kaydet';
+
+  const assigneeHint = handoff.notify
+    ? 'Kaydedince metin bu kişiye gider ve bildirim alır.'
+    : handoff.blocked === 'NO_TEXT'
+      ? 'Metin boş — göndermek için yukarıya metni yaz.'
+      : 'Boş bırakırsan kart taslak kalır, kimseye gitmez.';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -135,18 +159,15 @@ export function ContentForm({ open, onClose, item, defaultDate }: ContentFormPro
           boxShadow: '0 20px 60px rgba(11,20,55,0.25)',
         }}
       >
-        {/* Header */}
         <div className="flex-shrink-0 border-b px-6 py-4" style={{ borderColor: 'var(--color-border)' }}>
           <h3 className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-            {item ? 'İçeriği Düzenle' : 'Yeni İçerik Ekle'}
+            {item ? 'İçeriği Düzenle' : 'Yeni İçerik'}
           </h3>
         </div>
 
-        {/* Scrollable body */}
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
 
-            {/* Başlık */}
             <div>
               <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
                 Başlık <span style={{ color: 'var(--color-error)' }}>*</span>
@@ -154,7 +175,37 @@ export function ContentForm({ open, onClose, item, defaultDate }: ContentFormPro
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="İçerik başlığı" required />
             </div>
 
-            {/* Platformlar */}
+            <div>
+              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+                Metin
+              </label>
+              <textarea
+                value={contentText}
+                onChange={(e) => setContentText(e.target.value)}
+                placeholder="Seslendirilecek metni buraya yaz…"
+                rows={12}
+                className="w-full resize-y rounded-[var(--radius-sm)] px-3 py-2.5 text-sm leading-relaxed outline-none transition-colors"
+                style={inputStyle}
+              />
+            </div>
+
+            {voicePeople.length > 0 && (
+              <div>
+                <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+                  🎙 Seslendirecek kişi
+                </label>
+                <Select value={assignee} onChange={(e) => setAssignee(e.target.value)}>
+                  <option value="">— Şimdi göndermeyeceğim —</option>
+                  {voicePeople.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </Select>
+                <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                  {assigneeHint}
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
                 Platformlar <span style={{ color: 'var(--color-error)' }}>*</span>
@@ -182,7 +233,6 @@ export function ContentForm({ open, onClose, item, defaultDate }: ContentFormPro
               </div>
             </div>
 
-            {/* Format */}
             <div>
               <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
                 Format <span style={{ color: 'var(--color-error)' }}>*</span>
@@ -198,103 +248,17 @@ export function ContentForm({ open, onClose, item, defaultDate }: ContentFormPro
               </p>
             </div>
 
-            {/* İçerik Metni */}
-            <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                İçerik Metni / Script
-              </label>
-              <textarea
-                value={contentText}
-                onChange={(e) => setContentText(e.target.value)}
-                placeholder="İçerik metni, script veya caption buraya yazılır…"
-                rows={9}
-                className="w-full resize-y rounded-[var(--radius-sm)] px-3 py-2.5 text-sm leading-relaxed outline-none transition-colors"
-                style={inputStyle}
-              />
-            </div>
-
-            {/* Üretim Durumu */}
-            <div>
-              <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                Üretim Adımları
-              </label>
-              <div className="space-y-2">
-                {[
-                  { key: 'text',  label: 'Metin yazıldı',      state: hasText,  set: setHasText  },
-                  { key: 'voice', label: 'Ses kaydedildi',     state: hasVoice, set: setHasVoice },
-                  { key: 'video', label: 'Video hazırlandı',   state: hasVideo, set: setHasVideo },
-                ].map(({ key, label, state, set }) => (
-                  <label key={key} className="flex cursor-pointer items-center gap-2.5">
-                    <input
-                      type="checkbox"
-                      checked={state}
-                      onChange={(e) => set(e.target.checked)}
-                      className="h-4 w-4 rounded accent-[var(--color-accent)]"
-                    />
-                    <span className="text-sm" style={{ color: state ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}>
-                      {label}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Ses + Video Linkleri */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                  🎙 Ses Linki
-                </label>
-                <Input
-                  value={voiceUrl}
-                  onChange={(e) => setVoiceUrl(e.target.value)}
-                  placeholder="Drive, Dropbox vs. linki"
-                  type="url"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                  🎬 Video Linki
-                </label>
-                <Input
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  placeholder="Drive, WeTransfer vs. linki"
-                  type="url"
-                />
-              </div>
-            </div>
-
-            {/* Durum + Notlar */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                  Durum
-                </label>
-                <Select value={status} onChange={(e) => setStatus(e.target.value as ContentStatus)}>
-                  {ALL_STATUSES.map((s) => (
-                    <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-                  ))}
-                </Select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                  Notlar
-                </label>
-                <Input
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ek notlar"
-                />
-              </div>
-            </div>
+            <ContentDetailsSection
+              value={details}
+              onChange={(patch) => setDetails((prev) => ({ ...prev, ...patch }))}
+              textAuto={handoff.notify}
+            />
 
             {error && (
               <p className="text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>
             )}
           </div>
 
-          {/* Footer */}
           <div
             className="flex flex-shrink-0 justify-end gap-2 border-t px-6 py-4"
             style={{ borderColor: 'var(--color-border)' }}
@@ -303,7 +267,7 @@ export function ContentForm({ open, onClose, item, defaultDate }: ContentFormPro
               İptal
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? 'Kaydediliyor…' : item ? 'Güncelle' : 'Ekle'}
+              {isPending ? 'Kaydediliyor…' : submitLabel}
             </Button>
           </div>
         </form>

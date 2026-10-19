@@ -559,6 +559,7 @@ export function ContentKanban({ items, canEdit = true, handoffStages = [], voice
           open={formOpen}
           onClose={() => { setFormOpen(false); setEditItem(null); }}
           item={editItem}
+          voicePeople={voicePeople}
         />
       )}
     </div>

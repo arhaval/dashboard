@@ -59,7 +59,7 @@ export function ContentPlanner({ items, canEdit = true, handoffStages = [], voic
       {activeView === 'kanban' ? (
         <ContentKanban items={items} canEdit={canEdit} handoffStages={handoffStages} voicePeople={voicePeople} publicationsByCard={publicationsByCard} />
       ) : (
-        <ContentCalendar items={items} />
+        <ContentCalendar items={items} voicePeople={voicePeople} />
       )}
     </div>
   );

@@ -5,11 +5,15 @@ import { contentQueueService } from '@/services/content-queue.service';
 import { userService, workItemService } from '@/services';
 import { notificationService } from '@/services/notification.service';
 import { publicationMetricsService } from '@/services/publication-metrics.service';
-import { deriveStage, ROLE_STAGES, CONTENT_EDITOR_ROLES } from './content-queue.constants';
-import { voiceRequestNotification } from '@/app/(dashboard)/motor/voice-handoff.constants';
+import {
+  deriveStage,
+  decideHandoff,
+  voiceRequestNotification,
+  ROLE_STAGES,
+  CONTENT_EDITOR_ROLES,
+} from './content-queue.constants';
 import type { PublicationInput } from './content-queue.constants';
 import type {
-  ContentPlatform,
   ContentStatus,
   CreateContentQueueInput,
   UpdateContentQueueInput,
@@ -21,11 +25,37 @@ export async function createContentItem(input: Omit<CreateContentQueueInput, 'cr
   if (!user) return { error: 'Oturum gerekli' };
   if (!(CONTENT_EDITOR_ROLES as readonly string[]).includes(user.role)) return { error: 'Yetki yok' };
 
-  const result = await contentQueueService.create({ ...input, created_by: user.id });
+  // "Metni yaz, seçtiğin kişiye gitsin": karar saf katmanda, burada yalnızca
+  // uygulanır. Kişi + metin varsa kart Ses adımında açılır (has_text=true).
+  const handoff = decideHandoff({
+    text: input.content_text,
+    assigneeId: input.assigned_to,
+    hasTextChecked: input.has_text,
+  });
+  if (handoff.blocked === 'NO_TEXT') {
+    return { error: 'Seslendirmeye göndermek için metni de yaz' };
+  }
+
+  const result = await contentQueueService.create({
+    ...input,
+    has_text: handoff.hasText,
+    assigned_to: handoff.assignedTo,
+    created_by: user.id,
+  });
   if (result.error) return { error: result.error };
 
+  if (handoff.notify && handoff.assignedTo) {
+    await notificationService.notify({
+      ...voiceRequestNotification(input.title),
+      userIds: [handoff.assignedTo],
+      url: '/icerik-plani',
+      tag: `content-${result.item?.id ?? 'new'}`,
+      excludeUserId: user.id,
+    });
+  }
+
   revalidatePath('/icerik-plani');
-  return { success: true };
+  return { success: true, sent: handoff.notify };
 }
 
 export async function updateContentItem(id: string, input: UpdateContentQueueInput) {
@@ -33,8 +63,25 @@ export async function updateContentItem(id: string, input: UpdateContentQueueInp
   if (!user) return { error: 'Oturum gerekli' };
   if (!(CONTENT_EDITOR_ROLES as readonly string[]).includes(user.role)) return { error: 'Yetki yok' };
 
+  // Seslendiren değiştiyse yeni kişiye haber ver — formdan değiştirip
+  // "neden haberi olmadı" durumuna düşmeyelim. Aynı kişiyse bildirim yok.
+  const before = input.assigned_to !== undefined ? await contentQueueService.getByIdAdmin(id) : null;
+
   const result = await contentQueueService.update(id, input);
   if (result.error) return { error: result.error };
+
+  const newAssignee = input.assigned_to ?? null;
+  const changed = before && newAssignee && newAssignee !== before.assigned_to;
+  const hasBody = Boolean((input.content_text ?? before?.content_text ?? '').trim());
+  if (changed && hasBody) {
+    await notificationService.notify({
+      ...voiceRequestNotification(input.title ?? before.title),
+      userIds: [newAssignee],
+      url: '/icerik-plani',
+      tag: `content-${id}`,
+      excludeUserId: user.id,
+    });
+  }
 
   revalidatePath('/icerik-plani');
   return { success: true };

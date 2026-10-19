@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
 import { aiEngineService } from '@/services/ai-engine.service';
-import { contentQueueService } from '@/services/content-queue.service';
 import { MotorTabs } from './motor-tabs';
 import { ScriptList } from './script-list';
 
@@ -17,9 +16,6 @@ export default async function MotorPage() {
     aiEngineService.listScripts(),
     aiEngineService.getFormats(),
   ]);
-  // Teslim durumu listede görünür: hangi metin seslendirmede, hangisinin sesi
-  // geldi. Ses linkini almak için İçerik Planı'na geçmek gerekmez.
-  const handoffs = await contentQueueService.getHandoffsForScripts(scripts.map((s) => s.id));
   const keyReady = Boolean(process.env.OPENAI_API_KEY);
 
   return (
@@ -33,7 +29,7 @@ export default async function MotorPage() {
           OPENAI_API_KEY tanımlı değil — metin yazıp saklayabilirsin, ama “Arhavalize Et” anahtar eklenene kadar çalışmaz.
         </div>
       )}
-      <ScriptList scripts={scripts} formats={formats} handoffs={handoffs} />
+      <ScriptList scripts={scripts} formats={formats} />
     </PageShell>
   );
 }

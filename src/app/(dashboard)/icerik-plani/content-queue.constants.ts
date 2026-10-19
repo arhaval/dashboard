@@ -22,8 +22,6 @@ export interface ContentQueueItem {
   assigned_to: string | null;
   voiced_by: string | null;
   edited_by: string | null;
-  /** Motor'da onaylanan final metinden doğduysa o metnin kimliği. */
-  script_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -42,8 +40,7 @@ export interface CreateContentQueueInput {
   planned_date?: string | null;
   notes?: string | null;
   created_by: string;
-  /** Motor teslimi — aynı final iki kez gönderilmesin diye saklanır. */
-  script_id?: string | null;
+  /** Formda seslendiren seçildiyse kart doğrudan ona atanır. */
   assigned_to?: string | null;
 }
 
@@ -253,6 +250,53 @@ export const ROLE_STAGES: Record<string, ContentStage[]> = {
   VOICE:     ['SES'],     // seslendiren
   EDITOR:    ['EDITOR'],  // kurgulayan
 };
+
+/**
+ * "Seslendirme senden bekleniyor" bildirimi.
+ *
+ * Üç yerden gönderilir: yeni içerik formunda seslendiren seçildiğinde, kartın
+ * seslendireni değiştirildiğinde ve panoda Metin→Ses teslimi yapıldığında.
+ * Metin tek yerde dursun ki üçü ayrışmasın.
+ */
+export function voiceRequestNotification(title: string): { title: string; body: string } {
+  return {
+    title: '🎙 Seslendirme senden bekleniyor',
+    body: `Metin hazır. "${title}" için sesi kaydedip linkini yükle.`,
+  };
+}
+
+/**
+ * Formdan gelen veri hatta nasıl düşer.
+ *
+ * "Metni yaz, seçtiğin kişiye gitsin" akışının kuralı burada: metin VE kişi
+ * doluysa kart Metin adımını atlayıp doğrudan "Ses Bekleniyor"da açılır ve o
+ * kişiye bildirim gider. İkisinden biri eksikse kart taslak kalır — metni
+ * olmayan bir kartı seslendirmene göndermek onu boş yere uyandırmak olurdu.
+ */
+export interface HandoffDecision {
+  /** Kartın has_text değeri. */
+  hasText: boolean;
+  assignedTo: string | null;
+  /** Seçilen kişiye bildirim gidecek mi. */
+  notify: boolean;
+  /** Gönderilemiyorsa nedeni — düğme metnini ve uyarıyı bu belirler. */
+  blocked: 'NO_TEXT' | 'NO_PERSON' | null;
+}
+
+export function decideHandoff(input: {
+  text: string | null | undefined;
+  assigneeId: string | null | undefined;
+  /** Formdaki "Metin yazıldı" kutusu — kişi seçilmediğinde geçerli kalır. */
+  hasTextChecked?: boolean;
+}): HandoffDecision {
+  const hasBody = Boolean(input.text && input.text.trim());
+  const person = input.assigneeId?.trim() || null;
+  const fallback = { hasText: input.hasTextChecked ?? false, assignedTo: null, notify: false };
+
+  if (!person)  return { ...fallback, blocked: 'NO_PERSON' };
+  if (!hasBody) return { ...fallback, assignedTo: person, blocked: 'NO_TEXT' };
+  return { hasText: true, assignedTo: person, notify: true, blocked: null };
+}
 
 export const PLATFORM_COLORS: Record<ContentPlatform, { bg: string; color: string }> = {
   YOUTUBE:   { bg: 'rgba(255,0,0,0.12)',    color: '#FF4444' },

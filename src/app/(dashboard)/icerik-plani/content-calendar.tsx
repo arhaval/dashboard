@@ -117,9 +117,11 @@ function CalendarCard({ item, onClick, onDragStart, onDragEnd, dragging }: CardP
 
 interface ContentCalendarProps {
   items: ContentQueueItem[];
+  /** Takvimden de içerik eklenebiliyor; form aynı kişi listesini kullanır. */
+  voicePeople?: { id: string; name: string }[];
 }
 
-export function ContentCalendar({ items }: ContentCalendarProps) {
+export function ContentCalendar({ items, voicePeople = [] }: ContentCalendarProps) {
   const [anchor, setAnchor] = useState<Date>(() => startOfWeek(new Date()));
   const [editItem, setEditItem] = useState<ContentQueueItem | null>(null);
   const [addDate, setAddDate] = useState<string | undefined>(undefined);
@@ -370,6 +372,7 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
         }}
         item={editItem}
         defaultDate={addDate}
+        voicePeople={voicePeople}
       />
     </div>
   );

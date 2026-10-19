@@ -9,14 +9,7 @@ import {
   classifyAndSaveScriptTags,
   classifyUntaggedFinals,
 } from '@/services/ai-classify.service';
-import { contentQueueService } from '@/services/content-queue.service';
-import { notificationService } from '@/services/notification.service';
 import { cleanSubtitle, looksLikeSubtitle } from '@/lib/srt-clean';
-import {
-  handoffNote,
-  handoffTargetFor,
-  voiceRequestNotification,
-} from './voice-handoff.constants';
 import {
   CTA_TYPES,
   HOOK_FAMILIES,
@@ -200,62 +193,6 @@ export async function approveFinal(
   revalidatePath('/motor');
   revalidatePath('/motor/ogrenme');
   return warnings ? { warning: warnings } : {};
-}
-
-// ── Seslendirmeye teslim ─────────────────────────────────────────────────────
-/**
- * Onaylanan final metni İçerik Planı hattının "Ses" adımına koyar.
- *
- * Hat zaten kuruluydu (Metin → Ses → Kurgu → Hazır → Yayınlandı; teslim
- * bildirimi, ses linki alanı, yayında iş kalemi açma dahil) ama Motor'a bağlı
- * değildi: her final için elle kart açıp metni yeniden yapıştırmak gerekiyordu.
- * Bu eylem o tek kopuk halkayı kapatır — metin kopyalanmaz, karta aynen geçer.
- */
-export async function sendToVoice(
-  scriptId: string,
-  assigneeId: string,
-  plannedDate: string | null
-): Promise<{ error?: string; duplicate?: boolean }> {
-  const user = await requireAdmin();
-  if (!user) return { error: 'Yetki yok' };
-  if (!assigneeId) return { error: 'Seslendirecek kişiyi seç' };
-
-  const script = await aiEngineService.getScript(scriptId);
-  if (!script) return { error: 'Metin bulunamadı' };
-  if (script.status !== 'FINAL') return { error: 'Yalnızca final onaylı metin seslendirmeye gönderilir' };
-  if (!script.final_text?.trim()) return { error: 'Final metin boş' };
-
-  const target = handoffTargetFor(script.platform);
-  const res = await contentQueueService.createFromScript({
-    scriptId,
-    title: script.title,
-    text: script.final_text,
-    platforms: target.platforms,
-    contentType: target.contentType,
-    assignedTo: assigneeId,
-    plannedDate,
-    notes: handoffNote(script),
-    createdBy: user.id,
-  });
-  if (res.error) return { error: res.error };
-
-  // Zaten gönderilmiş metin için yeniden bildirim atmayalım.
-  if (!res.duplicate) {
-    const notice = voiceRequestNotification(script.title);
-    await notificationService.notify({
-      userIds: [assigneeId],
-      title: notice.title,
-      body: notice.body,
-      url: '/icerik-plani',
-      tag: `content-${res.item?.id ?? scriptId}`,
-      excludeUserId: user.id,
-    });
-  }
-
-  revalidatePath(`/motor/${scriptId}`);
-  revalidatePath('/motor');
-  revalidatePath('/icerik-plani');
-  return res.duplicate ? { duplicate: true } : {};
 }
 
 export async function reopenScript(id: string): Promise<{ error?: string }> {
