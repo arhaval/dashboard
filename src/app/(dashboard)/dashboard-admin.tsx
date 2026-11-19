@@ -1,13 +1,11 @@
 /**
- * Admin Dashboard View
- * Business-first operations panel.
- * Priority: Unpaid money → Monthly finance → Content production → Team performance → Actions
+ * Admin Dashboard View — "Arhaval Dashboard"
+ * Balanced command center: Summary (finance) → Action (approve/pay) → Performance.
+ * Same data as before; layout and hierarchy redesigned. Theme is locked.
  */
 
 import Link from 'next/link';
 import { PageShell } from '@/components/layout';
-import { TodayPanel } from './today-panel';
-import type { ContentQueueItem } from './icerik-plani/content-queue.constants';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { ContentTrendChart, TeamContentChart } from '@/components/charts/content-charts';
@@ -74,8 +72,6 @@ interface TeamContentEntry {
 
 export interface DashboardAdminProps {
   allWorkItems: WorkItem[];
-  /** "Bugün" şeridi için içerik hattının tamamı. */
-  contentQueue: ContentQueueItem[];
   allUsers: User[];
   paymentStats: PaymentStats;
   monthlyFinanceStats: MonthlyFinanceStats;
@@ -96,13 +92,70 @@ function getWorkItemTitle(item: WorkItem): string {
   return item.match_name || item.content_name || item.work_type;
 }
 
+/** Consistent section eyebrow with an optional "see all" link. */
+function SectionLabel({
+  children,
+  href,
+  linkText = 'Tümü',
+}: {
+  children: React.ReactNode;
+  href?: string;
+  linkText?: string;
+}) {
+  return (
+    <div className="mb-3 mt-8 flex items-end justify-between first:mt-0">
+      <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
+        {children}
+      </p>
+      {href && (
+        <Link
+          href={href}
+          className="flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline"
+        >
+          {linkText} <ArrowRight className="h-3 w-3" />
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/** An actionable work-item row shared by both action lists. */
+function ActionRow({
+  item,
+  idx,
+  right,
+}: {
+  item: WorkItem;
+  idx: number;
+  right: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-between px-5 py-3',
+        'border-b border-[var(--color-border)] last:border-0',
+        idx % 2 === 0 ? 'bg-[var(--color-bg-secondary)]' : 'bg-[var(--color-bg-primary)]'
+      )}
+    >
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-[var(--color-text-primary)]">
+          {getWorkItemTitle(item)}
+        </p>
+        <p className="text-xs text-[var(--color-text-muted)]">
+          {item.user?.full_name} · {formatDate(item.work_date)}
+        </p>
+      </div>
+      <div className="ml-4 flex shrink-0 items-center gap-2">{right}</div>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────
 
 export function DashboardAdmin({
   allWorkItems,
-  contentQueue,
   allUsers,
   paymentStats,
   monthlyFinanceStats,
@@ -116,7 +169,6 @@ export function DashboardAdmin({
 }: DashboardAdminProps) {
   const activeMembers = allUsers.filter((u) => u.is_active && u.role !== 'ADMIN');
 
-  // Items needing action
   const pendingApproval = allWorkItems
     .filter((i) => i.status === 'DRAFT')
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -127,81 +179,214 @@ export function DashboardAdmin({
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 6);
 
-  // Format month label
   const TR_MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
     'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
   const [, m] = currentMonth.split('-').map(Number);
   const monthLabel = TR_MONTHS[m - 1];
 
+  const hasUnpaid = unpaidTotal > 0;
+  const profitable = monthlyFinanceStats.netBalance >= 0;
+
   return (
-    <PageShell
-      title="Genel Bakış"
-      description={`${monthLabel} ayı operasyon özeti`}
-    >
-      {/* ═══════════════════════════════════════════════
-          BÖLÜM 0: BUGÜN NE VAR
-          Ayın özeti aşağıda duruyor; en üstte "şimdi ne yapmam lazım"
-          olsun. Her kutu işin yapıldığı sayfaya götürür.
-          ═══════════════════════════════════════════════ */}
-      <TodayPanel workItems={allWorkItems} content={contentQueue} />
+    <PageShell title="Arhaval Dashboard" description={`${monthLabel} · operasyon komuta merkezi`}>
 
-      {/* ═══════════════════════════════════════════════
-          BÖLÜM 1: FİNANSAL KONTROL
-          ═══════════════════════════════════════════════ */}
-      <div className="mb-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
-          Finansal Durum
-        </p>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Kritik: Ödenmemiş */}
-        <StatCard
-          title="Ödenmemiş Tutar"
-          value={formatCurrency(unpaidTotal)}
-          description={`${paymentStats.pending} onaylı iş bekliyor`}
-          icon={AlertCircle}
-          color={unpaidTotal > 0 ? 'orange' : 'green'}
-          change={unpaidTotal > 0 ? { value: 'Ödeme Bekliyor', positive: false } : undefined}
-        />
-        <StatCard
-          title={`${monthLabel} Gideri`}
-          value={formatCurrency(monthlyFinanceStats.totalExpenses)}
-          description="Bu ayki toplam gider"
-          icon={TrendingDown}
-          color="red"
-        />
-        <StatCard
-          title={`${monthLabel} Geliri`}
-          value={formatCurrency(monthlyFinanceStats.totalIncome)}
-          description="Bu ayki toplam gelir"
-          icon={TrendingUp}
-          color="green"
-        />
-        <StatCard
-          title="Net Bakiye"
-          value={formatCurrency(monthlyFinanceStats.netBalance)}
-          description={monthlyFinanceStats.netBalance >= 0 ? 'Kârlı ay' : 'Zararlı ay'}
-          icon={DollarSign}
-          color={monthlyFinanceStats.netBalance >= 0 ? 'teal' : 'red'}
-          change={
-            monthlyFinanceStats.netBalance !== 0
-              ? {
-                  value: monthlyFinanceStats.netBalance >= 0 ? 'Pozitif' : 'Negatif',
-                  positive: monthlyFinanceStats.netBalance >= 0,
-                }
-              : undefined
-          }
-        />
+      {/* ═══ ÖZET — Finansal durum ═══ */}
+      <SectionLabel href="/finance" linkText="Finans">Finansal Durum</SectionLabel>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Focal: Ödenmemiş — the one number that drives action */}
+        <Card
+          className={cn(
+            'lg:col-span-1',
+            hasUnpaid && 'border-[var(--color-accent)] bg-[var(--color-accent-muted)]'
+          )}
+        >
+          <CardContent className="flex h-full flex-col p-5">
+            <div className="flex items-start justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                Ödenmemiş Tutar
+              </p>
+              <AlertCircle
+                className={cn('h-5 w-5', hasUnpaid ? 'text-[var(--color-accent)]' : 'text-[var(--color-success)]')}
+              />
+            </div>
+            <p
+              className={cn(
+                'mt-3 text-3xl font-bold tabular-nums',
+                hasUnpaid ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-primary)]'
+              )}
+            >
+              {formatCurrency(unpaidTotal)}
+            </p>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              {hasUnpaid
+                ? `${paymentStats.pending} onaylı iş ödeme bekliyor`
+                : 'Bekleyen ödeme yok'}
+            </p>
+            <div className="mt-auto pt-4">
+              <Link
+                href="/payments"
+                className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-accent)] hover:underline"
+              >
+                Ödemeleri gör <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Finance trio */}
+        <div className="grid gap-4 sm:grid-cols-3 lg:col-span-2">
+          <StatCard
+            title={`${monthLabel} Geliri`}
+            value={formatCurrency(monthlyFinanceStats.totalIncome)}
+            description="Bu ayki toplam gelir"
+            icon={TrendingUp}
+            color="green"
+          />
+          <StatCard
+            title={`${monthLabel} Gideri`}
+            value={formatCurrency(monthlyFinanceStats.totalExpenses)}
+            description="Bu ayki toplam gider"
+            icon={TrendingDown}
+            color="red"
+          />
+          <StatCard
+            title="Net Bakiye"
+            value={formatCurrency(monthlyFinanceStats.netBalance)}
+            description={profitable ? 'Kârlı ay' : 'Zararlı ay'}
+            icon={DollarSign}
+            color={profitable ? 'teal' : 'red'}
+            change={
+              monthlyFinanceStats.netBalance !== 0
+                ? { value: profitable ? 'Pozitif' : 'Negatif', positive: profitable }
+                : undefined
+            }
+          />
+        </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════
-          BÖLÜM 2: İÇERİK ÜRETİMİ
-          ═══════════════════════════════════════════════ */}
-      <div className="mb-2 mt-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
-          İçerik Üretimi — {monthLabel}
-        </p>
+      {/* ═══ AKSİYON — bugün neye bakmalıyım ═══ */}
+      <SectionLabel>Aksiyon Gerektiren</SectionLabel>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Ödeme Bekleyenler */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div>
+              <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
+                Ödeme Bekleyenler
+              </CardTitle>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                Onaylı — ödeme oluşturulmayı bekliyor
+              </p>
+            </div>
+            <Link
+              href="/work-items?status=APPROVED"
+              className="flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline"
+            >
+              Tümü <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardHeader>
+          <CardContent className="p-0">
+            {pendingPayment.length === 0 ? (
+              <div className="flex h-32 items-center justify-center text-sm text-[var(--color-text-muted)]">
+                <CheckCircle2 className="mr-2 h-4 w-4 text-[var(--color-success)]" />
+                Bekleyen ödeme yok
+              </div>
+            ) : (
+              <div>
+                {pendingPayment.map((item, idx) => (
+                  <ActionRow
+                    key={item.id}
+                    item={item}
+                    idx={idx}
+                    right={
+                      <span className="font-mono text-sm font-semibold text-[var(--color-success)]">
+                        {formatCurrency(item.cost ?? 0)}
+                      </span>
+                    }
+                  />
+                ))}
+                <div className="border-t border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-5 py-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[var(--color-text-muted)]">Toplam bekleyen</span>
+                    <span className="font-mono text-sm font-bold text-[var(--color-accent)]">
+                      {formatCurrency(unpaidTotal)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Onay Bekleyenler */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div>
+              <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
+                Onay Bekleyenler
+              </CardTitle>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                Taslak — inceleme ve onay bekliyor
+              </p>
+            </div>
+            <Link
+              href="/work-items?status=DRAFT"
+              className="flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline"
+            >
+              Tümü <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardHeader>
+          <CardContent className="p-0">
+            {pendingApproval.length === 0 ? (
+              <div className="flex h-32 items-center justify-center text-sm text-[var(--color-text-muted)]">
+                <CheckCircle2 className="mr-2 h-4 w-4 text-[var(--color-success)]" />
+                Bekleyen onay yok
+              </div>
+            ) : (
+              <div>
+                {pendingApproval.map((item, idx) => (
+                  <ActionRow
+                    key={item.id}
+                    item={item}
+                    idx={idx}
+                    right={
+                      <>
+                        <span
+                          className={cn(
+                            'rounded-full px-2 py-0.5 text-xs font-medium',
+                            item.work_type === 'VOICE'
+                              ? 'bg-[var(--color-info-muted)] text-[var(--color-info)]'
+                              : item.work_type === 'EDIT'
+                                ? 'bg-[var(--color-success-muted)] text-[var(--color-success)]'
+                                : 'bg-[var(--color-accent-muted)] text-[var(--color-accent)]'
+                          )}
+                        >
+                          {item.work_type === 'VOICE' ? 'Ses' : item.work_type === 'EDIT' ? 'Kurgu' : 'Yayın'}
+                        </span>
+                        <Clock className="h-3.5 w-3.5 text-[var(--color-warning)]" />
+                      </>
+                    }
+                  />
+                ))}
+                <div className="border-t border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-5 py-3">
+                  <Link
+                    href="/work-items?status=DRAFT"
+                    className="flex items-center justify-center gap-1 text-xs font-medium text-[var(--color-accent)] hover:underline"
+                  >
+                    Hepsini İncele <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* ═══ PERFORMANS — İçerik üretimi ═══ */}
+      <SectionLabel>İçerik Üretimi — {monthLabel}</SectionLabel>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Toplam İçerik"
@@ -211,10 +396,7 @@ export function DashboardAdmin({
           color="orange"
           change={
             contentStats.lastMonth.total > 0 || contentStats.thisMonth.total > 0
-              ? {
-                  value: `${Math.abs(contentStats.change)}%`,
-                  positive: contentStats.change >= 0,
-                }
+              ? { value: `${Math.abs(contentStats.change)}%`, positive: contentStats.change >= 0 }
               : undefined
           }
         />
@@ -241,11 +423,8 @@ export function DashboardAdmin({
         />
       </div>
 
-      {/* ═══════════════════════════════════════════════
-          BÖLÜM 3: CHARTS
-          ═══════════════════════════════════════════════ */}
+      {/* ═══ PERFORMANS — Grafikler ═══ */}
       <div className="mt-6 grid gap-6 lg:grid-cols-5">
-        {/* İçerik Trendi — 3/5 */}
         <Card className="lg:col-span-3">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
@@ -260,7 +439,6 @@ export function DashboardAdmin({
           </CardContent>
         </Card>
 
-        {/* Ekip Performansı — 2/5 */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
@@ -282,16 +460,10 @@ export function DashboardAdmin({
         </Card>
       </div>
 
-      {/* ═══════════════════════════════════════════════
-          BÖLÜM 4: BU HAFTA — HEDEFLER + PROGRAM
-          ═══════════════════════════════════════════════ */}
-      <div className="mb-2 mt-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
-          Bu Hafta
-        </p>
-      </div>
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* ═══ PERFORMANS — Bu hafta ═══ */}
+      <SectionLabel>Bu Hafta</SectionLabel>
 
+      <div className="grid gap-6 lg:grid-cols-2">
         {/* Haftalık Hedefler */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -393,8 +565,8 @@ export function DashboardAdmin({
             ) : (
               <div className="space-y-2">
                 {weeklySchedule.map((day) => {
-                  const today = new Date().getDay(); // 0=Sun
-                  const isoDay = today === 0 ? 7 : today; // 1=Mon..7=Sun
+                  const today = new Date().getDay();
+                  const isoDay = today === 0 ? 7 : today;
                   const isToday = day.day_of_week === isoDay;
                   return (
                     <div
@@ -427,145 +599,6 @@ export function DashboardAdmin({
                     </div>
                   );
                 })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ═══════════════════════════════════════════════
-          BÖLÜM 5: AKSİYON GEREKTİREN İŞLER
-          ═══════════════════════════════════════════════ */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Ödeme Bekleyenler */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <div>
-              <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
-                Ödeme Bekleyenler
-              </CardTitle>
-              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                Onaylı — ödeme oluşturulmayı bekliyor
-              </p>
-            </div>
-            <Link
-              href="/work-items?status=APPROVED"
-              className="flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline"
-            >
-              Tümü <ArrowRight className="h-3 w-3" />
-            </Link>
-          </CardHeader>
-          <CardContent className="p-0">
-            {pendingPayment.length === 0 ? (
-              <div className="flex h-32 items-center justify-center text-sm text-[var(--color-text-muted)]">
-                <CheckCircle2 className="mr-2 h-4 w-4 text-[var(--color-success)]" />
-                Bekleyen ödeme yok
-              </div>
-            ) : (
-              <div>
-                {pendingPayment.map((item, idx) => (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      'flex items-center justify-between px-6 py-3',
-                      'border-b border-[var(--color-border)] last:border-0',
-                      idx % 2 === 0 ? 'bg-[var(--color-bg-secondary)]' : 'bg-[var(--color-bg-primary)]'
-                    )}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-[var(--color-text-primary)]">
-                        {getWorkItemTitle(item)}
-                      </p>
-                      <p className="text-xs text-[var(--color-text-muted)]">
-                        {item.user?.full_name} · {formatDate(item.work_date)}
-                      </p>
-                    </div>
-                    <span className="ml-4 font-mono text-sm font-semibold text-[var(--color-success)]">
-                      {formatCurrency(item.cost ?? 0)}
-                    </span>
-                  </div>
-                ))}
-                <div className="border-t border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-6 py-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-[var(--color-text-muted)]">Toplam bekleyen</span>
-                    <span className="font-mono text-sm font-bold text-[var(--color-accent)]">
-                      {formatCurrency(unpaidTotal)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Onay Bekleyenler */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <div>
-              <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
-                Onay Bekleyenler
-              </CardTitle>
-              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                Taslak — inceleme ve onay bekliyor
-              </p>
-            </div>
-            <Link
-              href="/work-items?status=DRAFT"
-              className="flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline"
-            >
-              Tümü <ArrowRight className="h-3 w-3" />
-            </Link>
-          </CardHeader>
-          <CardContent className="p-0">
-            {pendingApproval.length === 0 ? (
-              <div className="flex h-32 items-center justify-center text-sm text-[var(--color-text-muted)]">
-                <CheckCircle2 className="mr-2 h-4 w-4 text-[var(--color-success)]" />
-                Bekleyen onay yok
-              </div>
-            ) : (
-              <div>
-                {pendingApproval.map((item, idx) => (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      'flex items-center justify-between px-6 py-3',
-                      'border-b border-[var(--color-border)] last:border-0',
-                      idx % 2 === 0 ? 'bg-[var(--color-bg-secondary)]' : 'bg-[var(--color-bg-primary)]'
-                    )}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-[var(--color-text-primary)]">
-                        {getWorkItemTitle(item)}
-                      </p>
-                      <p className="text-xs text-[var(--color-text-muted)]">
-                        {item.user?.full_name} · {formatDate(item.work_date)}
-                      </p>
-                    </div>
-                    <div className="ml-4 flex items-center gap-2">
-                      <span
-                        className={cn(
-                          'rounded-full px-2 py-0.5 text-xs font-medium',
-                          item.work_type === 'VOICE'
-                            ? 'bg-[var(--color-info-muted)] text-[var(--color-info)]'
-                            : item.work_type === 'EDIT'
-                              ? 'bg-[var(--color-success-muted)] text-[var(--color-success)]'
-                              : 'bg-[var(--color-accent-muted)] text-[var(--color-accent)]'
-                        )}
-                      >
-                        {item.work_type === 'VOICE' ? 'Ses' : item.work_type === 'EDIT' ? 'Kurgu' : 'Yayın'}
-                      </span>
-                      <Clock className="h-3.5 w-3.5 text-[var(--color-warning)]" />
-                    </div>
-                  </div>
-                ))}
-                <div className="border-t border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-6 py-3">
-                  <Link
-                    href="/work-items?status=DRAFT"
-                    className="flex items-center justify-center gap-1 text-xs font-medium text-[var(--color-accent)] hover:underline"
-                  >
-                    Hepsini İncele <ArrowRight className="h-3 w-3" />
-                  </Link>
-                </div>
               </div>
             )}
           </CardContent>
