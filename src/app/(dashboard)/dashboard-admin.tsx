@@ -6,6 +6,8 @@
 
 import Link from 'next/link';
 import { PageShell } from '@/components/layout';
+import { TodayPanel } from './today-panel';
+import type { ContentQueueItem } from './icerik-plani/content-queue.constants';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { ContentTrendChart, TeamContentChart } from '@/components/charts/content-charts';
@@ -71,6 +73,7 @@ interface TeamContentEntry {
 }
 
 export interface DashboardAdminProps {
+  contentQueue: ContentQueueItem[];
   allWorkItems: WorkItem[];
   allUsers: User[];
   paymentStats: PaymentStats;
@@ -155,6 +158,7 @@ function ActionRow({
 // ─────────────────────────────────────────────
 
 export function DashboardAdmin({
+  contentQueue,
   allWorkItems,
   allUsers,
   paymentStats,
@@ -189,6 +193,9 @@ export function DashboardAdmin({
 
   return (
     <PageShell title="Arhaval Dashboard" description={`${monthLabel} · operasyon komuta merkezi`}>
+
+      {/* ═══ BUGÜN — pipeline durumu ═══ */}
+      <TodayPanel workItems={allWorkItems} content={contentQueue} />
 
       {/* ═══ ÖZET — Finansal durum ═══ */}
       <SectionLabel href="/finance" linkText="Finans">Finansal Durum</SectionLabel>
