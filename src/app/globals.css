@@ -7,55 +7,55 @@
    ========================================================================== */
 
 :root {
-  /* Background Colors - Dark (Black) Theme */
-  --color-bg-primary: #0A0A0A;
-  --color-bg-secondary: #141414;
-  --color-bg-tertiary: #1F1F1F;
-  --color-border: #2A2A2A;
-  --color-border-hover: #3A3A3A;
+  /* Background — navy-slate dark (TailAdmin-style) */
+  --color-bg-primary: #101828;
+  --color-bg-secondary: #1A2234;
+  --color-bg-tertiary: #212B3E;
+  --color-border: #2A3446;
+  --color-border-hover: #3A4660;
 
-  /* Surface Colors - elevation aliases (dark theme) */
-  --color-surface-1: #141414;   /* subtle container / tracks */
-  --color-surface-2: #1F1F1F;   /* cards, inputs */
-  --color-surface-3: #1F1F1F;   /* modals, elevated panels */
-  --color-surface-sunken: #0F0F0F; /* nested wells inside cards */
+  /* Surface Colors - elevation aliases */
+  --color-surface-1: #1A2234;   /* subtle container / tracks */
+  --color-surface-2: #1A2234;   /* cards, inputs */
+  --color-surface-3: #212B3E;   /* modals, elevated panels */
+  --color-surface-sunken: #141C2B; /* nested wells inside cards */
 
-  /* Sidebar - elevated near-black */
-  --color-sidebar-bg: #111111;
-  --color-sidebar-bg-hover: rgba(255, 255, 255, 0.06);
-  --color-sidebar-bg-active: rgba(255, 255, 255, 0.10);
-  --color-sidebar-text: #A1A1A1;
+  /* Sidebar — slightly deeper than content */
+  --color-sidebar-bg: #0C1322;
+  --color-sidebar-bg-hover: rgba(255, 255, 255, 0.05);
+  --color-sidebar-bg-active: rgba(70, 95, 255, 0.16);
+  --color-sidebar-text: #98A2B3;
   --color-sidebar-text-active: #FFFFFF;
-  --color-sidebar-label: #6B6B6B;
+  --color-sidebar-label: #667085;
   --color-sidebar-border: rgba(255, 255, 255, 0.06);
 
   /* Text Colors */
-  --color-text-primary: #FAFAFA;
-  --color-text-secondary: #A1A1A1;
-  --color-text-muted: #6B6B6B;
+  --color-text-primary: #F9FAFB;
+  --color-text-secondary: #98A2B3;
+  --color-text-muted: #667085;
 
-  /* Arhaval Brand Colors */
-  --color-accent: #FF4D00;
-  --color-accent-light: #FF6B2C;
-  --color-accent-muted: rgba(255, 77, 0, 0.15);
-  --color-accent-hover: #FF6B2C;
+  /* Brand / accent — refined blue */
+  --color-accent: #465FFF;
+  --color-accent-light: #7592FF;
+  --color-accent-muted: rgba(70, 95, 255, 0.16);
+  --color-accent-hover: #7592FF;
 
   /* Semantic Colors */
-  --color-success: #22C55E;
-  --color-success-muted: rgba(34, 197, 94, 0.15);
-  --color-warning: #EAB308;
-  --color-warning-muted: rgba(234, 179, 8, 0.15);
-  --color-error: #EF4444;
-  --color-error-muted: rgba(239, 68, 68, 0.15);
-  --color-info: #3B82F6;
-  --color-info-muted: rgba(59, 130, 246, 0.15);
+  --color-success: #12B76A;
+  --color-success-muted: rgba(18, 183, 106, 0.15);
+  --color-warning: #F79009;
+  --color-warning-muted: rgba(247, 144, 9, 0.15);
+  --color-error: #F04438;
+  --color-error-muted: rgba(240, 68, 56, 0.15);
+  --color-info: #5CC8FF;
+  --color-info-muted: rgba(92, 200, 255, 0.15);
 
   /* Table Colors */
-  --color-table-row-odd: #141414;
-  --color-table-row-even: #0F0F0F;
+  --color-table-row-odd: #1A2234;
+  --color-table-row-even: #141C2B;
 
-  /* Card Shadow — borders carry elevation on dark; keep shadow minimal */
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.5);
+  /* Card Shadow — borders carry elevation; keep shadow minimal */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.35);
 
   /* Spacing Scale (4px base) */
   --spacing-1: 4px;
@@ -73,9 +73,9 @@
   --radius-lg: 8px;
 
   /* Typography - Using Next.js font variables */
-  --font-sans: var(--font-ibm-plex-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-display: var(--font-dm-sans), var(--font-sans);
-  --font-mono: var(--font-ibm-plex-mono), ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: var(--font-inter), var(--font-sans);
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
 
   /* Font Weights */
   --font-weight-normal: 400;

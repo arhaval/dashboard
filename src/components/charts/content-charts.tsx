@@ -10,6 +10,8 @@ import {
   Line,
   BarChart,
   Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -100,6 +102,68 @@ export function ContentTrendChart({ data }: { data: ContentTrendPoint[] }) {
           dot={false}
         />
       </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ─────────────────────────────────────────────
+// Content Trend (Soft Area) — TailAdmin-style
+// ─────────────────────────────────────────────
+
+export function ContentAreaChart({ data }: { data: ContentTrendPoint[] }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex h-56 items-center justify-center text-sm text-[var(--color-text-muted)]">
+        Henüz içerik verisi yok
+      </div>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <AreaChart data={data} margin={{ top: 10, right: 8, left: -18, bottom: 0 }}>
+        <defs>
+          <linearGradient id="contentArea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.32} />
+            <stop offset="100%" stopColor="var(--color-accent)" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" vertical={false} />
+        <XAxis
+          dataKey="label"
+          tick={{ fontSize: 12, fill: 'var(--color-text-muted)' }}
+          axisLine={false}
+          tickLine={false}
+          dy={6}
+        />
+        <YAxis
+          allowDecimals={false}
+          tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }}
+          axisLine={false}
+          tickLine={false}
+          width={40}
+        />
+        <Tooltip
+          contentStyle={{
+            background: 'var(--color-bg-secondary)',
+            border: '1px solid var(--color-border)',
+            borderRadius: '8px',
+            fontSize: '12px',
+            color: 'var(--color-text-primary)',
+          }}
+          labelStyle={{ color: 'var(--color-text-secondary)' }}
+          formatter={((value: unknown) => [value, 'İçerik']) as never}
+        />
+        <Area
+          type="monotone"
+          dataKey="total"
+          stroke="var(--color-accent)"
+          strokeWidth={2.5}
+          fill="url(#contentArea)"
+          dot={false}
+          activeDot={{ r: 4, fill: 'var(--color-accent)', stroke: 'var(--color-bg-secondary)', strokeWidth: 2 }}
+        />
+      </AreaChart>
     </ResponsiveContainer>
   );
 }

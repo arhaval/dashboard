@@ -4,7 +4,7 @@
  */
 
 import type { Metadata, Viewport } from 'next';
-import { IBM_Plex_Sans, IBM_Plex_Mono, DM_Sans, Source_Serif_4 } from 'next/font/google';
+import { IBM_Plex_Sans, Geist_Mono, DM_Sans, Source_Serif_4, Inter } from 'next/font/google';
 import './globals.css';
 import { ServiceWorkerRegister } from '@/components/notifications/service-worker-register';
 
@@ -16,10 +16,12 @@ const ibmPlexSans = IBM_Plex_Sans({
   display: 'swap',
 });
 
-const ibmPlexMono = IBM_Plex_Mono({
+// Rakamlar/tablolar için mono — Geist Mono, Inter ile aynı geometrik ailede.
+// Tabular hizalama korunur, görünüm gövde fontuyla uyumlu kalır.
+const geistMono = Geist_Mono({
   subsets: ['latin'],
   weight: ['400', '500'],
-  variable: '--font-ibm-plex-mono',
+  variable: '--font-geist-mono',
   display: 'swap',
 });
 
@@ -27,6 +29,15 @@ const dmSans = DM_Sans({
   subsets: ['latin'],
   weight: ['500', '600', '700'],
   variable: '--font-dm-sans',
+  display: 'swap',
+});
+
+// Primary UI family — Inter: veri ve tablo ağırlıklı profesyonel panellerin
+// standardı (Vercel, Linear, Supabase, Stripe). Küçük boyutlarda net okunur.
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-inter',
   display: 'swap',
 });
 
@@ -85,7 +96,7 @@ export default function RootLayout({
   return (
     <html
       lang="tr"
-      className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${dmSans.variable} ${sourceSerif.variable}`}
+      className={`${inter.variable} ${geistMono.variable} ${ibmPlexSans.variable} ${dmSans.variable} ${sourceSerif.variable}`}
     >
       <body className="min-h-screen antialiased">
         <ServiceWorkerRegister />
