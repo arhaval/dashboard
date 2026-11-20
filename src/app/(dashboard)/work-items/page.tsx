@@ -107,6 +107,11 @@ function WorkItemsTable({ items, currentUserId, isAdmin, paymentStatuses }: Work
                   {formatDate(item.work_date)}
                   {item.user?.full_name ? ` · ${item.user.full_name}` : ''}
                 </p>
+                {item.client && !item.client.is_internal && (
+                  <span className="mt-1 inline-block rounded-full bg-[var(--color-warning-muted)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-warning)]">
+                    {item.client.name}
+                  </span>
+                )}
               </div>
               <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-xs font-medium', getTypeBadgeStyles(item.work_type))}>
                 {getWorkTypeLabel(item.work_type)}
@@ -198,11 +203,18 @@ function WorkItemsTable({ items, currentUserId, isAdmin, paymentStatuses }: Work
                   <span className="block max-w-[140px] truncate text-xs font-medium text-[var(--color-text-primary)] sm:max-w-none sm:text-sm">
                     {getWorkItemTitle(item)}
                   </span>
-                  {item.work_type === 'STREAM' && item.duration_minutes && (
-                    <span className="text-xs text-[var(--color-text-muted)]">
-                      {item.duration_minutes} min
-                    </span>
-                  )}
+                  <span className="flex items-center gap-2">
+                    {item.work_type === 'STREAM' && item.duration_minutes && (
+                      <span className="text-xs text-[var(--color-text-muted)]">
+                        {item.duration_minutes} min
+                      </span>
+                    )}
+                    {item.client && !item.client.is_internal && (
+                      <span className="inline-block rounded-full bg-[var(--color-warning-muted)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-warning)]">
+                        {item.client.name}
+                      </span>
+                    )}
+                  </span>
                 </td>
                 <td className="hidden px-3 py-3 text-sm text-[var(--color-text-secondary)] sm:table-cell sm:px-4">
                   {item.user?.full_name || '—'}

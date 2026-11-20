@@ -24,6 +24,8 @@ import {
   Swords,
   NotebookPen,
   Wallet,
+  Building2,
+  Coins,
   ChevronDown,
   type LucideIcon,
 } from 'lucide-react';
@@ -89,6 +91,8 @@ const navSections: NavSection[] = [
       { label: tr.nav.workItems, href: '/work-items', icon: FileText,   perm: 'work-items' },
       { label: tr.nav.payments,  href: '/payments',   icon: CreditCard, perm: 'payments' },
       { label: tr.nav.finance,   href: '/finance',    icon: PiggyBank,  perm: 'finance' },
+      { label: 'Ekstra İşler',   href: '/ekstra-isler', icon: Building2, adminOnly: true },
+      { label: 'Ücretler',       href: '/ucretler',     icon: Coins,     adminOnly: true },
     ],
   },
   {

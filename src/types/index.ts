@@ -63,12 +63,92 @@ export interface WorkItem {
   content_name: string | null;
   content_length: ContentLength | null;
 
+  // Müşteri/ortak + otomatik fiyatlandırma
+  client_id: string | null;
+  /** Dış ortak işlerinde müşterinin ödediği tutar. İç işte null. */
+  bill_amount: number | null;
+  /** Yayın işlerinde harita sayısı — fiyat buna göre çözülür. */
+  map_count: number | null;
+
   created_at: string;
   updated_at: string;
 
   // Joined data
   user?: User;
+  client?: Pick<Client, 'id' | 'name' | 'is_internal'> | null;
   payment_items?: { payment_id: string; payment: { id: string; status: PaymentStatus } | null }[];
+}
+
+// =============================================================================
+// Clients / Partners — müşteri ve iş ortakları
+// =============================================================================
+
+export interface Client {
+  id: string;
+  name: string;
+  /** true: Arhaval kendi işi (sadece gider). false: dış ortak (Sangal vb.). */
+  is_internal: boolean;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateClientInput {
+  name: string;
+  is_internal?: boolean;
+  notes?: string | null;
+}
+
+export interface UpdateClientInput {
+  name?: string;
+  is_internal?: boolean;
+  is_active?: boolean;
+  notes?: string | null;
+}
+
+// =============================================================================
+// Rate Cards — kişi × müşteri × iş türü (× uzunluk) fiyatı
+// =============================================================================
+
+export interface RateCard {
+  id: string;
+  user_id: string;
+  client_id: string;
+  work_type: WorkType;
+  /** Seslendirme/Kurgu ayırıcısı. null → tüm uzunluklar için geçerli. */
+  content_length: ContentLength | null;
+  /** Yayın ayırıcısı: harita sayısı. null → harita sayısından bağımsız. */
+  map_count: number | null;
+  /** Çalışanın hak edişi (Arhaval öder). */
+  pay_amount: number;
+  /** Müşterinin ödediği (dış ortak). İç işte null. */
+  bill_amount: number | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+
+  // Joined
+  user?: Pick<User, 'id' | 'full_name' | 'avatar_url'>;
+  client?: Pick<Client, 'id' | 'name' | 'is_internal'>;
+}
+
+export interface UpsertRateCardInput {
+  user_id: string;
+  client_id: string;
+  work_type: WorkType;
+  content_length?: ContentLength | null;
+  map_count?: number | null;
+  pay_amount: number;
+  bill_amount?: number | null;
+}
+
+/** İş girişinde çözülen fiyat — sunucu tarafında hesaplanır. */
+export interface ResolvedRate {
+  pay_amount: number;
+  bill_amount: number | null;
+  is_internal: boolean;
+  rate_card_id: string | null;
 }
 
 // =============================================================================
@@ -489,6 +569,10 @@ export interface CreateWorkItemInput {
   duration_minutes?: number;
   content_name?: string;
   content_length?: ContentLength;
+  /** Yayın işinin harita sayısı — fiyat çözümünde kullanılır. */
+  map_count?: number | null;
+  /** Kimin için yapıldı. Boşsa varsayılan iç müşteri (Arhaval) kabul edilir. */
+  client_id?: string | null;
 }
 
 export interface UpdateWorkItemInput {

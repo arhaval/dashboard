@@ -11,36 +11,43 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
-import type { WorkType, ContentLength } from '@/types';
+import type { WorkType, ContentLength, Client } from '@/types';
+import { createWorkItem } from './actions';
 
 type FormData = {
   work_type: WorkType;
   work_date: string;
   notes: string;
+  client_id: string;
   // STREAM fields
   match_name: string;
   duration_minutes: string;
+  map_count: string;
   // VOICE/EDIT fields
   content_name: string;
   content_length: ContentLength | '';
 };
 
-const initialFormData: FormData = {
-  work_type: 'STREAM',
-  work_date: new Date().toISOString().split('T')[0],
-  notes: '',
-  match_name: '',
-  duration_minutes: '',
-  content_name: '',
-  content_length: '',
-};
-
-export function WorkItemForm() {
+export function WorkItemForm({ clients }: { clients: Client[] }) {
   const router = useRouter();
-  const supabase = createClient();
+
+  // Varsayılan müşteri: iç müşteri (Arhaval) varsa o, yoksa ilk müşteri.
+  const defaultClientId =
+    clients.find((c) => c.is_internal)?.id ?? clients[0]?.id ?? '';
+
+  const initialFormData: FormData = {
+    work_type: 'STREAM',
+    work_date: new Date().toISOString().split('T')[0],
+    notes: '',
+    client_id: defaultClientId,
+    match_name: '',
+    duration_minutes: '',
+    map_count: '',
+    content_name: '',
+    content_length: '',
+  };
 
   const [formData, setFormData] = React.useState<FormData>(initialFormData);
   const [errors, setErrors] = React.useState<Partial<Record<keyof FormData, string>>>({});
@@ -102,37 +109,27 @@ export function WorkItemForm() {
     setServerError(null);
 
     try {
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setServerError(tr.messages.error.loginRequired);
-        return;
-      }
-
-      // Prepare data based on work type
-      const insertData: Record<string, unknown> = {
-        user_id: user.id,
+      const result = await createWorkItem({
         work_type: formData.work_type,
         work_date: formData.work_date,
-        notes: formData.notes || null,
-        status: 'DRAFT',
-      };
+        notes: formData.notes || undefined,
+        client_id: formData.client_id || null,
+        match_name: formData.work_type === 'STREAM' ? formData.match_name : undefined,
+        duration_minutes:
+          formData.work_type === 'STREAM' ? parseInt(formData.duration_minutes) : undefined,
+        map_count:
+          formData.work_type === 'STREAM' && formData.map_count
+            ? parseInt(formData.map_count)
+            : null,
+        content_name: formData.work_type !== 'STREAM' ? formData.content_name : undefined,
+        content_length:
+          formData.work_type !== 'STREAM' && formData.content_length
+            ? (formData.content_length as ContentLength)
+            : undefined,
+      });
 
-      if (formData.work_type === 'STREAM') {
-        insertData.match_name = formData.match_name;
-        insertData.duration_minutes = parseInt(formData.duration_minutes);
-      } else {
-        insertData.content_name = formData.content_name;
-        insertData.content_length = formData.content_length;
-      }
-
-      const { error } = await supabase.from('work_items').insert(insertData);
-
-      if (error) {
-        setServerError(error.message || tr.messages.error.failedToCreate);
+      if (!result.success) {
+        setServerError(result.error || tr.messages.error.failedToCreate);
         return;
       }
 
@@ -190,6 +187,40 @@ export function WorkItemForm() {
               <option value="EDIT">{tr.workItem.type.EDIT}</option>
             </select>
           </div>
+
+          {/* Müşteri / İş ortağı — kimin için yapıldı. Fiyat buna göre belirlenir. */}
+          {clients.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="client_id" required>
+                Kimin için
+              </Label>
+              <select
+                id="client_id"
+                name="client_id"
+                value={formData.client_id}
+                onChange={handleChange}
+                disabled={isLoading}
+                className={cn(
+                  'flex h-10 w-full',
+                  'rounded-[var(--radius-md)] border bg-[var(--color-bg-secondary)]',
+                  'px-3 py-2 text-sm',
+                  'text-[var(--color-text-primary)]',
+                  'border-[var(--color-border)] hover:border-[var(--color-border-hover)]',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]'
+                )}
+              >
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.is_internal ? ' (iç iş)' : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                Bu iş kimin için? Fiyat seçime göre otomatik belirlenir.
+              </p>
+            </div>
+          )}
 
           {/* Work Date */}
           <div className="space-y-2">
@@ -251,6 +282,24 @@ export function WorkItemForm() {
                     {errors.duration_minutes}
                   </p>
                 )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="map_count">Harita sayısı</Label>
+                <Input
+                  id="map_count"
+                  name="map_count"
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="Örn. 2"
+                  value={formData.map_count}
+                  onChange={handleChange}
+                  disabled={isLoading}
+                />
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  Fiyat harita sayısına göre belirlenir.
+                </p>
               </div>
             </>
           )}
