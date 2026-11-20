@@ -57,7 +57,7 @@ export function Amount({
       className="leading-none"
       style={{
         color: tone ?? 'var(--color-text-primary)',
-        fontFamily: 'var(--font-source-serif)',
+        fontFamily: 'var(--font-mono)',
         fontSize: size === 'lg' ? 'clamp(26px, 3.4vw, 34px)' : '17px',
         fontWeight: 600,
         letterSpacing: '-0.02em',

@@ -97,7 +97,7 @@ function PlatformRow({ pub, open, onToggle }: {
           {pub.score != null ? (
             <span
               className="text-[15px]"
-              style={{ color: label.color, fontFamily: 'var(--font-source-serif)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
+              style={{ color: label.color, fontFamily: 'var(--font-mono)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
             >
               {fmtRatio(pub.score)}×
             </span>
@@ -111,7 +111,7 @@ function PlatformRow({ pub, open, onToggle }: {
 
         <span
           className="flex-shrink-0 text-[15px]"
-          style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-source-serif)', fontVariantNumeric: 'tabular-nums' }}
+          style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}
         >
           {headline == null ? '—' : fmtCompact(headline)}
         </span>
@@ -270,7 +270,7 @@ function MetaInteractionCheck({ metrics }: { metrics: PlatformMetrics }) {
           Meta toplam etkileşim (API)
         </span>
         <span
-          style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-source-serif)', fontSize: '13.5px', fontVariantNumeric: 'tabular-nums' }}
+          style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-mono)', fontSize: '13.5px', fontVariantNumeric: 'tabular-nums' }}
         >
           {fmtMetricValue('totalInteractions', meta)}
         </span>
@@ -331,7 +331,7 @@ function MetricLine({ metricKey, value, supported, state, note }: {
             ? { color: 'var(--color-text-muted)', fontSize: '10.5px' }
             : {
                 color: 'var(--color-text-primary)',
-                fontFamily: 'var(--font-source-serif)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '13.5px',
                 fontVariantNumeric: 'tabular-nums lining-nums',
               }

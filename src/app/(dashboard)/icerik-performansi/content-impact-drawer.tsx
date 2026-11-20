@@ -124,7 +124,7 @@ export function ContentImpactDrawer({ impact, onClose }: { impact: ContentImpact
               className="truncate text-[17px]"
               style={{
                 color: 'var(--color-text-primary)',
-                fontFamily: 'var(--font-source-serif)',
+                fontFamily: 'var(--font-sans)',
                 fontWeight: 600,
                 letterSpacing: '-0.005em',
               }}
@@ -165,7 +165,7 @@ export function ContentImpactDrawer({ impact, onClose }: { impact: ContentImpact
                 className="mt-1.5 text-[19px] leading-tight"
                 style={{
                   color: headline.variesByPlatform ? 'var(--color-text-primary)' : status.color,
-                  fontFamily: 'var(--font-source-serif)',
+                  fontFamily: 'var(--font-sans)',
                   fontWeight: 600,
                 }}
               >
@@ -244,7 +244,7 @@ function Figure({ label, total, hint }: { label: string; total: MetricTotal; hin
         className="mt-1 leading-none"
         style={{
           color: total.value == null ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
-          fontFamily: 'var(--font-source-serif)',
+          fontFamily: 'var(--font-mono)',
           fontSize: 'clamp(30px, 4.4vw, 40px)',
           fontWeight: 600,
           letterSpacing: '-0.02em',
@@ -275,7 +275,7 @@ function RankRow({ kind, rank }: {
       </span>
       <span
         className="text-[14px]"
-        style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-source-serif)', fontVariantNumeric: 'tabular-nums' }}
+        style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}
       >
         {fmtRatio(rank.score)}×
       </span>
@@ -364,7 +364,7 @@ function SummaryRow({ label, value, available, total, sub, hint }: {
             className="text-[19px]"
             style={{
               color: value == null ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
-              fontFamily: 'var(--font-source-serif)',
+              fontFamily: 'var(--font-mono)',
               fontVariantNumeric: 'tabular-nums lining-nums',
             }}
           >
@@ -403,7 +403,7 @@ function VerdictPane({ impact }: { impact: ContentImpact }) {
               <li key={a.code} className="flex gap-3 py-3" style={{ borderTop: '1px solid var(--color-border)' }}>
                 <span
                   className="mt-0.5 text-[13px]"
-                  style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-source-serif)', fontVariantNumeric: 'tabular-nums' }}
+                  style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}
                 >
                   {String(i + 1).padStart(2, '0')}
                 </span>

@@ -4,36 +4,13 @@
  */
 
 import type { Metadata, Viewport } from 'next';
-import { IBM_Plex_Sans, Geist_Mono, DM_Sans, Source_Serif_4, Inter } from 'next/font/google';
+import { Geist_Mono, Inter } from 'next/font/google';
 import './globals.css';
 import { ServiceWorkerRegister } from '@/components/notifications/service-worker-register';
 
-// Typography setup per CLAUDE.md specifications
-const ibmPlexSans = IBM_Plex_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  variable: '--font-ibm-plex-sans',
-  display: 'swap',
-});
-
-// Rakamlar/tablolar için mono — Geist Mono, Inter ile aynı geometrik ailede.
-// Tabular hizalama korunur, görünüm gövde fontuyla uyumlu kalır.
-const geistMono = Geist_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  variable: '--font-geist-mono',
-  display: 'swap',
-});
-
-const dmSans = DM_Sans({
-  subsets: ['latin'],
-  weight: ['500', '600', '700'],
-  variable: '--font-dm-sans',
-  display: 'swap',
-});
-
-// Primary UI family — Inter: veri ve tablo ağırlıklı profesyonel panellerin
-// standardı (Vercel, Linear, Supabase, Stripe). Küçük boyutlarda net okunur.
+// Tek tip tipografi: gövde + başlıklar Inter, rakamlar/tablolar Geist Mono.
+// Profesyonel panel standardı (Vercel, Linear, Supabase, Stripe). Eski
+// IBM Plex / DM Sans / Source Serif kaldırıldı — tüm site bu iki fontta.
 const inter = Inter({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
@@ -41,17 +18,10 @@ const inter = Inter({
   display: 'swap',
 });
 
-/**
- * Miktarlar ve başlıklar için editoryal serif.
- *
- * Sayıları mono ile yazmak "mühendislik çıktısı" hissi veriyordu; bu ekran bir
- * finansal rapor gibi okunmalı. Serif rakamlar hem daha resmi hem daha okunaklı.
- * Hizalama gerektiren tablo değerleri mono kalmaya devam ediyor.
- */
-const sourceSerif = Source_Serif_4({
+const geistMono = Geist_Mono({
   subsets: ['latin'],
-  weight: ['400', '600'],
-  variable: '--font-source-serif',
+  weight: ['400', '500'],
+  variable: '--font-geist-mono',
   display: 'swap',
 });
 
@@ -96,7 +66,7 @@ export default function RootLayout({
   return (
     <html
       lang="tr"
-      className={`${inter.variable} ${geistMono.variable} ${ibmPlexSans.variable} ${dmSans.variable} ${sourceSerif.variable}`}
+      className={`${inter.variable} ${geistMono.variable}`}
     >
       <body className="min-h-screen antialiased">
         <ServiceWorkerRegister />
