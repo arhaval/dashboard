@@ -2,15 +2,20 @@
  * Card Component
  * Base card primitive following the design system
  * No shadows, 1px border with --color-border
+ *
+ * Golge kaldirildi: yorum "no shadows" diyordu ama kod her karta
+ * --shadow-card (0 1px 3px rgba(0,0,0,0.5)) uyguluyordu. CLAUDE.md'nin
+ * kurali net: yukseltme kenarlikla yapilir, golgeyle degil. Koyu zeminde
+ * golge zaten yukseklik degil bulaniklik olarak okunuyordu.
  */
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-interface CardProps extends React.HTMLAttributes<HTMLDivElement> {}
+type CardProps = React.HTMLAttributes<HTMLDivElement>;
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, style, ...props }, ref) => (
+  ({ className, ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
@@ -18,7 +23,6 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
         'bg-[var(--color-bg-secondary)]',
         className
       )}
-      style={{ boxShadow: 'var(--shadow-card)', ...style }}
       {...props}
     />
   )
@@ -26,7 +30,7 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
 
 Card.displayName = 'Card';
 
-interface CardHeaderProps extends React.HTMLAttributes<HTMLDivElement> {}
+type CardHeaderProps = React.HTMLAttributes<HTMLDivElement>;
 
 const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
   ({ className, ...props }, ref) => (
@@ -40,7 +44,7 @@ const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
 
 CardHeader.displayName = 'CardHeader';
 
-interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {}
+type CardTitleProps = React.HTMLAttributes<HTMLHeadingElement>;
 
 const CardTitle = React.forwardRef<HTMLParagraphElement, CardTitleProps>(
   ({ className, ...props }, ref) => (
@@ -58,8 +62,7 @@ const CardTitle = React.forwardRef<HTMLParagraphElement, CardTitleProps>(
 
 CardTitle.displayName = 'CardTitle';
 
-interface CardDescriptionProps
-  extends React.HTMLAttributes<HTMLParagraphElement> {}
+type CardDescriptionProps = React.HTMLAttributes<HTMLParagraphElement>;
 
 const CardDescription = React.forwardRef<
   HTMLParagraphElement,
@@ -74,7 +77,7 @@ const CardDescription = React.forwardRef<
 
 CardDescription.displayName = 'CardDescription';
 
-interface CardContentProps extends React.HTMLAttributes<HTMLDivElement> {}
+type CardContentProps = React.HTMLAttributes<HTMLDivElement>;
 
 const CardContent = React.forwardRef<HTMLDivElement, CardContentProps>(
   ({ className, ...props }, ref) => (
@@ -84,7 +87,7 @@ const CardContent = React.forwardRef<HTMLDivElement, CardContentProps>(
 
 CardContent.displayName = 'CardContent';
 
-interface CardFooterProps extends React.HTMLAttributes<HTMLDivElement> {}
+type CardFooterProps = React.HTMLAttributes<HTMLDivElement>;
 
 const CardFooter = React.forwardRef<HTMLDivElement, CardFooterProps>(
   ({ className, ...props }, ref) => (

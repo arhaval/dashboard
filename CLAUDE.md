@@ -40,35 +40,44 @@ Before writing any code, ask:
 ### Visual Identity
 
 **Aesthetic:** Corporate Minimalism with Swiss Design influences  
-**Theme:** Dark-first with high contrast  
+**Theme:** Dark navy, high contrast  
 **Status:** LOCKED - Do not modify without explicit instruction
 
+> The single source of truth is `src/app/globals.css`. The values below mirror
+> it; if they ever disagree, the CSS wins and this block is the thing to fix.
+> (They did disagree once: this file described the pre-November black/orange
+> theme for weeks after the code moved to navy/blue, so work was done against
+> a palette that no longer existed.)
+
 ```
-Primary Background:    #0A0A0A (near black)
-Secondary Background:  #141414 (elevated surfaces)
-Tertiary Background:   #1F1F1F (cards, modals)
-Border:                #2A2A2A (subtle dividers)
+Primary Background:    #101828 (navy base)
+Secondary Background:  #1A2234 (cards, inputs)
+Tertiary Background:   #212B3E (modals, elevated panels)
+Sunken Surface:        #141C2B (nested wells inside cards)
+Border:                #2A3446 (subtle dividers)
+Border Hover:          #3A4660
 
-Text Primary:          #FAFAFA (headings, emphasis)
-Text Secondary:        #A1A1A1 (body text)
-Text Muted:            #6B6B6B (labels, hints)
+Text Primary:          #F9FAFB (headings, emphasis)
+Text Secondary:        #98A2B3 (body text)
+Text Muted:            #667085 (labels, hints)
 
-Arhaval Accent:        #FF4D00 (primary actions, highlights)
-Arhaval Accent Light:  #FF6B2C (hover states)
-Arhaval Accent Muted:  rgba(255, 77, 0, 0.15) (backgrounds)
+Arhaval Accent:        #465FFF (primary actions, highlights)
+Arhaval Accent Light:  #7592FF (hover states)
+Arhaval Accent Muted:  rgba(70, 95, 255, 0.16) (backgrounds)
 
-Success:               #22C55E
-Warning:               #EAB308
-Error:                 #EF4444
-Info:                  #3B82F6
+Success:               #12B76A
+Warning:               #F79009
+Error:                 #F04438
+Info:                  #5CC8FF
 ```
 
 ### Typography
 
+Single typeface for everything readable, monospace only for figures.
+
 ```
-Display/Headings:  "Instrument Sans" or "DM Sans" (weight: 500-700)
-Body:              "IBM Plex Sans" (weight: 400-500)
-Monospace/Data:    "IBM Plex Mono" (tables, numbers, code)
+Headings + Body:   "Inter" (next/font/google, weight 400-700)
+Monospace/Data:    "Geist Mono" (tables, numbers, currency, IDs)
 ```
 
 ### Design Rules
@@ -155,17 +164,28 @@ interface PageShellProps {
 
 All UI elements MUST use components from `src/components/ui/`:
 
-| Element | Component | Location |
-|---------|-----------|----------|
-| Buttons | `Button` | `ui/button.tsx` |
-| Inputs | `Input` | `ui/input.tsx` |
-| Select | `Select` | `ui/select.tsx` |
-| Cards | `Card` | `ui/card.tsx` |
-| Tables | `DataTable` | `ui/data-table.tsx` |
-| Modals | `Dialog` | `ui/dialog.tsx` |
-| Badges | `Badge` | `ui/badge.tsx` |
-| Tabs | `Tabs` | `ui/tabs.tsx` |
-| Dropdowns | `DropdownMenu` | `ui/dropdown-menu.tsx` |
+| Element | Component | Location | Status |
+|---------|-----------|----------|--------|
+| Buttons | `Button` | `ui/button.tsx` | ✅ |
+| Inputs | `Input` | `ui/input.tsx` | ✅ |
+| Select | `Select` | `ui/select.tsx` | ✅ |
+| Labels | `Label` | `ui/label.tsx` | ✅ |
+| Cards | `Card` | `ui/card.tsx` | ✅ |
+| Badges | `Badge` | `ui/badge.tsx` | ✅ |
+| Section headers | `Section`, `SectionHeader` | `ui/section.tsx` | ✅ |
+| Single figures | `Metric`, `MetricRow` | `ui/metric.tsx` | ✅ |
+| Stat boxes | `StatCard` | `ui/stat-card.tsx` | ✅ |
+| Pagination | `Pager` | `ui/pager.tsx` | ✅ |
+| Confirm prompts | `ConfirmDialog` | `ui/confirm-dialog.tsx` | ✅ |
+| Tables | `DataTable` | `ui/data-table.tsx` | ⚠️ exists, used nowhere — 21 tables are hand-written |
+| Modals | `Dialog` | — | ❌ never written; modals are hand-rolled per page |
+| Tabs | `Tabs` | — | ❌ never written; tab bars are hand-rolled per page |
+| Dropdowns | `DropdownMenu` | — | ❌ never written |
+
+The ❌ rows are the main reason the panel reads as homemade: a primitive listed
+here but missing gets re-invented on every page, each copy a few pixels off.
+Badges were the worst case — ~110 hand-made ones before `ui/badge.tsx` existed.
+When reaching for a missing primitive, write it here first, then use it.
 
 **Rules:**
 - No custom page-level styling
