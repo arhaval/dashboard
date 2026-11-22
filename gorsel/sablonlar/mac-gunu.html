@@ -47,7 +47,7 @@ const varlik = (p) => (p.startsWith('data:') ? p : new URL(p, KOK).href);
 const $ = (id) => document.getElementById(id);
 
 // Oyuncu boyu HLTV kadrajının 1,4 katı; fotoğraflar bu boy için HD'de birebir üretilir.
-const K = 1.4, HD = 2, FW = 400 * K, FH = 417 * K, ARA = 206;
+const K = 1.4, FW = 400 * K, FH = 417 * K, ARA = 206;
 const ERI0 = 292 * K, ERI1 = 366 * K;            // gövde bu aralıkta zemine erir
 const W = 1080;
 const DUZEN = {
@@ -79,9 +79,11 @@ function logoHazirla(src) {
     const c = document.createElement('canvas'); c.width = w; c.height = h;
     const x = c.getContext('2d'); x.drawImage(im, 0, 0, w, h);
     const d = x.getImageData(0, 0, w, h), p = d.data;
-    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1, opak = 0, renkli = 0;
     for (let y = 0; y < h; y++) for (let i = 0; i < w; i++) {
-      const k = (y * w + i) * 4; p[k] = p[k + 1] = p[k + 2] = 255;
+      const k = (y * w + i) * 4;
+      if (p[k + 3] > 128) { opak++; if (Math.min(p[k], p[k + 1], p[k + 2]) < 200) renkli++; }
+      p[k] = p[k + 1] = p[k + 2] = 255;
       if (p[k + 3] > 8) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (y < y0) y0 = y; if (y > y1) y1 = y; }
     }
     if (x1 < 0) throw new Error('logo boş');
@@ -91,7 +93,8 @@ function logoHazirla(src) {
     const c2 = document.createElement('canvas'); c2.width = bw; c2.height = bh;
     c2.getContext('2d').drawImage(c, x0, y0, bw, bh, 0, 0, bw, bh);
     const kapsama = toplam / (255 * bw * bh);
-    return { url: c2.toDataURL('image/png'), kapsama, enboy: bw / bh, opak: kapsama > 0.97 && bw === w && bh === h };
+    // renkli: kaynak beyaz tek renk değildi; beyaza çevrilince iç detaylar kaybolmuş olabilir.
+    return { url: c2.toDataURL('image/png'), kapsama, enboy: bw / bh, opak: kapsama > 0.97 && bw === w && bh === h, renkli: opak > 0 && renkli / opak > 0.15 };
   })());
   return logoOnbellek.get(src);
 }
@@ -99,7 +102,9 @@ const yukle = (im) => (im.complete && im.naturalWidth ? Promise.resolve() : new 
 
 let sira = 0;
 async function ciz(veri) {
-  const no = ++sira, C = { uyarilar: [] };
+  const no = ++sira, C = { uyarilar: [], notlar: [] };
+  // olcek: teslim boyutu / 1080 (sunucu verir). Önizlemede 1.
+  const OLCEK = veri.olcek || 1;
   const L = DUZEN[veri.format] || DUZEN.post, H = L.H;
   document.body.style.width = W + 'px'; document.body.style.height = H + 'px';
   document.body.style.backgroundImage = ONIZLEME ? `url(${varlik('ortak/zemin/' + (veri.format === 'hikaye' ? 'hikaye' : 'post') + '.png')})` : 'none';
@@ -109,6 +114,7 @@ async function ciz(veri) {
   const [lg1, lg2] = await Promise.all([logoHazirla(veri.takim.logo), logoHazirla(veri.rakip.logo)]);
   if (lg2.opak) C.uyarilar.push('rakip logosu şeffaf değil: arka planı olmayan PNG ya da SVG kullan');
   if (lg1.opak) C.uyarilar.push('takım logosu şeffaf değil');
+  if (lg2.renkli && !lg2.opak) C.notlar.push('Rakip logosu renkliydi, beyaza çevrildi. Şekli bozulmamış mı bak');
   $('L1').src = lg1.url; $('L2').src = lg2.url;
   await document.fonts.load('600 20px ARV', veri.turnuva + ' ARHAVAL YOUTUBE VE KICK’TE CANLI ' + veri.takim.oyuncular.map((o) => o.nick).join(''));
   await document.fonts.load('italic 700 20px AS', veri.saat);
@@ -150,8 +156,18 @@ async function ciz(veri) {
   $('saat').style.setProperty('--sfs', L.sfs + 'px'); ortala('saat', bc - $('saat').offsetHeight / 2);
   const alan = L.hB * L.hB * REF_ENBOY, enAz = Math.min(lg1.kapsama, lg2.kapsama);
   const boy = (lg) => Math.min(Math.sqrt(alan / lg.enboy) * Math.pow(enAz / lg.kapsama, YUMUSAMA), L.hB * 1.3, 320 / lg.enboy);
-  [[$('L1'), lg1, -1], [$('L2'), lg2, 1]].forEach(([e, lg, yon]) => {
-    const h = boy(lg), w = h * lg.enboy;
+  // Yer sınırı: çok geniş (EF) ya da çok uzun logo saate, turnuva satırına ya da kenara değmesin.
+  // Sınır bağlarsa İKİ logo aynı oranda küçülür; görsel eşitlik (yukarıdaki oran) bozulmaz.
+  const sr = $('saat').getBoundingClientRect(), etAlt = $('et').getBoundingClientRect().bottom;
+  // Payları denetimdekiyle aynı (40/36): denetimden zaten geçen düzende hiçbir şey değişmez.
+  const enUzun = 2 * (bc - (etAlt + 40));
+  const enGenis = (yon) => (yon < 0
+    ? 2 * Math.min(sr.left - 36 - (540 - L.lx), (540 - L.lx) - 40)
+    : 2 * Math.min((540 + L.lx) - (sr.right + 36), W - 40 - (540 + L.lx)));
+  const hs = [[lg1, -1], [lg2, 1]].map(([lg, yon]) => [boy(lg), Math.min(enUzun, enGenis(yon) / lg.enboy)]);
+  const sigdir = Math.min(1, ...hs.map(([h, s]) => s / h));
+  [[$('L1'), lg1, -1, 0], [$('L2'), lg2, 1, 1]].forEach(([e, lg, yon, i]) => {
+    const h = hs[i][0] * sigdir, w = h * lg.enboy;
     Object.assign(e.style, { height: h + 'px', width: w + 'px', left: (540 + yon * L.lx - w / 2) + 'px', top: (bc - h / 2) + 'px' });
   });
 
@@ -173,7 +189,7 @@ async function ciz(veri) {
   for (const i of document.images) {
     if (/\.svg$/i.test(i.src) || (!veri.yayin && i.closest('#bant'))) continue;
     if (!i.naturalWidth) { C.uyarilar.push('görsel açılamadı'); continue; }
-    const r = i.getBoundingClientRect(), s = HD * Math.max(r.width / i.naturalWidth, r.height / i.naturalHeight);
+    const r = i.getBoundingClientRect(), s = OLCEK * Math.max(r.width / i.naturalWidth, r.height / i.naturalHeight);
     if (s > 1.001) C.uyarilar.push(`görsel kaynağından büyük gösteriliyor (${s.toFixed(2)}x): ${i.alt || 'logo'}`);
   }
   return C;
@@ -181,7 +197,7 @@ async function ciz(veri) {
 
 function bitir(C) {
   window.CHECK = C; document.title = 'ready';
-  if (ONIZLEME && window.parent !== window) window.parent.postMessage({ tip: 'gorsel-denetim', uyarilar: C.uyarilar }, location.origin);
+  if (ONIZLEME && window.parent !== window) window.parent.postMessage({ tip: 'gorsel-denetim', uyarilar: C.uyarilar, notlar: C.notlar || [] }, location.origin);
 }
 function calistir(veri) {
   ciz(veri).then((C) => { if (C) bitir(C); })

@@ -26,7 +26,7 @@ const hata = (s: string): never => { process.stderr.write(s + '\n'); process.exi
 
 function liste() {
   yaz('Takımlar (kadro + fotoğraf hazır):');
-  for (const [k, t] of Object.entries(GORSEL_TAKIMLAR)) yaz(`  ${k.padEnd(10)} ${t.ad} — ${(t.oyuncular ?? []).map((o) => o.nick).join(', ')}`);
+  for (const [k, t] of Object.entries(GORSEL_TAKIMLAR)) yaz(`  ${k.padEnd(10)} ${t.ad} — ${(t.oyuncular ?? []).map((o) => o.nick).join(', ')}${t.hdFoto === false ? ' (HD yok)' : ''}`);
   yaz('Rakipler (logo hazır):');
   for (const [k, t] of Object.entries(GORSEL_RAKIPLER)) yaz(`  ${k.padEnd(10)} ${t.ad}`);
   yaz(`Çıktılar: ${Object.keys(GORSEL_CIKTILAR).join(', ')}`);
@@ -68,6 +68,9 @@ async function main() {
     yayin: a.yayin === 'var',
   };
   if (!GORSEL_TAKIMLAR[form.takim]) return hata(`Takım hazır değil: ${form.takim} (pnpm gorsel --liste)`);
+  if (ciktilar.includes('post-hd') && GORSEL_TAKIMLAR[form.takim].hdFoto === false) {
+    return hata(`${GORSEL_TAKIMLAR[form.takim].ad} fotoğrafları HD için yeterli değil; post-hd çıkarılamaz (post ve hikaye çıkar).`);
+  }
   if (!yuklenen && !GORSEL_RAKIPLER[form.rakip]) return hata(`Rakip hazır değil: ${form.rakip || '(boş)'} — --rakip-logo ve --rakip-ad ver.`);
 
   await fs.mkdir(a.klasor, { recursive: true });

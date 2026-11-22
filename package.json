@@ -22,7 +22,8 @@
     "check:social-monthly": "tsx scripts/check-social-monthly.ts",
     "check:srt-clean": "tsx scripts/check-srt-clean.ts",
     "check:today-panel": "tsx scripts/check-today-panel.ts",
-    "test": "npm run check:content-handoff && npm run check:content-impact && npm run check:engine-prompt && npm run check:idea-fields && npm run check:journal && npm run check:paginate && npm run check:permissions && npm run check:publication-metrics && npm run check:social-monthly && npm run check:srt-clean && npm run check:today-panel"
+    "check:gorsel-mac": "tsx scripts/check-gorsel-mac.ts",
+    "test": "npm run check:content-handoff && npm run check:gorsel-mac && npm run check:content-impact && npm run check:engine-prompt && npm run check:idea-fields && npm run check:journal && npm run check:paginate && npm run check:permissions && npm run check:publication-metrics && npm run check:social-monthly && npm run check:srt-clean && npm run check:today-panel"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

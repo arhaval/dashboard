@@ -97,7 +97,8 @@ export const gorselRenderService = {
 
   async ciz(istek: GorselRenderIstek): Promise<GorselRenderSonucu> {
     const tanim = GORSEL_CIKTILAR[istek.cikti];
-    const veri = { ...istek.veri, format: tanim.format };
+    // olcek: teslim boyutu / sayfa genişliği. Şablon "kaynağından büyük" denetimini buna göre yapar.
+    const veri = { ...istek.veri, format: tanim.format, olcek: tanim.genislik / GORSEL_SAYFA_GENISLIGI };
     const [zemin, { baglam }] = await Promise.all([gorselVarlikService.oku(tanim.zemin), tarayici()]);
     if (!zemin) throw new Error(`Zemin bulunamadı: ${tanim.zemin}`);
 

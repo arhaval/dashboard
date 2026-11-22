@@ -29,7 +29,7 @@ interface SablonOnizlemeProps {
   sablon: GorselSablon;
   format: GorselFormat;
   veri: MacGunuVeri | null;
-  onDenetim: (uyarilar: string[]) => void;
+  onDenetim: (uyarilar: string[], notlar: string[]) => void;
 }
 
 export function SablonOnizleme({ sablon, format, veri, onDenetim }: SablonOnizlemeProps) {
@@ -40,7 +40,10 @@ export function SablonOnizleme({ sablon, format, veri, onDenetim }: SablonOnizle
     const dinle = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.source !== cerceve.current?.contentWindow) return;
       if (e.data?.tip === GORSEL_MESAJ.hazir) setHazir(true);
-      if (e.data?.tip === GORSEL_MESAJ.denetim) onDenetim(Array.isArray(e.data.uyarilar) ? e.data.uyarilar : []);
+      if (e.data?.tip === GORSEL_MESAJ.denetim) {
+        const liste = (x: unknown) => (Array.isArray(x) ? x.filter((s): s is string => typeof s === 'string') : []);
+        onDenetim(liste(e.data.uyarilar), liste(e.data.notlar));
+      }
     };
     window.addEventListener('message', dinle);
     return () => window.removeEventListener('message', dinle);
