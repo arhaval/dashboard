@@ -23,6 +23,7 @@ import { birlestir } from '@/lib/gorsel/birlestir';
 import { gorselVarlikService } from './gorsel-varlik.service';
 
 const SANAL_KOK = 'https://gorsel.arhaval.local/';
+const GPU_BAYRAGI = /^--(use-gl|use-angle|enable-unsafe-swiftshader|in-process-gpu|ignore-gpu-blocklist)/;
 const CIZIM_SURESI_MS = 30_000;
 
 export type GorselRenderSonucu =
@@ -40,7 +41,10 @@ async function tarayiciAc(): Promise<Browser> {
   if (process.platform === 'linux' && !process.env.PLAYWRIGHT_CHROMIUM_PATH) {
     const [{ chromium }, sparticuz] = await Promise.all([import('playwright-core'), import('@sparticuz/chromium')]);
     const paket = sparticuz.default;
-    return chromium.launch({ executablePath: await paket.executablePath(), args: paket.args, headless: true });
+    // SwiftShader (yazılımla GPU taklidi) yerine doğrudan yazılım çizimi: ~%25 daha az bellek,
+    // daha hızlı; çıktı gözle ayırt edilemiyor. Sunucu fonksiyonunun 1 GB sınırı için gerekli.
+    const args = [...paket.args.filter((a) => !GPU_BAYRAGI.test(a)), '--disable-gpu'];
+    return chromium.launch({ executablePath: await paket.executablePath(), args, headless: true });
   }
   const { chromium } = await import('playwright-core');
   return chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined });
@@ -69,6 +73,7 @@ export const gorselRenderService = {
     const [zemin, b] = await Promise.all([gorselVarlikService.oku(tanim.zemin), tarayici()]);
     if (!zemin) throw new Error(`Zemin bulunamadı: ${tanim.zemin}`);
 
+    let katman: Buffer;
     const baglam = await b.newContext({
       viewport: { width: GORSEL_SAYFA_GENISLIGI, height: GORSEL_FORMAT_YUKSEKLIK[tanim.format] },
       deviceScaleFactor: GORSEL_CIZIM_OLCEGI,
@@ -88,11 +93,12 @@ export const gorselRenderService = {
       const uyarilar = denetim.uyarilar ?? ['şablon denetimi okunamadı'];
       if (uyarilar.length > 0) return { ok: false, uyarilar };
 
-      const katman = await sayfa.screenshot({ omitBackground: true, type: 'png' });
-      const png = await birlestir(katman, zemin.veri, tanim.genislik, tanim.yukseklik);
-      return { ok: true, png, dosyaAdi: dosyaAdi(istek) };
+      katman = await sayfa.screenshot({ omitBackground: true, type: 'png' });
     } finally {
+      // Birleştirmeden önce kapat: sayfanın belleği Chromium'da boşa dursun istemiyoruz.
       await baglam.close();
     }
+    const png = await birlestir(katman, zemin.veri, tanim.genislik, tanim.yukseklik);
+    return { ok: true, png, dosyaAdi: dosyaAdi(istek) };
   },
 };

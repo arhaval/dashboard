@@ -1,14 +1,13 @@
 /**
- * Katmanı (şeffaf, 4x çizim) zeminin üstüne birleştirir.
+ * Katmanı (şeffaf çizim) zeminin üstüne birleştirir.
  *
  * Arhaval görsel sisteminin kalite hattı (gorsel/BENIOKU.md, "Birleştirme"):
- *   1. 4x çizim Lanczos ile teslim boyutuna küçültülür (sharp, alfa ön çarpımlı).
- *   2. Ön çarpımlı katmana hafif keskinleştirme (σ 0.7, miktar 0.6) uygulanır;
- *      zemin keskinleştirilmez, böylece gren bozulmaz.
+ *   1. Çizim teslim boyutundan büyükse Lanczos ile küçültülür (sharp, alfa ön
+ *      çarpımlı) ve ön çarpımlı katmana hafif keskinleştirme (σ 0.7, miktar 0.6)
+ *      uygulanır. Çizim zaten teslim boyutundaysa ikisi de yapılmaz.
+ *   2. Zemin keskinleştirilmez, böylece gren bozulmaz.
  *   3. Katman zeminin üstüne "over" ile konur, sRGB profiliyle PNG yazılır.
  */
-
-import sharp from 'sharp';
 
 const KESKINLIK_SIGMA = 0.7;
 const KESKINLIK_MIKTAR = 0.6;
@@ -43,9 +42,28 @@ function bulaniklastir(src: Float32Array, w: number, h: number, k: Float32Array)
 }
 
 export async function birlestir(katmanPng: Buffer, zeminPng: Buffer, genislik: number, yukseklik: number): Promise<Buffer> {
+  // Dinamik: sharp yüklenemezse hata route'ta yakalanıp kullanıcıya gösterilebilsin.
+  const { default: sharp } = await import('sharp');
   const n = genislik * yukseklik;
+  const kaynak = await sharp(katmanPng).metadata();
+  const kucult = (kaynak.width ?? genislik) > genislik;
   const katman = await sharp(katmanPng).ensureAlpha().resize(genislik, yukseklik, { kernel: 'lanczos3', fit: 'fill' }).raw().toBuffer();
   const zemin = await sharp(zeminPng).removeAlpha().resize(genislik, yukseklik, { fit: 'fill' }).raw().toBuffer();
+
+  const out = Buffer.alloc(n * 3);
+  const yaz = () => sharp(out, { raw: { width: genislik, height: yukseklik, channels: 3 } })
+    .withIccProfile('srgb')
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+
+  // Çizim teslim boyutundaysa (HD) keskinleştirme yok: doğrudan "over".
+  if (!kucult) {
+    for (let p = 0; p < n; p++) {
+      const a = katman[p * 4 + 3] / 255;
+      for (let c = 0; c < 3; c++) out[p * 3 + c] = Math.round(zemin[p * 3 + c] * (1 - a) + katman[p * 4 + c] * a);
+    }
+    return yaz();
+  }
 
   // ön çarpımlı kanallar
   const kanal = [0, 1, 2, 3].map(() => new Float32Array(n));
@@ -60,7 +78,6 @@ export async function birlestir(katmanPng: Buffer, zeminPng: Buffer, genislik: n
     for (let p = 0; p < n; p++) c[p] += KESKINLIK_MIKTAR * (c[p] - b[p]);
   }
 
-  const out = Buffer.alloc(n * 3);
   for (let p = 0; p < n; p++) {
     const a = Math.min(1, Math.max(0, kanal[3][p]));
     for (let c = 0; c < 3; c++) {
@@ -68,8 +85,5 @@ export async function birlestir(katmanPng: Buffer, zeminPng: Buffer, genislik: n
       out[p * 3 + c] = Math.round(Math.min(1, Math.max(0, (zemin[p * 3 + c] / 255) * (1 - a) + renk)) * 255);
     }
   }
-  return sharp(out, { raw: { width: genislik, height: yukseklik, channels: 3 } })
-    .withIccProfile('srgb')
-    .png({ compressionLevel: 9 })
-    .toBuffer();
+  return yaz();
 }

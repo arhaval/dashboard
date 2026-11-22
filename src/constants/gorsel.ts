@@ -24,9 +24,14 @@ export interface GorselCiktiTanimi {
   zemin: GorselVarlikYolu;
 }
 
-/** Sayfa 1080 px genişlikte çizilir; çıktılar 4x çizimden küçültülerek üretilir. */
+/**
+ * Sayfa 1080 px genişlikte, 2x ölçekte (2160 px) çizilir. 1080'lik çıktılar bu
+ * çizimden Lanczos ile küçültülür; HD çıktı çizimin kendisidir (fotoğraflar HD
+ * için birebir üretildiğinden yeniden örnekleme olmaz). 4x çizim sunucu
+ * fonksiyonunun belleğini (1 GB) aşıyordu.
+ */
 export const GORSEL_SAYFA_GENISLIGI = 1080;
-export const GORSEL_CIZIM_OLCEGI = 4;
+export const GORSEL_CIZIM_OLCEGI = 2;
 
 export const GORSEL_CIKTILAR: Record<GorselCikti, GorselCiktiTanimi> = {
   post:      { etiket: 'Post 1080×1440',    format: 'post',   genislik: 1080, yukseklik: 1440, zemin: 'ortak/zemin/post.png' },

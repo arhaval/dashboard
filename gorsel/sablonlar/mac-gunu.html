@@ -56,7 +56,7 @@ const DUZEN = {
 };
 // Logo görsel eşitliği: iki logo önce eşit ALANA getirilir (referans: hB yüksekliğinde, en/boy 1.25 bir logo),
 // sonra daha dolu olanı (seyrek kapsama / dolu kapsama)^0.35 oranında küçültülür. BBL–SINNERS'ta onaylanan oran budur.
-const REF_ENBOY = 1.25, YUMUSAMA = 0.35;
+const REF_ENBOY = 1.25, YUMUSAMA = 0.35, LOGO_AZAMI = 1000;
 
 const logoOnbellek = new Map();
 function resimYukle(src) {
@@ -70,9 +70,11 @@ function resimYukle(src) {
 function logoHazirla(src) {
   if (!logoOnbellek.has(src)) logoOnbellek.set(src, (async () => {
     const im = await resimYukle(src);
+    // Logo en fazla 320 px genişlikte çizilir (HD'de 640 px); 1000 px yeter. Daha büyüğü
+    // sunucudaki Chromium'un belleğini gereksiz şişiriyor.
     const svg = /^data:image\/svg|\.svg$/i.test(src);
-    let w = im.naturalWidth || 1600, h = im.naturalHeight || 1600;
-    const s = svg ? 1600 / Math.max(w, h) : Math.min(1, 2400 / Math.max(w, h));
+    let w = im.naturalWidth || LOGO_AZAMI, h = im.naturalHeight || LOGO_AZAMI;
+    const s = svg ? LOGO_AZAMI / Math.max(w, h) : Math.min(1, LOGO_AZAMI / Math.max(w, h));
     w = Math.round(w * s); h = Math.round(h * s);
     const c = document.createElement('canvas'); c.width = w; c.height = h;
     const x = c.getContext('2d'); x.drawImage(im, 0, 0, w, h);

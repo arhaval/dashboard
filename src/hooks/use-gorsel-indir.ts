@@ -20,6 +20,19 @@ function dosyaAdiniOku(baslik: string | null, yedek: string): string {
   return m ? m[1] : yedek;
 }
 
+/** Sunucunun hata mesajı; JSON değilse (ör. Vercel'in zaman aşımı/bellek sayfası) kodu ve ilk satırı. */
+async function hataMesaji(yanit: Response): Promise<string> {
+  const metin = await yanit.text().catch(() => '');
+  try {
+    const govde = JSON.parse(metin) as { error?: unknown };
+    if (typeof govde.error === 'string') return govde.error;
+  } catch {
+    // JSON değil
+  }
+  const ozet = metin.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+  return `Görsel üretilemedi (HTTP ${yanit.status}${ozet ? `: ${ozet}` : ''}).`;
+}
+
 function indirt(blob: Blob, ad: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -49,9 +62,7 @@ export function useGorselIndir(sablon: GorselSablon) {
         return;
       }
       if (!yanit.ok) {
-        const govde = (await yanit.json().catch(() => ({}))) as { error?: unknown };
-        const mesaj = typeof govde.error === 'string' ? govde.error : 'Görsel üretilemedi, tekrar dene.';
-        setDurum({ calisan: null, hata: mesaj, uyarilar: [] });
+        setDurum({ calisan: null, hata: await hataMesaji(yanit), uyarilar: [] });
         return;
       }
       indirt(await yanit.blob(), dosyaAdiniOku(yanit.headers.get('Content-Disposition'), `${sablon}-${cikti}.png`));

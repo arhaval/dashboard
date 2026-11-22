@@ -17,7 +17,7 @@ gorsel/
 ## Nasıl çalışır
 
 1. **Önizleme:** Form doldurulur. Panel şablonu iframe'de açar (`?onizleme=1`), veriyi `postMessage` ile gönderir. Şablon çizer ve kendi denetim uyarılarını geri yollar.
-2. **İndirme:** `/api/gorsel/render` aynı şablonu başsız Chromium'da 4 kat ölçekte çizer, sonra `src/lib/gorsel/birlestir.ts` ile zeminin üstüne birleştirir. Bu adımlar: Lanczos küçültme, yalnız katmana hafif keskinleştirme, sRGB PNG.
+2. **İndirme:** `/api/gorsel/render` aynı şablonu başsız Chromium'da 2 kat ölçekte (2160 px) çizer, sonra `src/lib/gorsel/birlestir.ts` ile zeminin üstüne birleştirir. 1080'lik çıktılarda Lanczos küçültme ve yalnız katmana hafif keskinleştirme uygulanır. HD çıktı çizimin kendisidir. Sonuç sRGB PNG olarak yazılır. Chromium GPU taklidi olmadan çalışır; bu hâliyle bellek kullanımı 1 GB'lık sunucu sınırının altında kalır.
 3. **Denetim:** Şablonun uyarı listesi boş değilse dosya teslim edilmez. Kontrol edilenler: kenar boşluğu, logo/saat/etiket çakışması, isim sığması, görselin kaynağından büyük gösterilmesi (HD'de bile).
 
 Vercel'de `@sparticuz/chromium` kullanılır. Yerelde Linux'ta da aynı paket çalışır. Windows ve macOS'ta önce `pnpm exec playwright install chromium` çalıştırılır ya da `PLAYWRIGHT_CHROMIUM_PATH` ayarlanır.
