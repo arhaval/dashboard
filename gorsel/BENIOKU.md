@@ -16,7 +16,7 @@ gorsel/
 
 ## Nasıl çalışır
 
-0. **Maç seçimi:** Sayfanın üstünde arhaval.com'dan gelen yaklaşan Türk takımı maçları listelenir (önümüzdeki 72 saat; uç: `tahmin` reposu, `src/app/api/gorsel/yaklasan-maclar`). Her maç paylaşılmaz, paylaşılacak maçı ekip seçer. "Postu hazırla" formu doldurur: takım, rakip ve logosu, Türkiye saati, turnuva satırı, yayın satırı. Kişi önizlemede bakar ve indirir. Form elle de doldurulabilir.
+0. **Maç seçimi:** Sayfanın üstünde arhaval.com'dan gelen yaklaşan Türk takımı maçları listelenir (önümüzdeki 72 saat; uç: `tahmin` reposu, `src/app/api/gorsel/yaklasan-maclar`). Liste ve rakip logosu ekibin tarayıcısından okunur: arhaval.com'un Vercel Firewall'u (bot koruması) panelin sunucusundan gelen isteği 429 ile kesiyor. Uç bu yüzden CORS'a açık; dosyayı yine sunucu çizer ve bütün veriyi yeniden doğrular. Her maç paylaşılmaz, paylaşılacak maçı ekip seçer. "Postu hazırla" formu doldurur: takım, rakip ve logosu, Türkiye saati, turnuva satırı, yayın satırı. Kişi önizlemede bakar ve indirir. Form elle de doldurulabilir.
    - **Engel (post hazırlanmaz):** takımın kadro fotoğrafları sistemde yok.
    - **Kontrol notu (post hazırlanır, kişi bakar):** HLTV kadrosu ile bizdeki fotoğraflar uyuşmuyor (yedek ya da ayrılan oyuncu), saat kesin değil, aşama Türkçeye çevrilemedi, rakip logosu yok ya da renkliydi, maçın yayıncılarında Arhaval yok.
    - Turnuva adı İngilizce büyük harfle (noktasız I) yazılır. Arhaval'ın kendi yazımı olan turnuvalar `GORSEL_TURNUVA_ADLARI` listesindedir (ör. SINGAPUR MAJOR). Aşama Türkçe büyük harfle yazılır; Swiss, Play-in gibi İngilizce terimler noktasız kalır.
