@@ -22,12 +22,12 @@ gorsel/
 
 Vercel'de `@sparticuz/chromium` kullanılır. Yerelde Linux'ta da aynı paket çalışır. Windows ve macOS'ta önce `pnpm exec playwright install chromium` çalıştırılır ya da `PLAYWRIGHT_CHROMIUM_PATH` ayarlanır.
 
-Oturum açmadan örnek çizim almak için:
+Oturum açmadan, komut satırından çizim (Claude Code da bunu kullanır, bkz. `.claude/skills/gorsel-studyosu/SKILL.md`):
 
 ```bash
-pnpm exec tsx scripts/gorsel-ornek.ts post /tmp
-pnpm exec tsx scripts/gorsel-ornek.ts post-hd /tmp
-YAYIN=0 pnpm exec tsx scripts/gorsel-ornek.ts hikaye /tmp
+pnpm gorsel --liste
+pnpm gorsel mac-gunu --takim bbl --rakip sinners --turnuva "RUSH BRNO 2026 · YARI FİNAL" --saat 19.00 --cikti post,hikaye
+pnpm gorsel mac-gunu --rakip-ad "TAKIM" --rakip-logo logo.svg --turnuva "..." --saat 21.30 --yayin yok --cikti post-hd
 ```
 
 ## Maç günü kuralları (onaylı, Kasım 2026)
@@ -52,4 +52,4 @@ Dosya adlarında yalnızca küçük harf, rakam ve `-` kullanılır. Doğrulama 
 
 1. `sablonlar/<ad>.html` yazılır. Veri `window.GORSEL_VERI` ya da `postMessage` ile gelir. Çizim bitince `window.CHECK = { uyarilar }` ve `document.title = 'ready'` ayarlanır. `mac-gunu.html` örnek alınır.
 2. Şablon `GORSEL_SABLONLAR` listesine, veri şeması `src/lib/validations/gorsel.ts` dosyasına eklenir.
-3. `scripts/gorsel-ornek.ts` ile çizilip onaylı tasarımla karşılaştırılır.
+3. `pnpm gorsel` ile çizilip onaylı tasarımla karşılaştırılır.

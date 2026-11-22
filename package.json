@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
+    "gorsel": "tsx scripts/gorsel.ts",
+    "gorsel:tarayici": "playwright-core install chromium",
     "backfill:script-tags": "tsx scripts/backfill-script-tags.ts",
     "check:content-handoff": "tsx scripts/check-content-handoff.ts",
     "check:content-impact": "tsx scripts/check-content-impact.ts",
