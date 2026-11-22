@@ -23,6 +23,7 @@ export type PageKey =
   | 'content-engine'
   | 'journal'
   | 'obs'
+  | 'visual-studio'
   | 'reports';
 
 export interface PageDef {
@@ -48,6 +49,7 @@ export const PAGE_DEFS: PageDef[] = [
   { key: 'content-engine',      label: 'İçerik Motoru',      route: '/motor',             group: 'Analitik' },
   { key: 'journal',             label: 'Günlük',             route: '/gunluk',            group: 'Genel' },
   { key: 'obs',                 label: 'OBS Overlay',        route: '/obs',               group: 'Yayın' },
+  { key: 'visual-studio',       label: 'Görsel Stüdyosu',    route: '/gorsel-studyosu',   group: 'Yayın' },
   { key: 'reports',             label: 'Raporlar',           route: '/reports',           group: 'Diğer' },
 ];
 
@@ -73,7 +75,7 @@ export const DEFAULT_PAGES: Record<UserRole, PageKey[]> = {
   YOUTUBER:  ['dashboard', 'work-items', 'payments', 'schedule', 'content-plan', 'idea-pool', 'social'],
   EDITOR:    ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool'],
   VOICE:     ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool'],
-  GRAFIKER:  ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool'],
+  GRAFIKER:  ['dashboard', 'work-items', 'payments', 'schedule', 'social', 'content-plan', 'idea-pool', 'visual-studio'],
   TEAM_MEMBER: ['dashboard', 'work-items', 'payments', 'content-plan', 'idea-pool'],
 };
 

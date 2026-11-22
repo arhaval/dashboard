@@ -785,6 +785,15 @@ Player A: 3 maps, 90K/60D → KDA per map = 0.50
 Player B: 2 maps, 90K/60D → KDA per map = 0.75 (better per-map performance)
 ```
 
+### Görsel Stüdyosu (sosyal medya şablonları)
+
+`/gorsel-studyosu` sayfası Arhaval'ın onaylı post şablonlarını doldurup indirir. Ayrıntılar ve tasarım kuralları: `gorsel/BENIOKU.md`.
+
+- Şablonlar ve varlıklar `gorsel/` klasöründedir (public değil). Önizleme `/api/gorsel/varlik`, indirme `/api/gorsel/render` üzerinden yapılır. İkisi de `visual-studio` sayfa yetkisini ister.
+- Önizleme ve sunucu çizimi AYNI HTML'i kullanır. Tasarım değişikliği yalnızca şablonda yapılır; panel bileşenleri tasarım bilmez.
+- Şablonun denetim listesi (`window.CHECK.uyarilar`) boş değilse dosya teslim edilmez. Bu kural gevşetilmez.
+- Sunucu çizimi: Chromium 4x → `src/lib/gorsel/birlestir.ts` (Lanczos küçültme, katmana keskinleştirme, zemine birleştirme). Görsel hiçbir zaman kaynağından büyük gösterilmez.
+
 ### Work Item Flow
 
 ```

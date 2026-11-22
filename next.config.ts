@@ -2,6 +2,14 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  // Görsel Stüdyosu sunucu çizimi: başsız Chromium paketlenmeden Node'dan yüklenir.
+  serverExternalPackages: ['@sparticuz/chromium', 'playwright-core'],
+  // `gorsel/` (şablon, font, zemin, logo, oyuncu fotoğrafı) public/ değil; yalnızca
+  // bu iki route'un deploy paketine girer. Chromium'un sıkıştırılmış dosyaları da öyle.
+  outputFileTracingIncludes: {
+    '/api/gorsel/render': ['./gorsel/**/*', './node_modules/@sparticuz/chromium/bin/**/*'],
+    '/api/gorsel/varlik/[...yol]': ['./gorsel/**/*'],
+  },
   experimental: {
     serverActions: {
       // Small server-action payloads (e.g. logo image in the sponsor form).
