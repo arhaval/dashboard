@@ -42,3 +42,6 @@ env.download
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+
+# Görsel Stüdyosu komut satırı çıktıları (pnpm gorsel)
+/gorsel-cikti/

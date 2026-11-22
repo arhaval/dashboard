@@ -1,0 +1,212 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>yukleniyor</title><style>
+/*
+ * ARHAVAL MAÇ GÜNÜ (sahne düzeni)
+ * Kart yok: kadro zeminin içinde durur, zemin aşağı doğru gece petrolüne koyulaşır,
+ * oyuncular omuz omuza bu karanlığa erir. Kurallar: gorsel/BENIOKU.md.
+ *
+ * Veri iki yoldan gelir:
+ *   - Sunucu (Playwright): window.GORSEL_VERI sayfa açılmadan önce yazılır.
+ *   - Panel önizlemesi (iframe, ?onizleme=1): üst pencere postMessage ile gönderir.
+ * Her iki yolda da aynı çizim kodu çalışır; önizlemede görülen, inen dosyanın aynısıdır.
+ */
+@font-face{font-family:ARV;font-weight:100 900;font-stretch:62% 125%;src:url(../ortak/fontlar/archivo-latin-wdth-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+2000-206F}
+@font-face{font-family:ARV;font-weight:100 900;font-stretch:62% 125%;src:url(../ortak/fontlar/archivo-latin-ext-wdth-normal.woff2) format('woff2');unicode-range:U+0100-02AF}
+@font-face{font-family:AS;font-weight:700;font-style:italic;src:url(../ortak/fontlar/ArhavalSans-BoldItalic.ttf)}
+html,body{margin:0;overflow:hidden;background:transparent}
+body{background-size:cover}
+*{box-sizing:border-box}
+.k{position:absolute}
+#A{width:54px;height:auto} #T{width:125px;height:auto}
+/* turnuva satırı: kutu yok; ince çizgiler arasında aralıklı yazı */
+.ust{display:flex;align-items:center;gap:20px;font:500 24px/1 ARV;letter-spacing:.2em;color:rgba(255,255,255,.92);white-space:nowrap}
+.ust span{margin-right:-.2em}
+.ust i{display:block;width:56px;height:1px;background:rgba(255,255,255,.42)}
+.saat{font:italic 700 var(--sfs,130px)/1 AS;color:#fff;letter-spacing:.01em;white-space:nowrap}
+#kadro{overflow:hidden}
+#kadro img{position:absolute;top:0}
+.ad{display:flex;align-items:center;justify-content:center;font-family:ARV;font-weight:600;font-stretch:75%;font-size:36px;line-height:1;letter-spacing:.01em;color:#fff;white-space:nowrap}
+#bant{display:flex;align-items:center;justify-content:center;gap:16px;white-space:nowrap;font:500 22px/1 ARV;letter-spacing:.16em;color:rgba(255,255,255,.88)}
+#bant .ikon{display:flex;align-items:center;gap:12px}
+#bant .yt{height:30px;width:auto} #bant .kick{height:36px;width:32px}
+</style></head><body>
+<div class="k" id="karart"></div>
+<img class="k" id="A" src="../ortak/logolar/arhaval-a.png" alt="Arhaval">
+<img class="k" id="T" src="../ortak/logolar/titanseat.png" alt="TitanSeat">
+<div class="k ust" id="et"><i></i><span id="etYazi"></span><i></i></div>
+<img class="k" id="L1" alt="takım logosu">
+<div class="k saat" id="saat"></div>
+<img class="k" id="L2" alt="rakip logosu">
+<div class="k" id="kadro"></div>
+<div class="k" id="adlar"></div>
+<div class="k" id="bant"><span class="ikon"><img class="yt" src="../ortak/logolar/youtube.png" alt=""><img class="kick" src="../ortak/logolar/kick.svg" alt=""></span>ARHAVAL YOUTUBE VE KICK’TE CANLI</div>
+<script>
+'use strict';
+const KOK = new URL('../', location.href);
+const ONIZLEME = new URLSearchParams(location.search).get('onizleme') === '1';
+const varlik = (p) => (p.startsWith('data:') ? p : new URL(p, KOK).href);
+const $ = (id) => document.getElementById(id);
+
+// Oyuncu boyu HLTV kadrajının 1,4 katı; fotoğraflar bu boy için HD'de birebir üretilir.
+const K = 1.4, FW = 400 * K, FH = 417 * K, ARA = 206;
+const ERI0 = 292 * K, ERI1 = 366 * K;            // gövde bu aralıkta zemine erir
+const W = 1080;
+const DUZEN = {
+  post:   { H: 1440, top: 53,  alt: 56,  sfs: 140, hB: 220, lx: 320, yk: 90 },
+  hikaye: { H: 1920, top: 250, alt: 250, sfs: 150, hB: 230, lx: 340, yk: 110 },
+};
+// Logo görsel eşitliği: iki logo önce eşit ALANA getirilir (referans: hB yüksekliğinde, en/boy 1.25 bir logo),
+// sonra daha dolu olanı (seyrek kapsama / dolu kapsama)^0.35 oranında küçültülür. BBL–SINNERS'ta onaylanan oran budur.
+const REF_ENBOY = 1.25, YUMUSAMA = 0.35, LOGO_AZAMI = 1000;
+
+const logoOnbellek = new Map();
+function resimYukle(src) {
+  return new Promise((ok, hata) => {
+    const im = new Image(); im.crossOrigin = 'anonymous';
+    im.onload = () => ok(im); im.onerror = () => hata(new Error('görsel açılamadı'));
+    im.src = varlik(src);
+  });
+}
+/** Logoyu beyaz tek renge çevirir, boş kenarlarını kırpar, kapsama ve en/boy oranını ölçer. */
+function logoHazirla(src) {
+  if (!logoOnbellek.has(src)) logoOnbellek.set(src, (async () => {
+    const im = await resimYukle(src);
+    // Logo en fazla 320 px genişlikte çizilir (HD'de 640 px); 1000 px yeter. Daha büyüğü
+    // sunucudaki Chromium'un belleğini gereksiz şişiriyor.
+    const svg = /^data:image\/svg|\.svg$/i.test(src);
+    let w = im.naturalWidth || LOGO_AZAMI, h = im.naturalHeight || LOGO_AZAMI;
+    const s = svg ? LOGO_AZAMI / Math.max(w, h) : Math.min(1, LOGO_AZAMI / Math.max(w, h));
+    w = Math.round(w * s); h = Math.round(h * s);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d'); x.drawImage(im, 0, 0, w, h);
+    const d = x.getImageData(0, 0, w, h), p = d.data;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1, opak = 0, renkli = 0;
+    for (let y = 0; y < h; y++) for (let i = 0; i < w; i++) {
+      const k = (y * w + i) * 4;
+      if (p[k + 3] > 128) { opak++; if (Math.min(p[k], p[k + 1], p[k + 2]) < 200) renkli++; }
+      p[k] = p[k + 1] = p[k + 2] = 255;
+      if (p[k + 3] > 8) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+    if (x1 < 0) throw new Error('logo boş');
+    x.putImageData(d, 0, 0);
+    const bw = x1 - x0 + 1, bh = y1 - y0 + 1; let toplam = 0;
+    for (let y = y0; y <= y1; y++) for (let i = x0; i <= x1; i++) toplam += p[(y * w + i) * 4 + 3];
+    const c2 = document.createElement('canvas'); c2.width = bw; c2.height = bh;
+    c2.getContext('2d').drawImage(c, x0, y0, bw, bh, 0, 0, bw, bh);
+    const kapsama = toplam / (255 * bw * bh);
+    // renkli: kaynak beyaz tek renk değildi; beyaza çevrilince iç detaylar kaybolmuş olabilir.
+    return { url: c2.toDataURL('image/png'), kapsama, enboy: bw / bh, opak: kapsama > 0.97 && bw === w && bh === h, renkli: opak > 0 && renkli / opak > 0.15 };
+  })());
+  return logoOnbellek.get(src);
+}
+const yukle = (im) => (im.complete && im.naturalWidth ? Promise.resolve() : new Promise((r) => { im.onload = r; im.onerror = r; }));
+
+let sira = 0;
+async function ciz(veri) {
+  const no = ++sira, C = { uyarilar: [], notlar: [] };
+  // olcek: teslim boyutu / 1080 (sunucu verir). Önizlemede 1.
+  const OLCEK = veri.olcek || 1;
+  const L = DUZEN[veri.format] || DUZEN.post, H = L.H;
+  document.body.style.width = W + 'px'; document.body.style.height = H + 'px';
+  document.body.style.backgroundImage = ONIZLEME ? `url(${varlik('ortak/zemin/' + (veri.format === 'hikaye' ? 'hikaye' : 'post') + '.png')})` : 'none';
+
+  $('etYazi').textContent = veri.turnuva;
+  $('saat').textContent = veri.saat;
+  const [lg1, lg2] = await Promise.all([logoHazirla(veri.takim.logo), logoHazirla(veri.rakip.logo)]);
+  if (lg2.opak) C.uyarilar.push('rakip logosu şeffaf değil: arka planı olmayan PNG ya da SVG kullan');
+  if (lg1.opak) C.uyarilar.push('takım logosu şeffaf değil');
+  if (lg2.renkli && !lg2.opak) C.notlar.push('Rakip logosu renkliydi, beyaza çevrildi. Şekli bozulmamış mı bak');
+  $('L1').src = lg1.url; $('L2').src = lg2.url;
+  await document.fonts.load('600 20px ARV', veri.turnuva + ' ARHAVAL YOUTUBE VE KICK’TE CANLI ' + veri.takim.oyuncular.map((o) => o.nick).join(''));
+  await document.fonts.load('italic 700 20px AS', veri.saat);
+
+  // kadro: ortadaki en önde, kenara doğru her kademe %5 daha karanlık
+  const kadro = $('kadro'), adlar = $('adlar'); kadro.replaceChildren(); adlar.replaceChildren();
+  const z = [3, 4, 5, 4, 3], parlak = [.9, .95, 1, .95, .9];
+  veri.takim.oyuncular.forEach((o, i) => {
+    const cx = W / 2 + (i - 2) * ARA, im = new Image(); im.alt = o.nick; im.src = varlik(o.foto);
+    im.style.cssText = `left:${cx - FW / 2}px;width:${FW}px;height:${FH}px;z-index:${z[i]};filter:drop-shadow(0 10px 22px rgba(0,0,0,.45))${parlak[i] < 1 ? ` brightness(${parlak[i]})` : ''}`;
+    kadro.append(im);
+    const d = document.createElement('div'); d.className = 'k ad';
+    const s = document.createElement('span'); s.textContent = o.nick; d.append(s);
+    d.style.cssText = `left:${cx - ARA / 2}px;width:${ARA}px;top:0;height:44px`; adlar.append(d);
+  });
+  await Promise.all([...document.images].map(yukle));
+  await document.fonts.ready;
+  if (no !== sira) return null;   // bu arada yeni veri geldiyse eski çizimi bırak
+
+  // KURAL: yayın satırı yalnızca maçı Arhaval yayınlıyorsa konur ve isimlerin hemen altında durur.
+  // Yayın yoksa satır hiç konmaz; kadro, isimler ve maç bloğu yerinden oynamaz.
+  const AD = H - L.alt - 36 - 30 - 44 - L.yk, BT = AD + 44 + 22, Y = AD + 18 - ERI1;
+  const yer = (id, x, y) => { const e = $(id); e.style.left = x + 'px'; e.style.top = y + 'px'; };
+  const ortala = (id, y) => { const e = $(id); e.style.left = ((W - e.offsetWidth) / 2) + 'px'; e.style.top = y + 'px'; };
+  yer('A', 54, L.top); yer('T', 1026 - 125, L.top + 21 - 125 * 104 / 396 / 2);
+
+  const k0 = Y + 150 * K, k1 = Y + ERI1;
+  Object.assign($('karart').style, { left: 0, top: 0, width: W + 'px', height: H + 'px', zIndex: 0,
+    background: `linear-gradient(180deg,rgba(3,28,36,0) 0px,rgba(3,28,36,0) ${k0 - 120}px,rgba(3,28,36,.55) ${k0 + 60}px,rgba(2,18,23,.9) ${k1}px,rgba(2,16,20,.96) ${H}px)` });
+  Object.assign(kadro.style, { left: 0, top: Y + 'px', width: W + 'px', height: ERI1 + 'px', zIndex: 2 });
+  const m = `linear-gradient(180deg,#000 ${ERI0}px,transparent ${ERI1}px)`; kadro.style.webkitMaskImage = m; kadro.style.maskImage = m;
+  Object.assign(adlar.style, { left: 0, top: AD + 'px', width: W + 'px', height: '44px', zIndex: 3 });
+  const b = $('bant'); b.style.display = veri.yayin ? 'flex' : 'none';
+  if (veri.yayin) { Object.assign(b.style, { top: BT + 'px', height: '36px', zIndex: 3 }); b.style.left = ((W - b.offsetWidth) / 2) + 'px'; }
+
+  // maç bloğu: turnuva satırı + logolar + saat tek grup, üst başlıkla başların tam ortasında
+  const ET = $('et').offsetHeight, BOS = 54, bas = Y + 12 * K, ust = L.top + 42, g0 = ust + (bas - ust - ET - BOS - L.hB) / 2;
+  ortala('et', g0); const bc = g0 + ET + BOS + L.hB / 2;
+  $('saat').style.setProperty('--sfs', L.sfs + 'px'); ortala('saat', bc - $('saat').offsetHeight / 2);
+  const alan = L.hB * L.hB * REF_ENBOY, enAz = Math.min(lg1.kapsama, lg2.kapsama);
+  const boy = (lg) => Math.min(Math.sqrt(alan / lg.enboy) * Math.pow(enAz / lg.kapsama, YUMUSAMA), L.hB * 1.3, 320 / lg.enboy);
+  // Yer sınırı: çok geniş (EF) ya da çok uzun logo saate, turnuva satırına ya da kenara değmesin.
+  // Sınır bağlarsa İKİ logo aynı oranda küçülür; görsel eşitlik (yukarıdaki oran) bozulmaz.
+  const sr = $('saat').getBoundingClientRect(), etAlt = $('et').getBoundingClientRect().bottom;
+  // Payları denetimdekiyle aynı (40/36): denetimden zaten geçen düzende hiçbir şey değişmez.
+  const enUzun = 2 * (bc - (etAlt + 40));
+  const enGenis = (yon) => (yon < 0
+    ? 2 * Math.min(sr.left - 36 - (540 - L.lx), (540 - L.lx) - 40)
+    : 2 * Math.min((540 + L.lx) - (sr.right + 36), W - 40 - (540 + L.lx)));
+  const hs = [[lg1, -1], [lg2, 1]].map(([lg, yon]) => [boy(lg), Math.min(enUzun, enGenis(yon) / lg.enboy)]);
+  const sigdir = Math.min(1, ...hs.map(([h, s]) => s / h));
+  [[$('L1'), lg1, -1, 0], [$('L2'), lg2, 1, 1]].forEach(([e, lg, yon, i]) => {
+    const h = hs[i][0] * sigdir, w = h * lg.enboy;
+    Object.assign(e.style, { height: h + 'px', width: w + 'px', left: (540 + yon * L.lx - w / 2) + 'px', top: (bc - h / 2) + 'px' });
+  });
+
+  // denetim: liste boş değilse dosya teslim edilmez
+  const bx = (e) => { const r = e.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom].map(Math.round); };
+  for (const e of document.querySelectorAll('#A,#T,#et,#saat,#L1,#L2' + (veri.yayin ? ',#bant' : ''))) {
+    C[e.id] = bx(e); const r = e.getBoundingClientRect();
+    if (r.left < 40 || r.right > W - 40 || r.top < 0 || r.bottom > H) C.uyarilar.push('kenara çok yakın: ' + e.id);
+  }
+  if (Math.min(C.L1[1], C.L2[1]) < C.et[3] + 40) C.uyarilar.push('logolar turnuva satırına çok yakın');
+  if (bas < Math.max(C.L1[3], C.L2[3]) + 50) C.uyarilar.push('başlar logolara çok yakın');
+  if (C.L1[2] > C.saat[0] - 36 || C.L2[0] < C.saat[2] + 36) C.uyarilar.push('logolar saate çok yakın');
+  if (C.et[2] - C.et[0] > W - 2 * 54) C.uyarilar.push('turnuva satırı çok uzun');
+  for (const s of document.querySelectorAll('.ad span')) {
+    const r = s.getBoundingClientRect();
+    if (s.offsetWidth > ARA - 16) C.uyarilar.push('isim sığmıyor: ' + s.textContent);
+    else if (r.left < 40 || r.right > W - 40) C.uyarilar.push('isim kenara çok yakın: ' + s.textContent);
+  }
+  for (const i of document.images) {
+    if (/\.svg$/i.test(i.src) || (!veri.yayin && i.closest('#bant'))) continue;
+    if (!i.naturalWidth) { C.uyarilar.push('görsel açılamadı'); continue; }
+    const r = i.getBoundingClientRect(), s = OLCEK * Math.max(r.width / i.naturalWidth, r.height / i.naturalHeight);
+    if (s > 1.001) C.uyarilar.push(`görsel kaynağından büyük gösteriliyor (${s.toFixed(2)}x): ${i.alt || 'logo'}`);
+  }
+  return C;
+}
+
+function bitir(C) {
+  window.CHECK = C; document.title = 'ready';
+  if (ONIZLEME && window.parent !== window) window.parent.postMessage({ tip: 'gorsel-denetim', uyarilar: C.uyarilar, notlar: C.notlar || [] }, location.origin);
+}
+function calistir(veri) {
+  ciz(veri).then((C) => { if (C) bitir(C); })
+    .catch((e) => bitir({ uyarilar: ['çizim hatası: ' + (e && e.message ? e.message : e)] }));
+}
+if (window.GORSEL_VERI) calistir(window.GORSEL_VERI);
+window.addEventListener('message', (e) => {
+  if (e.origin !== location.origin || !e.data || e.data.tip !== 'gorsel-veri') return;
+  calistir(e.data.veri);
+});
+if (ONIZLEME && window.parent !== window) window.parent.postMessage({ tip: 'gorsel-hazir' }, location.origin);
+</script></body></html>

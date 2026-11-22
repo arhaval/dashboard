@@ -27,6 +27,7 @@ import {
   Building2,
   Coins,
   ChevronDown,
+  Palette,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -82,6 +83,7 @@ const navSections: NavSection[] = [
       { label: 'İçerik Motoru',      href: '/motor',              icon: Sparkles,      perm: 'content-engine' },
       { label: 'Fikir Havuzu',       href: '/fikir-havuzu',       icon: Lightbulb,     perm: 'idea-pool' },
       { label: 'İçerik Performansı', href: '/icerik-performansi', icon: PlayCircle,    perm: 'content-performance' },
+      { label: 'Görsel Stüdyosu',    href: '/gorsel-studyosu',    icon: Palette,       perm: 'visual-studio' },
       { label: tr.nav.social,        href: '/social',             icon: BarChart3,     perm: 'social' },
     ],
   },
