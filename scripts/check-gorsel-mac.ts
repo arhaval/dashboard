@@ -20,6 +20,7 @@ import {
   type ArhavalMac,
 } from '../src/lib/gorsel/arhaval-mac';
 import { macGunuVerisi } from '../src/lib/gorsel/mac-gunu';
+import { logoKaynagiGecerli } from '../src/services/gorsel-mac.service';
 
 let passed = 0;
 const failures: string[] = [];
@@ -87,6 +88,14 @@ ok('yedek oyuncu → not, engel değil', (() => {
 ok('kadrodan çıkan oyuncu → not', macOzeti(mac({ takim: { ad: 'BBL Esports', slug: null, oyuncular: BBL_KADRO.slice(0, 4) } })).notlar.some((n) => n.includes('MistR')));
 ok('kesin olmayan saat → not', macOzeti(mac({ saatKesin: false })).notlar.length === 1);
 ok('çevrilemeyen aşama → not', macOzeti(mac({ asama: null, asamaHam: 'Showdown' })).notlar.some((n) => n.includes('Showdown')));
+
+// ── Logo kaynağı (yalnız https + arhaval.com'un logo kaynakları) ──────────────
+ok('Supabase depolaması kabul', logoKaynagiGecerli('https://orwjtzjtzunmbcmouklw.supabase.co/storage/v1/object/public/team-logos/a.png'));
+ok('arhaval.com kabul', logoKaynagiGecerli('https://arhaval.com/mirror/a.png'));
+ok('http reddedilir', !logoKaynagiGecerli('http://orwjtzjtzunmbcmouklw.supabase.co/a.png'));
+ok('başka alan adı reddedilir', !logoKaynagiGecerli('https://ornek.com/a.png'));
+ok('sonu taklit eden alan adı reddedilir', !logoKaynagiGecerli('https://x.supabase.co.ornek.com/a.png') && !logoKaynagiGecerli('https://arhaval.com.ornek.com/a.png'));
+ok('bozuk adres reddedilir', !logoKaynagiGecerli('logo.png'));
 
 // ── Form ────────────────────────────────────────────────────────────────────
 const f = macFormu(mac());

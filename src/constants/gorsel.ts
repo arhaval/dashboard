@@ -123,8 +123,13 @@ export const GORSEL_RAKIPLER: Record<string, GorselTakim> = {
  * arhaval.com'un yaklaşan maç listesi (HLTV verisi, Türk takımları). Panel bu listeden
  * maç seçtirir; seçilen maçın postu kendiliğinden doldurulur. Uç: tahmin reposu,
  * src/app/api/gorsel/yaklasan-maclar.
+ *
+ * Liste ekibin TARAYICISINDAN okunur: arhaval.com'un Vercel Firewall'u (bot koruması)
+ * panelin sunucusundan gelen isteği 429 ile kesiyor, tarayıcı isteği geçiyor.
  */
-export const GORSEL_ARHAVAL_COM_URL = process.env.ARHAVAL_COM_URL ?? 'https://arhaval.com';
+export const GORSEL_ARHAVAL_COM_URL = process.env.NEXT_PUBLIC_ARHAVAL_COM_URL ?? 'https://arhaval.com';
+/** Rakip logosu yalnız bu kaynaklardan indirilir (arhaval.com'un logo aynası Supabase depolamasında). */
+export const GORSEL_LOGO_KAYNAKLARI: RegExp[] = [/\.supabase\.co$/i, /(^|\.)arhaval\.com$/i];
 export const GORSEL_MAC_PENCERESI_SAAT = 72;
 /** Maçın yayıncı listesinde bu geçiyorsa maçı Arhaval yayınlıyor sayılır (yayın satırı kuralı). */
 export const GORSEL_ARHAVAL_KANALI = /arhaval/i;
@@ -139,6 +144,8 @@ export const GORSEL_TURNUVA_ADLARI: { desen: RegExp; ad: string }[] = [
 
 /** Yüklenen logo için üst sınır (data URL uzunluğu, ~2 MB dosya). */
 export const GORSEL_LOGO_AZAMI_URL = 2_800_000;
+/** İndirilen logo dosyası için üst sınır (bayt). */
+export const GORSEL_LOGO_AZAMI_BAYT = 2 * 1024 * 1024;
 
 /** postMessage tipleri: panel ↔ şablon iframe'i. */
 export const GORSEL_MESAJ = {

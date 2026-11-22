@@ -3,7 +3,7 @@
  *
  * Saf fonksiyonlar: veri doğrulaması, takım eşleştirme, Türkiye saati, turnuva satırı,
  * yayın kuralı, kadro kontrolü. Ağ ve logo indirme servis katmanında
- * (services/gorsel-mac.service.ts).
+ * (services/gorsel-mac.service.ts, tarayıcıda çalışır).
  */
 
 import { z } from 'zod';

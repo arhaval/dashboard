@@ -1,33 +1,37 @@
 'use client';
 
 /**
- * Yaklaşan maçlar (arhaval.com, HLTV). Her maç paylaşılmaz: ekip paylaşacağı maçı
- * seçer, "Postu hazırla" formu kendiliğinden doldurur.
+ * Yaklaşan maçlar (arhaval.com, HLTV; tarayıcıda okunur). Her maç paylaşılmaz: ekip
+ * paylaşacağı maçı seçer, "Postu hazırla" formu kendiliğinden doldurur.
  */
 
 import { useState, useTransition } from 'react';
-import { CalendarClock, Wand2 } from 'lucide-react';
+import { CalendarClock, Loader2, Wand2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { gunEtiketi, type GorselMacOzeti } from '@/lib/gorsel/arhaval-mac';
 import type { MacGunuForm } from '@/lib/gorsel/mac-gunu';
-import { macPostunuHazirla } from '@/app/(dashboard)/gorsel-studyosu/actions';
+import type { GorselMacFormSonucu } from '@/services/gorsel-mac.service';
+
+type Hazirla = (id: string) => Promise<GorselMacFormSonucu>;
 
 interface YaklasanMaclarProps {
   maclar: GorselMacOzeti[];
+  yukleniyor: boolean;
   hata: string | null;
+  hazirla: Hazirla;
   seciliId: string | null;
   onSec: (id: string, form: MacGunuForm, notlar: string[]) => void;
 }
 
-function Satir({ mac, secili, onSec }: { mac: GorselMacOzeti; secili: boolean; onSec: YaklasanMaclarProps['onSec'] }) {
+function Satir({ mac, secili, hazirla, onSec }: { mac: GorselMacOzeti; secili: boolean; hazirla: Hazirla; onSec: YaklasanMaclarProps['onSec'] }) {
   const [bekliyor, baslat] = useTransition();
   const [hata, setHata] = useState<string | null>(null);
   const hazirlanamaz = mac.engeller.length > 0;
 
-  const hazirla = () => baslat(async () => {
+  const postuHazirla = () => baslat(async () => {
     setHata(null);
-    const sonuc = await macPostunuHazirla(mac.id);
+    const sonuc = await hazirla(mac.id);
     if (sonuc.ok) onSec(mac.id, sonuc.form, sonuc.notlar);
     else setHata(sonuc.hata);
   });
@@ -50,7 +54,7 @@ function Satir({ mac, secili, onSec }: { mac: GorselMacOzeti; secili: boolean; o
       <div className="flex shrink-0 items-center gap-2">
         {secili && <Badge tone="accent">Formda</Badge>}
         {!hazirlanamaz && mac.notlar.length > 0 && <Badge tone="warning">{mac.notlar.length} kontrol</Badge>}
-        <Button size="sm" variant={secili ? 'secondary' : 'default'} disabled={hazirlanamaz} isLoading={bekliyor} onClick={hazirla}>
+        <Button size="sm" variant={secili ? 'secondary' : 'default'} disabled={hazirlanamaz} isLoading={bekliyor} onClick={postuHazirla}>
           <Wand2 className="mr-2 h-4 w-4" />
           Postu hazırla
         </Button>
@@ -59,7 +63,15 @@ function Satir({ mac, secili, onSec }: { mac: GorselMacOzeti; secili: boolean; o
   );
 }
 
-export function YaklasanMaclar({ maclar, hata, seciliId, onSec }: YaklasanMaclarProps) {
+export function YaklasanMaclar({ maclar, yukleniyor, hata, hazirla, seciliId, onSec }: YaklasanMaclarProps) {
+  if (yukleniyor) {
+    return (
+      <p className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Maçlar arhaval.com&apos;dan alınıyor…
+      </p>
+    );
+  }
   if (hata) {
     return <p className="text-sm text-[var(--color-error)]">{hata}. Formu elle doldurabilirsin.</p>;
   }
@@ -73,7 +85,7 @@ export function YaklasanMaclar({ maclar, hata, seciliId, onSec }: YaklasanMaclar
   }
   return (
     <ul>
-      {maclar.map((m) => <Satir key={m.id} mac={m} secili={m.id === seciliId} onSec={onSec} />)}
+      {maclar.map((m) => <Satir key={m.id} mac={m} secili={m.id === seciliId} hazirla={hazirla} onSec={onSec} />)}
     </ul>
   );
 }

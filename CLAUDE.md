@@ -792,7 +792,7 @@ Player B: 2 maps, 90K/60D → KDA per map = 0.75 (better per-map performance)
 - Şablonlar ve varlıklar `gorsel/` klasöründedir (public değil). Önizleme `/api/gorsel/varlik`, indirme `/api/gorsel/render` üzerinden yapılır. İkisi de `visual-studio` sayfa yetkisini ister.
 - Önizleme ve sunucu çizimi AYNI HTML'i kullanır. Tasarım değişikliği yalnızca şablonda yapılır; panel bileşenleri tasarım bilmez.
 - Şablonun denetim listesi (`window.CHECK.uyarilar`) boş değilse dosya teslim edilmez. Bu kural gevşetilmez.
-- Yaklaşan maçlar arhaval.com'dan gelir (`/api/gorsel/yaklasan-maclar`, tahmin reposu). Ekip paylaşacağı maçı seçer, form kendiliğinden dolar. Eşleştirme, saat, turnuva yazımı ve kontrol notları `src/lib/gorsel/arhaval-mac.ts` içinde (testi: `scripts/check-gorsel-mac.ts`).
+- Yaklaşan maçlar arhaval.com'dan gelir (`/api/gorsel/yaklasan-maclar`, tahmin reposu) ve TARAYICIDAN okunur (arhaval.com'un Vercel Firewall'u sunucu isteğini 429 ile kesiyor). Ekip paylaşacağı maçı seçer, form kendiliğinden dolar. Eşleştirme, saat, turnuva yazımı ve kontrol notları `src/lib/gorsel/arhaval-mac.ts` içinde (testi: `scripts/check-gorsel-mac.ts`).
 - Claude Code'dan üretim: `pnpm gorsel ...` (skill: `.claude/skills/gorsel-studyosu`). Panelle aynı şablon ve aynı çizim hattı.
 - Sunucu çizimi: Chromium 2x, GPU taklidi kapalı (bellek < 1 GB) → `src/lib/gorsel/birlestir.ts` (1080 çıktıda Lanczos küçültme + katmana keskinleştirme, zemine birleştirme). Görsel hiçbir zaman kaynağından büyük gösterilmez.
 

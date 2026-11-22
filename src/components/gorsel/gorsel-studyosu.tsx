@@ -11,9 +11,9 @@ import { AlertTriangle, Download, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { GORSEL_CIKTILAR, GORSEL_SABLONLAR, GORSEL_TAKIMLAR, type GorselCikti } from '@/constants/gorsel';
-import type { GorselMacOzeti } from '@/lib/gorsel/arhaval-mac';
 import { MAC_GUNU_BOS_FORM, macGunuVerisi, type MacGunuForm } from '@/lib/gorsel/mac-gunu';
 import { useGorselIndir } from '@/hooks/use-gorsel-indir';
+import { useYaklasanMaclar } from '@/hooks/use-yaklasan-maclar';
 import { MacGunuFormu } from './mac-gunu-formu';
 import { SablonOnizleme } from './sablon-onizleme';
 import { YaklasanMaclar } from './yaklasan-maclar';
@@ -42,12 +42,8 @@ function Liste({ baslik, maddeler, ton }: { baslik: string; maddeler: string[]; 
   );
 }
 
-interface GorselStudyosuProps {
-  maclar: GorselMacOzeti[];
-  maclarHatasi: string | null;
-}
-
-export function GorselStudyosu({ maclar, maclarHatasi }: GorselStudyosuProps) {
+export function GorselStudyosu() {
+  const yaklasan = useYaklasanMaclar();
   const [form, setForm] = useState<MacGunuForm>(MAC_GUNU_BOS_FORM);
   const [seciliMac, setSeciliMac] = useState<string | null>(null);
   const [secimNotlari, setSecimNotlari] = useState<string[]>([]);
@@ -76,7 +72,7 @@ export function GorselStudyosu({ maclar, maclarHatasi }: GorselStudyosuProps) {
           <CardTitle>Yaklaşan maçlar</CardTitle>
         </CardHeader>
         <CardContent>
-          <YaklasanMaclar maclar={maclar} hata={maclarHatasi} seciliId={seciliMac} onSec={macSec} />
+          <YaklasanMaclar {...yaklasan} seciliId={seciliMac} onSec={macSec} />
         </CardContent>
       </Card>
 
