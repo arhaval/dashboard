@@ -31,7 +31,10 @@ export function usePushNotifications(): PushNotificationState {
   const [isLoading, setIsLoading] = React.useState(false);
 
   React.useEffect(() => {
+    // Service worker yalnızca production'da kayıtlı (bkz. ServiceWorkerRegister);
+    // dev'de `serviceWorker.ready` hiç çözülmez, buton takılı kalmasın.
     const supported =
+      process.env.NODE_ENV === 'production' &&
       typeof window !== 'undefined' &&
       'serviceWorker' in navigator &&
       'PushManager' in window &&

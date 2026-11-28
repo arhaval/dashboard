@@ -1,5 +1,8 @@
-// Arhaval Dashboard — Service Worker v2
-const CACHE_VERSION = 'arhaval-v2';
+// Arhaval Dashboard — Service Worker v3
+// v3: sürüm artışı eski önbellekleri siler (dev'de takılı kalan eski CSS dahil);
+// localhost istekleri hiç yakalanmaz — dev'de dosya adları sabit, cache-first
+// eski stili vermeye devam ediyordu.
+const CACHE_VERSION = 'arhaval-v3';
 const STATIC_CACHE  = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 
@@ -41,6 +44,9 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+
+  // Dev (localhost): hiçbir şeyi önbellekten verme — her şey ağdan.
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return;
 
   // Skip: API routes, Supabase, hot-reload, extension traffic
   if (
