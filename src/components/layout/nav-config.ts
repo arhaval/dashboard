@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, FileText, CreditCard, PiggyBank, BarChart3,
   FileOutput, CalendarDays, ClipboardList, Tv2, PlayCircle, Handshake,
   Lightbulb, ShieldCheck, Sparkles, Swords, NotebookPen, Wallet,
-  Building2, Coins, type LucideIcon,
+  Building2, Coins, Palette, type LucideIcon,
 } from 'lucide-react';
 import { tr } from '@/lib/i18n';
 import type { PageKey } from '@/constants/permissions';
@@ -58,6 +58,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'İçerik Motoru', href: '/motor', icon: Sparkles, perm: 'content-engine' },
       { label: 'Fikir Havuzu', href: '/fikir-havuzu', icon: Lightbulb, perm: 'idea-pool' },
       { label: 'İçerik Performansı', href: '/icerik-performansi', icon: PlayCircle, perm: 'content-performance' },
+      { label: 'Görsel Stüdyosu', href: '/gorsel-studyosu', icon: Palette, perm: 'visual-studio' },
       { label: tr.nav.social, href: '/social', icon: BarChart3, perm: 'social' },
     ],
   },
