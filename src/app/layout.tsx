@@ -53,8 +53,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   minimumScale: 1,
   maximumScale: 5,
-  themeColor: '#FF4D00',
-  colorScheme: 'light',
+  themeColor: '#0E0E11',
+  colorScheme: 'dark',
   viewportFit: 'cover', // iOS notch support
 };
 

@@ -1,3 +1,4 @@
+import { Sparkles as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
@@ -23,7 +24,7 @@ export default async function OgrenmePage() {
   const untagged = finals.filter(isUntagged).length;
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="Öğrenme"
       description="Onaylanan her finalde AI'ın ham çıktısı, senin onayladığın hâli ve gerekçen birlikte saklanır. Amaç: motorun neyi tekrar tekrar yanlış yaptığını görmek."
     >

@@ -1,12 +1,7 @@
 /**
  * Card Component
  * Base card primitive following the design system
- * No shadows, 1px border with --color-border
- *
- * Golge kaldirildi: yorum "no shadows" diyordu ama kod her karta
- * --shadow-card (0 1px 3px rgba(0,0,0,0.5)) uyguluyordu. CLAUDE.md'nin
- * kurali net: yukseltme kenarlikla yapilir, golgeyle degil. Koyu zeminde
- * golge zaten yukseklik degil bulaniklik olarak okunuyordu.
+ * Tessera dili: düz yüzey, gölge yok, 1px --color-border kenar.
  */
 
 import * as React from 'react';
@@ -36,7 +31,7 @@ const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex flex-col space-y-1.5 p-6', className)}
+      className={cn('flex flex-col space-y-1 p-5', className)}
       {...props}
     />
   )
@@ -51,7 +46,7 @@ const CardTitle = React.forwardRef<HTMLParagraphElement, CardTitleProps>(
     <h3
       ref={ref}
       className={cn(
-        'text-lg font-semibold leading-none tracking-tight',
+        'text-[15px] font-semibold leading-tight tracking-tight',
         'text-[var(--color-text-primary)]',
         className
       )}
@@ -70,7 +65,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn('text-sm text-[var(--color-text-secondary)]', className)}
+    className={cn('text-xs text-[var(--color-text-muted)]', className)}
     {...props}
   />
 ));
@@ -81,7 +76,7 @@ type CardContentProps = React.HTMLAttributes<HTMLDivElement>;
 
 const CardContent = React.forwardRef<HTMLDivElement, CardContentProps>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('p-6 pt-0', className)} {...props} />
+    <div ref={ref} className={cn('p-5 pt-0', className)} {...props} />
   )
 );
 
@@ -93,7 +88,7 @@ const CardFooter = React.forwardRef<HTMLDivElement, CardFooterProps>(
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex items-center p-6 pt-0', className)}
+      className={cn('flex items-center p-5 pt-0', className)}
       {...props}
     />
   )

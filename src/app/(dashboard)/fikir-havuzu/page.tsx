@@ -1,3 +1,4 @@
+import { Lightbulb as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
@@ -15,7 +16,7 @@ export default async function FikirHavuzuPage() {
   const commentsEnabled = Boolean(process.env.ANTHROPIC_API_KEY);
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="Fikir Havuzu"
       description="Ekip fikir atar ve oylar; AI değerlendirir; admin İçerik Planı'na aktarır. Yazar ve oy kırılımı yalnız adminde görünür."
     >

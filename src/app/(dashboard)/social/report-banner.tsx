@@ -33,7 +33,7 @@ export function ReportBanner({ completeness }: { completeness: MonthCompleteness
       <Link
         href={`/social/data?month=${completeness.month}`}
         className="rounded-[var(--radius-sm)] px-3 py-1.5 text-[12px] font-semibold"
-        style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+        style={{ backgroundColor: 'var(--color-text-primary)', color: 'var(--color-bg-primary)' }}
       >
         Raporu Tamamla
       </Link>

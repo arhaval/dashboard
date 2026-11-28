@@ -80,7 +80,7 @@ export function NewMatchForm({ teams }: { teams: CS2Team[] }) {
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-[var(--radius-sm)] bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-light)] disabled:opacity-50"
+          className="rounded-[var(--radius-sm)] bg-[var(--color-text-primary)] px-4 py-2 text-sm font-medium text-[var(--color-bg-primary)] transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {isPending ? tr.team.saving : tr.cs2.addMatch}
         </button>

@@ -83,7 +83,7 @@ export function BackfillButton() {
                     onClick={() => run(false)}
                     disabled={pending}
                     className="rounded-[var(--radius-sm)] px-2.5 py-1 text-[11px] font-semibold disabled:opacity-50"
-                    style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+                    style={{ backgroundColor: 'var(--color-text-primary)', color: 'var(--color-bg-primary)' }}
                   >
                     Uygula
                   </button>

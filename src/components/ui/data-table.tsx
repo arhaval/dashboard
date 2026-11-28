@@ -110,15 +110,15 @@ export function DataTable<T>({
   return (
     <div className={className}>
       {/* Table */}
-      <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
+      <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+              <tr className="border-b border-[var(--color-border)]">
                 {visibleColumns.map((col) => (
                   <th
                     key={col.key}
-                    className={`${cellPadding} text-sm font-medium text-[var(--color-text-secondary)] ${alignClass(col.align)} ${col.className ?? ''}`}
+                    className={`${cellPadding} text-xs font-medium text-[var(--color-text-muted)] ${alignClass(col.align)} ${col.className ?? ''}`}
                   >
                     {col.header}
                   </th>
@@ -134,11 +134,7 @@ export function DataTable<T>({
                 return (
                   <tr
                     key={rowKey(row)}
-                    className={`border-b border-[var(--color-border)] last:border-b-0 ${
-                      globalIndex % 2 === 0
-                        ? 'bg-[var(--color-table-row-even)]'
-                        : 'bg-[var(--color-table-row-odd)]'
-                    }`}
+                    className="border-b border-[var(--color-border)] transition-colors last:border-b-0 hover:bg-[var(--color-bg-tertiary)]"
                   >
                     {visibleColumns.map((col) => (
                       <td
@@ -170,7 +166,7 @@ export function DataTable<T>({
             <button
               onClick={() => setCurrentPage(Math.max(1, page - 1))}
               disabled={page === 1}
-              className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] disabled:pointer-events-none disabled:opacity-40"
+              className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-tertiary)] disabled:pointer-events-none disabled:opacity-40"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -182,7 +178,7 @@ export function DataTable<T>({
             <button
               onClick={() => setCurrentPage(Math.min(totalPages, page + 1))}
               disabled={page === totalPages}
-              className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] disabled:pointer-events-none disabled:opacity-40"
+              className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-tertiary)] disabled:pointer-events-none disabled:opacity-40"
             >
               <ChevronRight className="h-4 w-4" />
             </button>

@@ -562,7 +562,7 @@ export function IdeaBoard({ ideas, isAdmin, commentsEnabled }: { ideas: IdeaDTO[
 
   const chip = (active: boolean) =>
     active
-      ? { backgroundColor: 'var(--color-accent)', color: '#fff' }
+      ? { backgroundColor: 'var(--color-text-primary)', color: 'var(--color-bg-primary)' }
       : { backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' };
 
   return (

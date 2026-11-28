@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -175,6 +176,13 @@ export function ClientsManager({ clients }: { clients: Client[] }) {
                       </>
                     ) : (
                       <>
+                        {!c.is_internal && (
+                          <Link href={`/ekstra-isler/${c.id}`}>
+                            <Button size="sm" variant="outline" disabled={busy}>
+                              Rapor
+                            </Button>
+                          </Link>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"

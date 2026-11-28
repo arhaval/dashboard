@@ -1,3 +1,4 @@
+import { Sparkles as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
@@ -15,7 +16,7 @@ export default async function DnaPage() {
   const dna = await aiEngineService.getActiveDna();
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="Arhaval DNA"
       description="Kanalın değişmeyen yazım kimliği. Tüm formatlarda geçerli. Kaydettiğinde yeni bir versiyon oluşur."
     >

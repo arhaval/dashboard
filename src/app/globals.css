@@ -7,55 +7,67 @@
    ========================================================================== */
 
 :root {
-  /* Background — navy-slate dark (TailAdmin-style) */
-  --color-bg-primary: #101828;
-  --color-bg-secondary: #1A2234;
-  --color-bg-tertiary: #212B3E;
-  --color-border: #2A3446;
-  --color-border-hover: #3A4660;
+  /* Background — nötr near-black (Tessera/Linear tarzı, zinc) */
+  --color-backdrop: #050506;     /* uygulama çerçevesinin dışındaki zemin */
+  --color-bg-primary: #0E0E11;   /* içerik alanı */
+  --color-bg-secondary: #18181B; /* kartlar */
+  --color-bg-tertiary: #212125;  /* iç kutular */
+  --color-border: #27272A;
+  --color-border-hover: #3F3F46;
 
   /* Surface Colors - elevation aliases */
-  --color-surface-1: #1A2234;   /* subtle container / tracks */
-  --color-surface-2: #1A2234;   /* cards, inputs */
-  --color-surface-3: #212B3E;   /* modals, elevated panels */
-  --color-surface-sunken: #141C2B; /* nested wells inside cards */
+  --color-surface-1: #18181B;   /* subtle container / tracks */
+  --color-surface-2: #18181B;   /* cards, inputs */
+  --color-surface-3: #212125;   /* modals, elevated panels */
+  --color-surface-sunken: #141417; /* nested wells inside cards */
 
-  /* Sidebar — slightly deeper than content */
-  --color-sidebar-bg: #0C1322;
+  /* Sidebar — içerikten biraz daha koyu */
+  --color-sidebar-bg: #0A0A0C;
   --color-sidebar-bg-hover: rgba(255, 255, 255, 0.05);
-  --color-sidebar-bg-active: rgba(70, 95, 255, 0.16);
-  --color-sidebar-text: #98A2B3;
+  --color-sidebar-bg-active: rgba(255, 255, 255, 0.07);
+  --color-sidebar-text: #A1A1AA;
   --color-sidebar-text-active: #FFFFFF;
-  --color-sidebar-label: #667085;
+  --color-sidebar-label: #71717A;
   --color-sidebar-border: rgba(255, 255, 255, 0.06);
 
   /* Text Colors */
-  --color-text-primary: #F9FAFB;
-  --color-text-secondary: #98A2B3;
-  --color-text-muted: #667085;
+  --color-text-primary: #FAFAFA;
+  --color-text-secondary: #A1A1AA;
+  --color-text-muted: #71717A;
 
-  /* Brand / accent — refined blue */
-  --color-accent: #465FFF;
-  --color-accent-light: #7592FF;
-  --color-accent-muted: rgba(70, 95, 255, 0.16);
-  --color-accent-hover: #7592FF;
+  /* Brand / accent — canlı mavi */
+  --color-accent: #4F7DFF;
+  --color-accent-light: #7B9DFF;
+  --color-accent-muted: rgba(79, 125, 255, 0.16);
+  --color-accent-hover: #6B92FF;
 
-  /* Semantic Colors */
-  --color-success: #12B76A;
-  --color-success-muted: rgba(18, 183, 106, 0.15);
-  --color-warning: #F79009;
-  --color-warning-muted: rgba(247, 144, 9, 0.15);
-  --color-error: #F04438;
-  --color-error-muted: rgba(240, 68, 56, 0.15);
-  --color-info: #5CC8FF;
-  --color-info-muted: rgba(92, 200, 255, 0.15);
+  /* Semantic Colors — canlı */
+  --color-success: #22C55E;
+  --color-success-muted: rgba(34, 197, 94, 0.15);
+  --color-warning: #F59E0B;
+  --color-warning-muted: rgba(245, 158, 11, 0.15);
+  --color-error: #EF4444;
+  --color-error-muted: rgba(239, 68, 68, 0.15);
+  --color-info: #38BDF8;
+  --color-info-muted: rgba(56, 189, 248, 0.15);
 
-  /* Table Colors */
-  --color-table-row-odd: #1A2234;
-  --color-table-row-even: #141C2B;
+  /* Ek vurgu — veri görselleri için mor */
+  --color-purple: #A855F7;
+  --color-purple-muted: rgba(168, 85, 247, 0.15);
 
-  /* Card Shadow — borders carry elevation; keep shadow minimal */
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.35);
+  /* Gradyanlar — profil banner'ı ve ilerleme çubuğu (Tessera tarzı) */
+  --gradient-banner:
+    radial-gradient(circle at 70% 30%, rgba(255, 255, 255, 0.55), transparent 45%),
+    linear-gradient(120deg, #6D5BFF 0%, #C084FC 30%, #F0ABFC 52%, #FBCFE8 68%, #93C5FD 100%);
+  --gradient-progress: linear-gradient(90deg, #F472B6 0%, #A855F7 50%, #4F7DFF 100%);
+
+  /* Table Colors — Tessera dili: zebra yok, satırlar kart yüzeyiyle aynı,
+     ayrım sadece ince kenar çizgisiyle. */
+  --color-table-row-odd: #18181B;
+  --color-table-row-even: #18181B;
+
+  /* Card Shadow — yumuşak derinlik */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
 
   /* Spacing Scale (4px base) */
   --spacing-1: 4px;
@@ -67,10 +79,10 @@
   --spacing-12: 48px;
   --spacing-16: 64px;
 
-  /* Border Radius */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  /* Border Radius — Tessera tarzı yuvarlak */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 
   /* Typography - Using Next.js font variables */
   --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

@@ -1,3 +1,4 @@
+import { Sparkles as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
@@ -15,7 +16,7 @@ export default async function FormatlarPage() {
   const formats = await aiEngineService.getFormats();
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="Format Playbook"
       description="Her içerik türünün kendi hook, gövde, ritim, kanıt, payoff ve CTA kuralları. DNA’nın üstüne, formata özel katman."
     >

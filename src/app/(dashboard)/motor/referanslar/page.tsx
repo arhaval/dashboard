@@ -1,3 +1,4 @@
+import { Sparkles as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
@@ -18,7 +19,7 @@ export default async function ReferanslarPage() {
   ]);
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="Referans Kütüphanesi"
       description="Bize ait olmayan, yalnız stil/ritim analizi için kullanılan SRT ve metinler. Gold standard SAYILMAZ; üretimde stil örneği olarak getirilir."
     >

@@ -4,7 +4,6 @@ import * as React from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Sidebar, Header } from '@/components/layout';
 import { createClient } from '@/lib/supabase/client';
-import { cn } from '@/lib/utils';
 import type { User } from '@/types';
 
 interface DashboardShellProps {
@@ -13,28 +12,29 @@ interface DashboardShellProps {
   children: React.ReactNode;
 }
 
+/**
+ * Tessera tarzı uygulama çerçevesi:
+ *   koyu zemin → yuvarlak çerçeve → [sidebar | (üst bar + kayan içerik)]
+ * Navigasyon tek yerde: sidebar (ikon şeridi tekrar ettiği için kaldırıldı).
+ * Mobilde çerçeve kalkar, sidebar soldan kayan çekmece olur.
+ */
 export function DashboardShell({ user, allowedPages, children }: DashboardShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
-  // Close mobile sidebar on route change
+  // Sayfa değişince mobil çekmeceyi kapat
   React.useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
 
-  // Lock body scroll when mobile sidebar is open
+  // Mobil çekmece açıkken arka planı kilitle
   React.useEffect(() => {
     const isMobile = window.matchMedia('(max-width: 1023px)').matches;
-    if (sidebarOpen && isMobile) {
-      document.body.classList.add('sidebar-open');
-    } else {
-      document.body.classList.remove('sidebar-open');
-    }
-    return () => {
-      document.body.classList.remove('sidebar-open');
-    };
+    if (sidebarOpen && isMobile) document.body.classList.add('sidebar-open');
+    else document.body.classList.remove('sidebar-open');
+    return () => document.body.classList.remove('sidebar-open');
   }, [sidebarOpen]);
 
   const handleSignOut = async () => {
@@ -44,42 +44,29 @@ export function DashboardShell({ user, allowedPages, children }: DashboardShellP
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-primary)]">
-      {/* Sidebar */}
-      <Sidebar
-        userRole={user.role}
-        allowedPages={allowedPages}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-
-      {/* Mobile backdrop */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+    <div className="h-[100dvh] bg-[var(--color-backdrop)] lg:p-3">
+      <div className="flex h-full overflow-hidden bg-[var(--color-bg-primary)] lg:rounded-[18px] lg:border lg:border-[var(--color-border)]">
+        <Sidebar
+          userRole={user.role}
+          allowedPages={allowedPages}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
         />
-      )}
 
-      {/* Header */}
-      <Header
-        user={user}
-        onSignOut={handleSignOut}
-        onMenuToggle={() => setSidebarOpen((prev) => !prev)}
-      />
-
-      {/* Main Content Area */}
-      <main
-        className={cn(
-          'min-h-screen',
-          'lg:ml-[var(--sidebar-width)]',
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={() => setSidebarOpen(false)} />
         )}
-        style={{
-          paddingTop: 'calc(var(--header-height) + env(safe-area-inset-top, 0px))',
-        }}
-      >
-        {children}
-      </main>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Header
+            user={user}
+            allowedPages={allowedPages}
+            onSignOut={handleSignOut}
+            onMenuToggle={() => setSidebarOpen((prev) => !prev)}
+          />
+          <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+        </div>
+      </div>
     </div>
   );
 }

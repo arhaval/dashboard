@@ -1,3 +1,4 @@
+import { ShieldCheck as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
@@ -14,7 +15,7 @@ export default async function YetkilerPage() {
   const matrix = await permissionService.getMatrix();
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="Roller & Yetkiler"
       description="Her rolün hangi sayfalara erişebileceğini buradan aç/kapa. Yönetici her zaman tam erişime sahiptir ve değiştirilemez."
     >

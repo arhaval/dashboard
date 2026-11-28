@@ -22,7 +22,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           'px-3 py-2 text-sm',
           'text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]',
           'transition-colors',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-primary)]',
+          'focus-visible:outline-none focus-visible:border-[var(--color-accent)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent-muted)]',
           'disabled:cursor-not-allowed disabled:opacity-50',
           error
             ? 'border-[var(--color-error)]'

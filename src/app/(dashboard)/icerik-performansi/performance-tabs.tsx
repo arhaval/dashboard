@@ -8,6 +8,7 @@
 
 import { useState } from 'react';
 import { Youtube, Instagram, Layers, Columns3 } from 'lucide-react';
+import { SegmentedControl } from '@/components/ui/tabs';
 import { ContentPerformanceGrid } from './content-performance-grid';
 import { InstagramPerformanceGrid } from './instagram-performance-grid';
 import { ContentImpactView } from './content-impact-view';
@@ -47,49 +48,19 @@ export function PerformanceTabs({ videos, media, commentsEnabled, authorsByExter
       <IntegrationHealthBanner health={health} />
 
       {/* Görünüm seçimi */}
-      <div
-        className="mb-4 inline-flex gap-1 rounded-[var(--radius-md)] p-1"
-        style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)' }}
-      >
-        {modes.map(({ id, label, icon: Icon, count }) => {
-          const active = mode === id;
-          return (
-            <button
-              key={id}
-              onClick={() => setMode(id)}
-              className="flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold transition-colors"
-              style={active ? { backgroundColor: 'var(--color-accent)', color: '#fff' } : { color: 'var(--color-text-muted)' }}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {label} <span style={{ opacity: 0.7 }}>({count})</span>
-            </button>
-          );
-        })}
-      </div>
+      <SegmentedControl
+        className="mb-4"
+        items={modes.map(({ id, label, icon, count }) => ({ key: id, label, icon, count, active: mode === id, onClick: () => setMode(id) }))}
+      />
 
       {mode === 'content' ? (
         <ContentImpactView initialPage={impactPage} />
       ) : (
         <>
-          <div
-            className="mb-4 inline-flex gap-1 rounded-[var(--radius-md)] p-1"
-            style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)' }}
-          >
-            {tabs.map(({ id, label, icon: Icon, count }) => {
-              const active = tab === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => setTab(id)}
-                  className="flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-medium transition-colors"
-                  style={active ? { backgroundColor: 'var(--color-accent)', color: '#fff' } : { color: 'var(--color-text-muted)' }}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label} <span style={{ opacity: 0.7 }}>({count})</span>
-                </button>
-              );
-            })}
-          </div>
+          <SegmentedControl
+            className="mb-4"
+            items={tabs.map(({ id, label, icon, count }) => ({ key: id, label, icon, count, active: tab === id, onClick: () => setTab(id) }))}
+          />
 
           {tab === 'youtube' ? (
             <ContentPerformanceGrid videos={videos} commentsEnabled={commentsEnabled} authorsByExternalId={authorsByExternalId} />

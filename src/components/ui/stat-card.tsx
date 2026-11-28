@@ -1,56 +1,24 @@
 /**
  * StatCard Component
- * YZEN-style metric card with colored icon box and optional change badge.
- * Used on dashboard and summary pages.
+ * Tessera tarzı metrik kartı: etiket · sağ üstte renkli ikon · büyük rakam ·
+ * trend satırı. Dashboard ve özet sayfalarında kullanılır.
  */
 
 import * as React from 'react';
+import { TrendingUp, TrendingDown, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Card, CardContent } from '@/components/ui/card';
-import type { LucideIcon } from 'lucide-react';
 
-// Predefined icon box color themes
-export type StatCardColor =
-  | 'orange'
-  | 'blue'
-  | 'green'
-  | 'purple'
-  | 'red'
-  | 'teal'
-  | 'yellow';
+// İkon rengi temaları (eski adlar korunuyor — çağıran sayfalar değişmesin)
+export type StatCardColor = 'orange' | 'blue' | 'green' | 'purple' | 'red' | 'teal' | 'yellow';
 
-const colorMap: Record<
-  StatCardColor,
-  { box: string; icon: string }
-> = {
-  orange: {
-    box: 'bg-[var(--color-accent-muted)]',
-    icon: 'text-[var(--color-accent)]',
-  },
-  blue: {
-    box: 'bg-[var(--color-info-muted)]',
-    icon: 'text-[var(--color-info)]',
-  },
-  green: {
-    box: 'bg-[var(--color-success-muted)]',
-    icon: 'text-[var(--color-success)]',
-  },
-  purple: {
-    box: 'bg-[rgba(139,92,246,0.12)]',
-    icon: 'text-[#8B5CF6]',
-  },
-  red: {
-    box: 'bg-[var(--color-error-muted)]',
-    icon: 'text-[var(--color-error)]',
-  },
-  teal: {
-    box: 'bg-[rgba(20,184,166,0.12)]',
-    icon: 'text-[#14B8A6]',
-  },
-  yellow: {
-    box: 'bg-[var(--color-warning-muted)]',
-    icon: 'text-[var(--color-warning)]',
-  },
+const ICON_COLOR: Record<StatCardColor, string> = {
+  orange: 'var(--color-accent)',
+  blue: 'var(--color-info)',
+  green: 'var(--color-success)',
+  purple: 'var(--color-purple)',
+  red: 'var(--color-error)',
+  teal: 'var(--color-info)',
+  yellow: 'var(--color-warning)',
 };
 
 export interface StatCardProps {
@@ -62,16 +30,10 @@ export interface StatCardProps {
   description?: string;
   /** Lucide icon component */
   icon: LucideIcon;
-  /** Icon box color theme */
+  /** Icon color theme */
   color?: StatCardColor;
-  /**
-   * Change indicator — positive or negative
-   * e.g. { value: '+12%', positive: true }
-   */
-  change?: {
-    value: string;
-    positive: boolean;
-  };
+  /** Change indicator, e.g. { value: '+12%', positive: true } */
+  change?: { value: string; positive: boolean };
   /** Optional extra class names */
   className?: string;
 }
@@ -85,54 +47,35 @@ export function StatCard({
   change,
   className,
 }: StatCardProps) {
-  const theme = colorMap[color];
-
+  const TrendIcon = change?.positive === false ? TrendingDown : TrendingUp;
   return (
-    <Card className={cn('p-5', className)}>
-      <CardContent className="p-0">
-        <div className="flex items-start justify-between">
-          {/* Left: value and title */}
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-              {title}
-            </p>
-            <p className="mt-2 text-2xl font-bold text-[var(--color-text-primary)] tabular-nums">
-              {value}
-            </p>
-            {(description || change) && (
-              <div className="mt-1.5 flex items-center gap-2">
-                {change && (
-                  <span
-                    className={cn(
-                      'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
-                      change.positive
-                        ? 'bg-[var(--color-success-muted)] text-[var(--color-success)]'
-                        : 'bg-[var(--color-error-muted)] text-[var(--color-error)]'
-                    )}
-                  >
-                    {change.positive ? '▲' : '▼'} {change.value}
-                  </span>
-                )}
-                {description && (
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    {description}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Right: colored icon box */}
-          <div
-            className={cn(
-              'flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[var(--radius-lg)]',
-              theme.box
-            )}
-          >
-            <Icon className={cn('h-5 w-5', theme.icon)} />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div
+      className={cn(
+        'rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4',
+        className
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p className="min-w-0 truncate text-sm text-[var(--color-text-secondary)]">{title}</p>
+        <Icon className="h-5 w-5 flex-shrink-0" style={{ color: ICON_COLOR[color] }} />
+      </div>
+      <p className="mt-5 truncate text-[28px] font-semibold leading-none tracking-tight tabular-nums text-[var(--color-text-primary)]">
+        {value}
+      </p>
+      {(change || description) && (
+        <p className="mt-2.5 flex items-center gap-1.5 truncate text-xs">
+          {change && (
+            <span
+              className="flex items-center gap-1 font-medium"
+              style={{ color: change.positive ? 'var(--color-success)' : 'var(--color-error)' }}
+            >
+              <TrendIcon className="h-3.5 w-3.5" />
+              {change.value}
+            </span>
+          )}
+          {description && <span className="text-[var(--color-text-muted)]">{description}</span>}
+        </p>
+      )}
+    </div>
   );
 }

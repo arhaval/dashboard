@@ -91,7 +91,9 @@ export const DEFAULT_PAGES: Record<UserRole, PageKey[]> = {
  * engele çarpar ve döngü olur.
  */
 export const ROLE_LANDING: Partial<Record<UserRole, PageKey>> = {
-  PUBLISHER: 'content-plan',
+  // Yayıncı artık kendi dashboard'una (ana sayfa) düşer. Dashboard yetkisi
+  // kapalıysa landingPathFor zaten eriştiği ilk sayfaya yönlendirir.
+  PUBLISHER: 'dashboard',
   YOUTUBER:  'content-plan',
   EDITOR:    'content-plan',
   VOICE:     'content-plan',

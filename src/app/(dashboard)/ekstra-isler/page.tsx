@@ -3,6 +3,7 @@
  * Arhaval (iç iş) + dış ortaklar (Sangal vb.). Fiyatlandırma buna göre.
  */
 
+import { Building2 as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
@@ -19,7 +20,7 @@ export default async function ClientsPage() {
   const clients = await clientService.getAll(true);
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="Ekstra İşler"
       description="Dış ortaklar için yapılan ekstra işler (Sangal gibi). İş girişinde buradan seçilir, fiyat buna göre belirlenir."
     >

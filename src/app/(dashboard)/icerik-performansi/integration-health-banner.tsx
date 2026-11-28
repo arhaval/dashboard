@@ -67,7 +67,7 @@ export function IntegrationHealthBanner({ health }: { health: PlatformHealth[] }
                 <a
                   href={RECONNECT_URL[h.platform]}
                   className="mt-2 inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-1 text-[11px] font-semibold"
-                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+                  style={{ backgroundColor: 'var(--color-text-primary)', color: 'var(--color-bg-primary)' }}
                 >
                   {PLATFORM_LABELS[h.platform]}’u Yeniden Bağla
                   <ExternalLink className="h-3 w-3" />

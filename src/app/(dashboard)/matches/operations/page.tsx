@@ -4,6 +4,7 @@
  * manage BO3 series — all from one page.
  */
 
+import { Swords as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { PageShell } from '@/components/layout';
@@ -22,7 +23,7 @@ export default async function OperationsPage() {
   ]);
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="Operasyonlar"
       description="Sunucular ve mac yonetimi"
       actions={

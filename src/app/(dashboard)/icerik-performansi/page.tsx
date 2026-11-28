@@ -1,3 +1,4 @@
+import { PlayCircle as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
@@ -34,7 +35,7 @@ export default async function IcerikPerformansiPage() {
   const health = await integrationHealthService.getPlatformHealth();
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="İçerik Performansı"
       description="Aynı içeriğin bütün platformlardaki toplam etkisi — ve platform platform kırılımı"
     >

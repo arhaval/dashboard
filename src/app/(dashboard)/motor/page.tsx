@@ -1,3 +1,4 @@
+import { Sparkles as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
@@ -19,7 +20,7 @@ export default async function MotorPage() {
   const keyReady = Boolean(process.env.OPENAI_API_KEY);
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="İçerik Motoru"
       description="Taslak yaz → Arhavalize et → düzenle → final onayla. Onaylı metinler gold standard olarak hafızaya kaydolur."
     >

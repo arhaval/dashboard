@@ -40,7 +40,7 @@ export function SocialNav() {
             href={`${href}${suffix}`}
             className="flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold transition-colors"
             style={active
-              ? { backgroundColor: 'var(--color-accent)', color: '#fff' }
+              ? { backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }
               : { color: 'var(--color-text-muted)' }}
           >
             <Icon className="h-3.5 w-3.5" />

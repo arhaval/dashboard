@@ -3,6 +3,7 @@
  * Series score card + map tabs with player stats + live controls
  */
 
+import { Swords as PageIcon } from 'lucide-react';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { PageShell } from '@/components/layout';
@@ -78,7 +79,7 @@ export default async function MatchDetailPage({ params }: PageProps) {
   const isBetweenMaps = isLive && !activeMap && maps.length < 3 && allMapsFinished;
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title={`${team1Tag} vs ${team2Tag}`}
       description={formatMatchDate(match.match_date)}
       actions={

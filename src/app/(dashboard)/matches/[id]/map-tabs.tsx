@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { Tabs } from '@/components/ui/tabs';
 import type { CS2MatchMap, CS2MatchPlayer } from '@/types';
 
 interface MapTabsProps {
@@ -132,22 +133,14 @@ export function MapTabs({ maps, team1Id, team2Id, team1Tag, team2Tag }: MapTabsP
   return (
     <div className="space-y-4">
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-[var(--color-border)]">
-        {maps.map((map, index) => (
-          <button
-            key={map.id}
-            onClick={() => setActiveTab(index)}
-            className={cn(
-              'px-4 py-2 text-sm font-medium transition-colors -mb-px border-b-2',
-              index === activeTab
-                ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
-                : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-            )}
-          >
-            Map {map.map_number}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        items={maps.map((map, index) => ({
+          key: map.id,
+          label: `Map ${map.map_number}`,
+          active: index === activeTab,
+          onClick: () => setActiveTab(index),
+        }))}
+      />
 
       {/* Map header with score */}
       <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">

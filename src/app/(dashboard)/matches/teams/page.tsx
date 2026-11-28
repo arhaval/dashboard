@@ -3,6 +3,7 @@
  * Admin-only: Create teams, add players with Steam IDs
  */
 
+import { Swords as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { PageShell } from '@/components/layout';
@@ -21,7 +22,7 @@ export default async function TeamsPage() {
   const teams = await cs2Service.getTeams();
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title={tr.cs2.teamManagement}
       description="Takımları ve oyuncuları yönetin"
       actions={

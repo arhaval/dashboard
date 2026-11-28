@@ -5,6 +5,7 @@
  * Three tabs: Planned Payments (PENDING), Completed Payments (PAID), Realized Transactions
  */
 
+import { CreditCard as PageIcon } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
@@ -209,7 +210,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     const financeStats = await financeService.getStats();
 
     return (
-      <PageShell
+      <PageShell icon={PageIcon}
         title={tr.pages.payments.title}
         description={tr.pages.payments.subtitle}
       >
@@ -255,7 +256,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     const paged = paginate(payments, parsePage(params.sayfa));
 
     return (
-      <PageShell
+      <PageShell icon={PageIcon}
         title={tr.pages.payments.title}
         description={tr.pages.payments.subtitle}
       >
@@ -299,7 +300,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   ]);
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title={tr.pages.payments.title}
       description={tr.pages.payments.subtitle}
       actions={

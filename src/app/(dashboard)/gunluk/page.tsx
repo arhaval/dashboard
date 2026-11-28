@@ -1,3 +1,4 @@
+import { NotebookPen as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
@@ -13,7 +14,7 @@ export default async function GunlukPage() {
   const { data: entries, missingTable, error } = await dailyNoteService.list(user.id);
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="Günlük"
       description="Her gün bir sayfa. Yazdıkça kaydeder, geçmiş günlerde arama yapar."
     >

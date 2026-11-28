@@ -1,7 +1,7 @@
 /**
  * Header Component
- * Top header bar for the dashboard
- * Contains user menu and global actions
+ * Tessera tarzı üst bar: ortada arama (⌘K, çok sayfalı rollerde) · sağda aksiyonlar.
+ * Çerçevenin içinde akar (sabit değil).
  */
 
 'use client';
@@ -9,212 +9,115 @@
 import * as React from 'react';
 import { LogOut, User as UserIcon, ChevronDown, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Breadcrumb } from '@/components/layout/breadcrumb';
+import { CommandPalette } from '@/components/layout/command-palette';
 import { NotificationButton } from '@/components/notifications/notification-button';
 import { InstallButton } from '@/components/notifications/install-button';
 import { tr } from '@/lib/i18n';
 import type { User } from '@/types';
 
 interface HeaderProps {
-  user?: User | null;
+  user: User;
+  allowedPages: string[];
   onSignOut?: () => void;
   onMenuToggle?: () => void;
 }
 
-export function Header({ user, onSignOut, onMenuToggle }: HeaderProps) {
+export function Header({ user, allowedPages, onSignOut, onMenuToggle }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
-  // Close menu when clicking outside
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setIsMenuOpen(false);
     }
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const getRoleBadgeColor = (role?: string) => {
-    switch (role) {
-      case 'ADMIN':
-        return 'bg-[var(--color-accent-muted)] text-[var(--color-accent)]';
-      case 'PUBLISHER':
-        return 'bg-[var(--color-info-muted)] text-[var(--color-info)]';
-      case 'EDITOR':
-        return 'bg-[var(--color-success-muted)] text-[var(--color-success)]';
-      case 'VOICE':
-        return 'bg-[var(--color-warning-muted)] text-[var(--color-warning)]';
-      default:
-        return 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]';
-    }
-  };
+  const initials = user.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
     <header
-      className={cn(
-        'fixed right-0 top-0 z-30',
-        'left-0 lg:left-[var(--sidebar-width)]',
-        'border-b border-[var(--color-border)]',
-        'bg-[var(--color-bg-secondary)]'
-      )}
-      style={{
-        // Include iOS/Android status bar height so hamburger isn't hidden behind it
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        height: 'calc(var(--header-height) + env(safe-area-inset-top, 0px))',
-      }}
+      className="flex-shrink-0 border-b border-[var(--color-border)] bg-[var(--color-bg-primary)]"
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
-      <div className="flex h-[var(--header-height)] items-center justify-between px-4 lg:px-6">
-        {/* Left side - Hamburger (mobile) + Breadcrumb */}
-        <div className="flex items-center gap-3">
+      <div className="flex h-14 items-center gap-4 px-4 lg:px-5">
+        {/* Sol: menü (mobil). Sayfa adı başlık satırında — burada tekrar yok. */}
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <button
             onClick={onMenuToggle}
-            className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)] lg:hidden"
+            className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)] lg:hidden"
             aria-label="Menüyü aç"
+            title="Menüyü aç"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <Breadcrumb />
         </div>
 
-        {/* Right side - User menu */}
-        <div className="flex items-center gap-3">
+        {/* Orta: arama */}
+        <div className="hidden flex-1 justify-center md:flex">
+          <CommandPalette userRole={user.role} allowedPages={allowedPages} />
+        </div>
+
+        {/* Sağ: aksiyonlar */}
+        <div className="flex flex-1 items-center justify-end gap-2">
           <InstallButton />
           <NotificationButton />
 
-          {user && (
-            <div className="relative" ref={menuRef}>
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className={cn(
-                  'flex items-center gap-3',
-                  'rounded-[var(--radius-md)] px-3 py-2',
-                  'transition-colors',
-                  'hover:bg-[var(--color-bg-tertiary)]',
-                  isMenuOpen && 'bg-[var(--color-bg-tertiary)]'
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className={cn(
+                'flex h-9 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] pl-1 pr-2.5 text-sm transition-colors',
+                'hover:border-[var(--color-border-hover)] hover:bg-[var(--color-bg-secondary)]',
+                isMenuOpen && 'bg-[var(--color-bg-secondary)]'
+              )}
+              aria-label="Kullanıcı menüsü"
+            >
+              <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-[8px] bg-[var(--color-accent-muted)] text-[11px] font-semibold text-[var(--color-accent)]">
+                {user.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.avatar_url} alt={user.full_name} className="h-full w-full object-cover" />
+                ) : (
+                  initials
                 )}
-                aria-label="User menu"
-              >
-                {/* Avatar */}
-                <div
-                  className={cn(
-                    'flex h-8 w-8 items-center justify-center',
-                    'rounded-full',
-                    'bg-[var(--color-accent-muted)]',
-                    'text-sm font-semibold text-[var(--color-accent)]'
-                  )}
-                >
-                  {user.avatar_url ? (
-                    <img
-                      src={user.avatar_url}
-                      alt={user.full_name}
-                      className="h-full w-full rounded-full object-cover"
-                    />
-                  ) : (
-                    user.full_name
-                      .split(' ')
-                      .map((n) => n[0])
-                      .join('')
-                      .toUpperCase()
-                      .slice(0, 2)
-                  )}
-                </div>
+              </span>
+              <span className="hidden max-w-[120px] truncate font-medium text-[var(--color-text-primary)] sm:block">
+                {user.full_name.split(' ')[0]}
+              </span>
+              <ChevronDown className={cn('h-3.5 w-3.5 text-[var(--color-text-muted)] transition-transform', isMenuOpen && 'rotate-180')} />
+            </button>
 
-                {/* Name and role */}
-                <div className="hidden text-left md:block">
-                  <p className="text-sm font-medium text-[var(--color-text-primary)]">
-                    {user.full_name}
-                  </p>
-                  <span
-                    className={cn(
-                      'inline-block rounded-full px-2 py-0.5',
-                      'text-xs font-medium',
-                      getRoleBadgeColor(user.role)
-                    )}
-                  >
+            {isMenuOpen && (
+              <div
+                className="absolute right-0 top-full z-50 mt-2 w-60 max-w-[calc(100vw-1rem)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] py-1 animate-fade-in"
+                style={{ boxShadow: '0 12px 32px rgba(0,0,0,0.45)' }}
+              >
+                <div className="border-b border-[var(--color-border)] px-4 py-3">
+                  <p className="truncate text-sm font-medium text-[var(--color-text-primary)]">{user.full_name}</p>
+                  <p className="truncate text-xs text-[var(--color-text-muted)]">{user.email}</p>
+                  <span className="mt-1.5 inline-block rounded-full bg-[var(--color-accent-muted)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-accent)]">
                     {tr.roles[user.role as keyof typeof tr.roles] || user.role}
                   </span>
                 </div>
-
-                <ChevronDown
-                  className={cn(
-                    'h-4 w-4 text-[var(--color-text-muted)]',
-                    'transition-transform',
-                    isMenuOpen && 'rotate-180'
-                  )}
-                />
-              </button>
-
-              {/* Dropdown Menu */}
-              {isMenuOpen && (
-                <div
-                  className={cn(
-                    'absolute right-0 top-full mt-2',
-                    'w-56 rounded-[var(--radius-lg)]',
-                    'border border-[var(--color-border)]',
-                    'bg-[var(--color-bg-secondary)]',
-                    'py-1',
-                    'animate-fade-in',
-                    // Prevent overflow on narrow screens
-                    'max-w-[calc(100vw-1rem)]'
-                  )}
-                  style={{ boxShadow: 'var(--shadow-card)' }}
+                <a
+                  href={`/team/${user.id}`}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]"
                 >
-                  {/* User info (mobile) */}
-                  <div className="border-b border-[var(--color-border)] px-4 py-3 md:hidden">
-                    <p className="text-sm font-medium text-[var(--color-text-primary)]">
-                      {user.full_name}
-                    </p>
-                    <p className="text-xs text-[var(--color-text-muted)]">
-                      {user.email}
-                    </p>
-                  </div>
-
-                  {/* Menu items */}
-                  <button
-                    className={cn(
-                      'flex w-full items-center gap-3',
-                      'px-4 py-3',
-                      'text-sm text-[var(--color-text-secondary)]',
-                      'transition-colors',
-                      'hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]'
-                    )}
-                  >
-                    <UserIcon className="h-4 w-4" />
-                    {tr.header.profile}
-                  </button>
-
-                  <div className="my-1 border-t border-[var(--color-border)]" />
-
-                  <button
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      onSignOut?.();
-                    }}
-                    className={cn(
-                      'flex w-full items-center gap-3',
-                      'px-4 py-3',
-                      'text-sm text-[var(--color-error)]',
-                      'transition-colors',
-                      'hover:bg-[var(--color-error-muted)]'
-                    )}
-                  >
-                    <LogOut className="h-4 w-4" />
-                    {tr.header.signOut}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {!user && (
-            <Button variant="default" size="sm">
-              {tr.header.signIn}
-            </Button>
-          )}
+                  <UserIcon className="h-4 w-4" />
+                  {tr.header.profile}
+                </a>
+                <div className="my-1 border-t border-[var(--color-border)]" />
+                <button
+                  onClick={() => { setIsMenuOpen(false); onSignOut?.(); }}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-error)] transition-colors hover:bg-[var(--color-error-muted)]"
+                >
+                  <LogOut className="h-4 w-4" />
+                  {tr.header.signOut}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

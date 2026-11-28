@@ -1,3 +1,4 @@
+import { ClipboardList as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
@@ -30,7 +31,7 @@ export default async function IcerikPlaniPage() {
       : 'İçerik takibini görüntüle';
 
   return (
-    <PageShell title="İçerik Takip" description={desc}>
+    <PageShell icon={PageIcon} title="İçerik Takip" description={desc}>
       <ContentTable
         items={items}
         canEdit={canEdit}

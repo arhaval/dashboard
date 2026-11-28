@@ -2,6 +2,7 @@
  * Stats Page — Team Standings + Player Leaderboard
  */
 
+import { Swords as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { PageShell } from '@/components/layout';
@@ -20,7 +21,7 @@ export default async function StatsPage() {
   ]);
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="İstatistikler"
       description="Takım puan durumu ve oyuncu istatistikleri"
       actions={

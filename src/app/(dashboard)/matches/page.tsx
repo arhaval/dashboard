@@ -3,6 +3,7 @@
  * Shows all CS2 matches (series) with map scores
  */
 
+import { Swords as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { PageShell } from '@/components/layout';
@@ -66,7 +67,7 @@ export default async function MatchesPage({ searchParams }: PageProps) {
     : allMatches;
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title={tr.cs2.title}
       description={tr.cs2.subtitle}
       actions={
@@ -81,7 +82,7 @@ export default async function MatchesPage({ searchParams }: PageProps) {
             <>
               <Link
                 href="/matches/operations"
-                className="rounded-[var(--radius-md)] bg-[var(--color-accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-bg-tertiary)]"
+                className="rounded-[var(--radius-md)] bg-[var(--color-text-primary)] px-3 py-2 text-sm font-medium text-[var(--color-bg-primary)] transition-opacity hover:opacity-90"
               >
                 Operasyonlar
               </Link>
@@ -103,7 +104,7 @@ export default async function MatchesPage({ searchParams }: PageProps) {
           className={cn(
             'rounded-[var(--radius-md)] px-3 py-1.5 text-sm transition-colors',
             !selectedWeek
-              ? 'bg-[var(--color-accent)] text-white'
+              ? 'bg-[var(--color-text-primary)] text-[var(--color-bg-primary)]'
               : 'border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
           )}
         >
@@ -116,7 +117,7 @@ export default async function MatchesPage({ searchParams }: PageProps) {
             className={cn(
               'rounded-[var(--radius-md)] px-3 py-1.5 text-sm transition-colors',
               selectedWeek === week.date
-                ? 'bg-[var(--color-accent)] text-white'
+                ? 'bg-[var(--color-text-primary)] text-[var(--color-bg-primary)]'
                 : 'border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
             )}
           >

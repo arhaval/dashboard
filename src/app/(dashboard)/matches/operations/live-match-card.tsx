@@ -63,7 +63,7 @@ export function LiveMatchCard({ match }: LiveMatchCardProps) {
   return (
     <Link
       href={`/matches/${match.id}`}
-      className="block rounded-md border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] p-4 hover:border-[#FF4D00]/30 transition-colors"
+      className="block rounded-md border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] p-4 hover:border-[var(--color-border-hover)] transition-colors"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">

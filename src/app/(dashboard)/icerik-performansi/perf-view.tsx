@@ -191,7 +191,7 @@ export function PerfView(props: Props) {
           className="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-xs font-semibold transition-colors"
           title={libraryOnly ? 'Tüm senkron içeriği göster' : 'Sadece metni olanları göster'}
           style={libraryOnly
-            ? { backgroundColor: 'var(--color-accent)', color: '#fff' }
+            ? { backgroundColor: 'var(--color-text-primary)', color: 'var(--color-bg-primary)' }
             : { backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
         >
           <FileText className="h-3.5 w-3.5" />

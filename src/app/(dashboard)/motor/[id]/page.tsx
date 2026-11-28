@@ -1,3 +1,4 @@
+import { Sparkles as PageIcon } from 'lucide-react';
 import { redirect, notFound } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
@@ -21,7 +22,7 @@ export default async function ScriptPage({ params }: { params: Promise<{ id: str
   const keyReady = Boolean(process.env.OPENAI_API_KEY);
 
   return (
-    <PageShell title={script.title} description="Taslak → Arhavalize → düzenle → final onayla">
+    <PageShell icon={PageIcon} title={script.title} description="Taslak → Arhavalize → düzenle → final onayla">
       <ScriptEditor script={script} formats={formats} keyReady={keyReady} />
     </PageShell>
   );

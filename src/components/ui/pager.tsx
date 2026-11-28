@@ -27,7 +27,7 @@ export function Pager({
   const nextDisabled = paged.page === paged.totalPages;
 
   const buttonClass =
-    'flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)]';
+    'flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-tertiary)]';
   const disabledClass = 'pointer-events-none opacity-40';
 
   return (

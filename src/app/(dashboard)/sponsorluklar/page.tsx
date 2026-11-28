@@ -1,3 +1,4 @@
+import { Handshake as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
@@ -17,7 +18,7 @@ export default async function SponsorluklarPage() {
   );
 
   return (
-    <PageShell title="Sponsorluklar" description="Sponsor anlaşmaları, sözleşmeler ve logo paketleri">
+    <PageShell icon={PageIcon} title="Sponsorluklar" description="Sponsor anlaşmaları, sözleşmeler ve logo paketleri">
       <SponsorsGrid sponsors={withLogos} />
     </PageShell>
   );

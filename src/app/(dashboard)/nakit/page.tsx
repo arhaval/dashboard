@@ -3,6 +3,7 @@
  * Beklenen gelir/gider takibi ve projeksiyon — Admin only
  */
 
+import { TrendingUp as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { cashFlowService, userService } from '@/services';
@@ -20,7 +21,7 @@ export default async function NakitPage() {
   const data = await cashFlowService.getSummary();
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="Nakit Akışı Tahmini"
       description="Sözleşmeli ama henüz hesaba geçmemiş gelirler ve planlanmış giderler"
     >

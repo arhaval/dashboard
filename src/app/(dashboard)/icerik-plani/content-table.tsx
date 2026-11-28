@@ -145,7 +145,7 @@ export function ContentTable({
           className="rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold transition-colors"
           style={
             stageFilter === 'TUMU'
-              ? { backgroundColor: 'var(--color-accent)', color: '#fff' }
+              ? { backgroundColor: 'var(--color-text-primary)', color: 'var(--color-bg-primary)' }
               : { backgroundColor: 'var(--color-surface-2)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }
           }
         >

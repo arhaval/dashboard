@@ -106,7 +106,7 @@ function CsvDropZone({
     : 'var(--color-border)';
 
   const bgColor = isDragging
-    ? 'rgba(255,77,0,0.06)'
+    ? 'var(--color-accent-muted)'
     : status === 'success' ? 'rgba(34,197,94,0.05)'
     : status === 'error'   ? 'rgba(239,68,68,0.05)'
     : 'var(--color-bg-primary)';

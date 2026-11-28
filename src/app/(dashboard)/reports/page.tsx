@@ -3,6 +3,7 @@
  * Büyüme · İçerik · Sosyal · Finans — kapsamlı aylık özet
  */
 
+import { FileOutput as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -91,7 +92,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   ]);
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="Aylık Rapor"
       description={`${report.monthLabel} — kapsamlı performans analizi`}
     >

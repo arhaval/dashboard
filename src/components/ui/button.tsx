@@ -33,20 +33,21 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       'disabled:pointer-events-none disabled:opacity-50',
     ].join(' ');
 
+    // Tessera dili: ana aksiyon beyaz zemin + koyu yazı; mavi sadece veri/vurgu rengi.
     const variants = {
       default: [
-        'bg-[var(--color-accent)] text-white',
-        'hover:bg-[var(--color-accent-light)]',
+        'bg-[var(--color-text-primary)] text-[var(--color-bg-primary)]',
+        'hover:opacity-90',
       ].join(' '),
       secondary: [
-        'bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)]',
+        'bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)]',
         'border border-[var(--color-border)]',
-        'hover:bg-[var(--color-bg-secondary)] hover:border-[var(--color-border-hover)]',
+        'hover:bg-[var(--color-bg-tertiary)] hover:border-[var(--color-border-hover)]',
       ].join(' '),
       outline: [
         'border border-[var(--color-border)] bg-transparent',
         'text-[var(--color-text-primary)]',
-        'hover:bg-[var(--color-bg-tertiary)] hover:border-[var(--color-border-hover)]',
+        'hover:bg-[var(--color-bg-secondary)] hover:border-[var(--color-border-hover)]',
       ].join(' '),
       ghost: [
         'bg-transparent text-[var(--color-text-secondary)]',
@@ -54,15 +55,15 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       ].join(' '),
       destructive: [
         'bg-[var(--color-error)] text-white',
-        'hover:bg-[var(--color-error)]/90',
+        'hover:opacity-90',
       ].join(' '),
     };
 
     const sizes = {
-      sm: 'h-9 px-3 text-sm rounded-[var(--radius-sm)]',           // 36px — min for secondary
-      md: 'h-10 px-4 text-sm rounded-[var(--radius-md)]',           // 40px
-      lg: 'h-12 px-6 text-base rounded-[var(--radius-md)]',         // 48px — primary CTA
-      icon: 'h-11 w-11 rounded-[var(--radius-md)]',                  // 44px — WCAG touch target
+      sm: 'h-9 px-3 text-[13px] rounded-[var(--radius-md)]',   // 36px — min for secondary
+      md: 'h-10 px-4 text-sm rounded-[var(--radius-md)]',      // 40px
+      lg: 'h-12 px-6 text-base rounded-[var(--radius-md)]',    // 48px — primary CTA
+      icon: 'h-11 w-11 rounded-[var(--radius-md)]',                     // 44px — WCAG touch target
     };
 
     return (
@@ -94,7 +95,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
-            Loading...
+            Yükleniyor…
           </>
         ) : (
           children

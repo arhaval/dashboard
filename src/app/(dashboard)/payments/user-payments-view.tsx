@@ -1,14 +1,17 @@
 /**
- * UserPaymentsView Component
- * Non-admin user view for viewing their earnings and pending payments.
- * Extracted from payments/page.tsx for modularity.
+ * UserPaymentsView — admin dışı kullanıcının ödeme ekranı (Tessera dili).
+ * Genel bakış kartları · kazanç dağılımı + aylık ödeme grafiği ·
+ * alacak ve ödenen listeleri.
  */
 
-import { formatDate, formatCurrency, getWorkTypeLabel, cn } from '@/lib/utils';
+import { CreditCard as PageIcon, Banknote, Wallet, TrendingUp, Radio, Mic, Scissors, Receipt } from 'lucide-react';
+import { formatCurrency, getWorkTypeLabel } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
-import { ArrowUpCircle } from 'lucide-react';
 import { PageShell } from '@/components/layout';
-import type { User, WorkItem, Payment, Transaction } from '@/types';
+import { OverviewCard, CapacityCard, BarsChart, SectionHead, shortTL } from '@/components/dashboard/widgets';
+import { LedgerList, type LedgerRow } from '@/components/dashboard/ledger-list';
+import { TR_MONTHS, shortDate } from '@/components/dashboard/utils';
+import type { User, WorkItem, Payment, Transaction, WorkType } from '@/types';
 
 interface UserPaymentsViewProps {
   currentUser: User;
@@ -18,18 +21,16 @@ interface UserPaymentsViewProps {
   userTransactions: Transaction[];
 }
 
-function getWorkItemsSummary(payment: Payment): string {
-  if (!payment.payment_items || payment.payment_items.length === 0) {
-    return '—';
-  }
+const TYPE_ICON: Record<WorkType, typeof Radio> = { STREAM: Radio, VOICE: Mic, EDIT: Scissors };
 
-  const items = payment.payment_items;
+function paymentSummary(payment: Payment): string {
+  const items = payment.payment_items ?? [];
+  if (items.length === 0) return 'İş ödemesi';
   if (items.length === 1) {
     const item = items[0].work_item;
-    return item?.match_name || item?.content_name || 'Work Item';
+    return item?.match_name || item?.content_name || 'İş ödemesi';
   }
-
-  return `${items.length} work items`;
+  return `${items.length} iş kalemi`;
 }
 
 export function UserPaymentsView({
@@ -38,174 +39,95 @@ export function UserPaymentsView({
   userPayments,
   userTransactions,
 }: UserPaymentsViewProps) {
-  // Calculate totals from work items
-  const totalPaidFromWorkItems = paidWorkItems.reduce((sum, item) => sum + (item.cost || 0), 0);
-  const totalPending = approvedWorkItems.reduce((sum, item) => sum + (item.cost || 0), 0);
-  const paidPaymentsList = userPayments.filter(p => p.status === 'PAID');
+  const paidPayments = userPayments.filter((p) => p.status === 'PAID');
+  const expenseTx = userTransactions.filter((t) => t.type === 'EXPENSE');
 
-  // Calculate totals from transactions (admin's realized transactions)
-  const userExpenseTransactions = userTransactions.filter(t => t.type === 'EXPENSE');
-  const totalFromTransactions = userExpenseTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalPaid =
+    paidWorkItems.reduce((s, i) => s + (i.cost || 0), 0) + expenseTx.reduce((s, t) => s + Number(t.amount), 0);
+  const totalPending = approvedWorkItems.reduce((s, i) => s + (i.cost || 0), 0);
 
-  // Total paid = payments + transactions
-  const totalPaid = totalPaidFromWorkItems + totalFromTransactions;
+  // Ödenenler: iş ödemeleri + yöneticinin girdiği gerçekleşen işlemler, yeniden eskiye
+  const paidRows = [
+    ...paidPayments.map((p) => ({ date: p.payment_date, amount: Number(p.amount), title: paymentSummary(p), kind: 'İş ödemesi', id: `p-${p.id}` })),
+    ...expenseTx.map((t) => ({ date: t.transaction_date, amount: Number(t.amount), title: t.description || t.category, kind: t.category, id: `t-${t.id}` })),
+  ].sort((a, b) => b.date.localeCompare(a.date));
+
+  // Son 6 ayın ödemeleri
+  const now = new Date();
+  const monthly = Array.from({ length: 6 }, (_, k) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - k), 1);
+    const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return { label: TR_MONTHS[d.getMonth()].slice(0, 3), value: paidRows.filter((r) => r.date.startsWith(mk)).reduce((s, r) => s + r.amount, 0) };
+  });
+  const [prev, cur] = [monthly[4].value, monthly[5].value];
+  const deltaPct = prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null;
+
+  const pendingRows: LedgerRow[] = approvedWorkItems.map((i) => ({
+    id: i.id,
+    icon: TYPE_ICON[i.work_type],
+    tone: 'warning',
+    title: i.match_name || i.content_name || getWorkTypeLabel(i.work_type),
+    // Dış ortak (Sangal vb.) işi alt satırda adıyla belli olur
+    sub: [i.client && !i.client.is_internal ? i.client.name : null, getWorkTypeLabel(i.work_type), shortDate(i.work_date)]
+      .filter(Boolean).join(' · '),
+    pill: { label: 'Ödeme bekliyor', tone: 'warning' },
+    amount: formatCurrency(i.cost || 0),
+    amountTone: 'warning',
+  }));
+
+  const doneRows: LedgerRow[] = paidRows.map((r) => ({
+    id: r.id,
+    icon: r.kind === 'İş ödemesi' ? Banknote : Receipt,
+    tone: 'success',
+    title: r.title,
+    sub: `${r.kind} · ${shortDate(r.date)}`,
+    pill: { label: 'Ödendi', tone: 'success' },
+    amount: `+${formatCurrency(r.amount)}`,
+    amountTone: 'success',
+  }));
 
   return (
-    <PageShell
-      title={tr.pages.payments.title}
-      description="Ödeme durumunuzu görüntüleyin"
-    >
-      {/* Stats Summary - User's earnings */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Toplam Ödenen</p>
-          <p className="text-2xl font-semibold text-[var(--color-success)]">
-            {formatCurrency(totalPaid)}
-          </p>
-          <p className="text-xs text-[var(--color-text-muted)]">{paidWorkItems.length} iş kalemi</p>
-        </div>
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Alacak (Bekleyen)</p>
-          <p className="text-2xl font-semibold text-[var(--color-warning)]">
-            {formatCurrency(totalPending)}
-          </p>
-          <p className="text-xs text-[var(--color-text-muted)]">{approvedWorkItems.length} onaylı iş</p>
-        </div>
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-          <p className="text-sm text-[var(--color-text-muted)]">Toplam Kazanç</p>
-          <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
-            {formatCurrency(totalPaid + totalPending)}
-          </p>
-          <p className="text-xs text-[var(--color-text-muted)]">Ödenen + Alacak</p>
-        </div>
-      </div>
+    <PageShell icon={PageIcon} title={tr.pages.payments.title} description="Ödeme durumun">
+      <div className="space-y-6">
+        <section>
+          <SectionHead title="Genel bakış" chip="Tüm zamanlar" />
+          <div className="grid gap-3 md:grid-cols-3">
+            <OverviewCard label="Toplam ödenen" hint="Hesabına geçen tüm ödemeler" value={formatCurrency(totalPaid)}
+              trend={paidRows.length ? 'up' : 'neutral'} trendText={`${paidRows.length} ödeme alındı`}
+              icon={Banknote} iconColor="var(--color-success)" />
+            <OverviewCard label="Bekleyen alacak" hint="Onaylanmış ama henüz ödenmemiş işlerin" value={formatCurrency(totalPending)}
+              trend={approvedWorkItems.length ? 'up' : 'neutral'}
+              trendText={approvedWorkItems.length ? `${approvedWorkItems.length} iş ödeme bekliyor` : 'Bekleyen yok'}
+              icon={Wallet} iconColor="var(--color-warning)" />
+            <OverviewCard label="Toplam kazanç" hint="Ödenen + bekleyen alacak" value={formatCurrency(totalPaid + totalPending)}
+              trend="neutral" trendText="Ödenen + alacak" icon={TrendingUp} iconColor="var(--color-accent)" />
+          </div>
+        </section>
 
-      {/* Alacak Section - Approved but not paid */}
-      {approvedWorkItems.length > 0 && (
-        <div className="mb-6">
-          <h3 className="mb-3 text-sm font-medium text-[var(--color-text-primary)]">
-            Alacak (Onaylandı, Ödeme Bekliyor)
-          </h3>
-          <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
-            <div className="overflow-x-auto"><table className="w-full">
-              <thead>
-                <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">Tarih</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">İş Türü</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">Açıklama</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">Tutar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {approvedWorkItems.map((item, index) => (
-                  <tr
-                    key={item.id}
-                    className={cn(
-                      'border-b border-[var(--color-border)] last:border-b-0',
-                      index % 2 === 0 ? 'bg-[var(--color-table-row-even)]' : 'bg-[var(--color-table-row-odd)]'
-                    )}
-                  >
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
-                      {formatDate(item.work_date)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-primary)]">
-                      {getWorkTypeLabel(item.work_type)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                      {item.match_name || item.content_name || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-sm font-medium text-[var(--color-warning)]">
-                      {formatCurrency(item.cost || 0)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table></div>
-          </div>
+        <div className="grid gap-3 lg:grid-cols-2">
+          <CapacityCard
+            title="Kazanç dağılımı"
+            subtitle="Ödenen ve bekleyen"
+            chip="Tüm zamanlar"
+            total={totalPaid + totalPending}
+            totalLabel="toplam"
+            segments={[
+              { label: 'Ödenen', amount: totalPaid, color: 'var(--color-success)' },
+              { label: 'Alacak', amount: totalPending, color: 'var(--color-warning)' },
+            ]}
+          />
+          <BarsChart
+            title="Aylık ödemeler"
+            subtitle="Hesabına geçen · ortalamaya göre"
+            chip="Son 6 ay"
+            data={monthly}
+            format={shortTL}
+            callout={deltaPct === null ? null : `${deltaPct >= 0 ? '↑' : '↓'} ${Math.abs(deltaPct)}%`}
+          />
         </div>
-      )}
 
-      {/* Ödenen Section - Paid payments + Transactions */}
-      <div>
-        <h3 className="mb-3 text-sm font-medium text-[var(--color-text-primary)]">
-          Ödenen (Tamamlanan Ödemeler)
-        </h3>
-        {paidPaymentsList.length === 0 && userExpenseTransactions.length === 0 ? (
-          <div className="flex h-32 items-center justify-center rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] text-sm text-[var(--color-text-muted)]">
-            Henüz ödeme yapılmamış
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
-            <div className="overflow-x-auto"><table className="w-full">
-              <thead>
-                <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">Tarih</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">Kategori</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)]">Açıklama</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-[var(--color-text-secondary)]">Tutar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Payments (work item payments) */}
-                {paidPaymentsList.map((payment, index) => (
-                  <tr
-                    key={`payment-${payment.id}`}
-                    className={cn(
-                      'border-b border-[var(--color-border)] last:border-b-0',
-                      index % 2 === 0 ? 'bg-[var(--color-table-row-even)]' : 'bg-[var(--color-table-row-odd)]'
-                    )}
-                  >
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
-                      {formatDate(payment.payment_date)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-primary)]">
-                      İş Ödemesi
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                      {getWorkItemsSummary(payment)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <ArrowUpCircle className="h-4 w-4 text-[var(--color-success)]" />
-                        <span className="font-mono text-sm font-medium text-[var(--color-success)]">
-                          +{formatCurrency(payment.amount)}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {/* Transactions (admin-added realized transactions) */}
-                {userExpenseTransactions.map((transaction, index) => (
-                  <tr
-                    key={`transaction-${transaction.id}`}
-                    className={cn(
-                      'border-b border-[var(--color-border)] last:border-b-0',
-                      (paidPaymentsList.length + index) % 2 === 0 ? 'bg-[var(--color-table-row-even)]' : 'bg-[var(--color-table-row-odd)]'
-                    )}
-                  >
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
-                      {formatDate(transaction.transaction_date)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-primary)]">
-                      {transaction.category}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                      {transaction.description || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <ArrowUpCircle className="h-4 w-4 text-[var(--color-success)]" />
-                        <span className="font-mono text-sm font-medium text-[var(--color-success)]">
-                          +{formatCurrency(transaction.amount)}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table></div>
-          </div>
-        )}
+        <LedgerList title="Alacak" rows={pendingRows} emptyText="Bekleyen alacağın yok" />
+        <LedgerList title="Ödenenler" rows={doneRows} emptyText="Henüz ödeme yapılmamış" />
       </div>
     </PageShell>
   );

@@ -27,7 +27,7 @@ export function InstallButton({ fullLabel = false }: InstallButtonProps = {}) {
             'flex h-8 items-center gap-2 rounded-[var(--radius-md)] px-3',
             'text-xs font-medium',
             'bg-[var(--color-accent-muted)] text-[var(--color-accent)]',
-            'hover:bg-[var(--color-accent)] hover:text-white',
+            'hover:bg-[var(--color-text-primary)] hover:text-[var(--color-bg-primary)]',
             'transition-colors'
           )}
           aria-label="Uygulamayı kur"
@@ -99,7 +99,7 @@ export function InstallButton({ fullLabel = false }: InstallButtonProps = {}) {
         'flex h-8 items-center gap-2 rounded-[var(--radius-md)] px-3',
         'text-xs font-medium',
         'bg-[var(--color-accent-muted)] text-[var(--color-accent)]',
-        'hover:bg-[var(--color-accent)] hover:text-white',
+        'hover:bg-[var(--color-text-primary)] hover:text-[var(--color-bg-primary)]',
         'transition-colors'
       )}
       aria-label="Uygulamayı kur"

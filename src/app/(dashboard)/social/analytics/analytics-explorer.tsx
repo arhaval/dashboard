@@ -300,7 +300,7 @@ function Segmented({
             onClick={() => onChange(o.id)}
             className="rounded-[var(--radius-sm)] px-2.5 py-1 text-[11.5px] font-semibold transition-colors"
             style={active
-              ? { backgroundColor: 'var(--color-accent)', color: '#fff' }
+              ? { backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }
               : { color: 'var(--color-text-secondary)' }}
           >
             {o.label}

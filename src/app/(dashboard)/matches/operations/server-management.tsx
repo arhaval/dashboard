@@ -75,7 +75,7 @@ export function ServerManagement({ servers }: ServerManagementProps) {
             <button
               type="submit"
               disabled={isAdding}
-              className="rounded bg-[#FF4D00] px-4 py-2 text-sm font-medium text-white hover:bg-[#FF6B2C] disabled:opacity-50"
+              className="rounded bg-[var(--color-text-primary)] px-4 py-2 text-sm font-medium text-[var(--color-bg-primary)] hover:opacity-90 disabled:opacity-50"
             >
               {isAdding ? '...' : t.addServer}
             </button>

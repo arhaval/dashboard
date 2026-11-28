@@ -6,7 +6,7 @@
  */
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { Tabs } from '@/components/ui/tabs';
 import { tr } from '@/lib/i18n';
 import { CreditCard, CheckCircle, Receipt } from 'lucide-react';
 
@@ -50,28 +50,15 @@ export function PaymentsTabs({ activeTab }: PaymentsTabsProps) {
   ];
 
   return (
-    <div className="mb-6 flex border-b border-[var(--color-border)]">
-      {tabs.map((tab) => {
-        const Icon = tab.icon;
-        const isActive = activeTab === tab.id;
-
-        return (
-          <button
-            key={tab.id}
-            onClick={() => handleTabChange(tab.id)}
-            className={cn(
-              'flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors',
-              'border-b-2 -mb-px',
-              isActive
-                ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
-                : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
-            )}
-          >
-            <Icon className="h-4 w-4" />
-            {tab.label}
-          </button>
-        );
-      })}
-    </div>
+    <Tabs
+      className="mb-6"
+      items={tabs.map((tab) => ({
+        key: tab.id,
+        label: tab.label,
+        icon: tab.icon,
+        active: activeTab === tab.id,
+        onClick: () => handleTabChange(tab.id),
+      }))}
+    />
   );
 }

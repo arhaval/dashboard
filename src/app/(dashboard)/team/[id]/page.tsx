@@ -4,6 +4,7 @@
  * Üye: sadece kendi profilini görebilir
  */
 
+import { Users as PageIcon } from 'lucide-react';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { PageShell } from '@/components/layout';
@@ -58,7 +59,7 @@ export default async function TeamMemberProfilePage({ params }: PageProps) {
   ]);
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title={isOwnProfile ? 'Profilim' : tr.team.memberDetails}
       description={member.full_name}
       actions={

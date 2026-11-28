@@ -3,6 +3,7 @@
  * İçerik + Finans + Ekip — haftalık performans özeti
  */
 
+import { FileOutput as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,7 +66,7 @@ export default async function WeeklyReportPage({ searchParams }: WeeklyReportPag
   const prevWeek = getPrevWeekRange();
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="Haftalık Rapor"
       description={report.week.label}
     >

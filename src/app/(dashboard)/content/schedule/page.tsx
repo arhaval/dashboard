@@ -3,6 +3,7 @@
  * Admin: düzenler. Herkes görür + kopyalar.
  */
 
+import { CalendarDays as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +19,7 @@ export default async function WeeklySchedulePage() {
   const schedule = await weeklyScheduleService.getAll();
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title="Haftalık Program"
       description="Sabit haftalık içerik ritmi — ekibinle paylaş"
     >

@@ -4,6 +4,7 @@
  * Admin: full access with CRUD | Others: read-only
  */
 
+import { Users as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { userService } from '@/services';
@@ -22,7 +23,7 @@ export default async function TeamPage() {
   const users = await userService.getAll();
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title={tr.team.title}
       description={tr.team.subtitle}
       actions={isAdmin ? <AddMemberButton /> : undefined}

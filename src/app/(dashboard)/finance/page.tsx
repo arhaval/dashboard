@@ -4,6 +4,7 @@
  * Features: monthly trend chart, category breakdown donut, StatCards, table.
  */
 
+import { PiggyBank as PageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { Pager } from '@/components/ui/pager';
@@ -213,7 +214,7 @@ export default async function FinancePage({ searchParams }: PageProps) {
   }));
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title={tr.pages.finance.title}
       description={tr.pages.finance.subtitle}
       actions={

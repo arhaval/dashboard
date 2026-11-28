@@ -1,3 +1,4 @@
+import { Handshake as PageIcon } from 'lucide-react';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { PageShell } from '@/components/layout';
@@ -43,7 +44,7 @@ export default async function SponsorDetailPage({ params }: PageProps) {
   const meta = STATUS_META[sponsor.status];
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title={sponsor.name}
       description="Sponsor detayı, şartlar ve dosyalar"
       actions={
