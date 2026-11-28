@@ -8,6 +8,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type {
   RateCard,
   UpsertRateCardInput,
@@ -83,6 +84,60 @@ export const rateCardService = {
       return false;
     }
     return true;
+  },
+
+  /**
+   * TASLAK işlerin ücretini güncel fiyat kartlarından yeniden hesaplar
+   * (yalnızca admin çağırır; yetki kontrolü action'da).
+   *
+   * Fiyat girilmeden/değişmeden önce girilmiş taslaklar böylece tek seferde
+   * fiyatlanır. Onaylanan/ödenen işlere ASLA dokunulmaz. Firması veya harita
+   * sayısı (yayın) / uzunluğu (diğer) eksik eski kayıtlar çözülemez, sayılıp
+   * raporlanır — onlara admin elle ücret girer.
+   */
+  async repriceDrafts(): Promise<{ updated: number; unresolved: number }> {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from('work_items')
+      .select('id, user_id, client_id, work_type, map_count, content_length, cost, bill_amount')
+      .eq('status', 'DRAFT');
+    if (error || !data) return { updated: 0, unresolved: 0 };
+
+    type Row = {
+      id: string; user_id: string; client_id: string | null; work_type: WorkType;
+      map_count: number | null; content_length: ContentLength | null;
+      cost: number | null; bill_amount: number | null;
+    };
+
+    let updated = 0;
+    let unresolved = 0;
+    for (const item of data as Row[]) {
+      const complete =
+        !!item.client_id &&
+        (item.work_type === 'STREAM' ? !!item.map_count : !!item.content_length);
+      const resolved = complete
+        ? await this.resolveRate(item.user_id, item.client_id!, item.work_type, {
+            contentLength: item.content_length,
+            mapCount: item.map_count,
+          })
+        : null;
+      if (!resolved) {
+        if (item.cost == null) unresolved += 1;
+        continue;
+      }
+
+      const cost = resolved.pay_amount;
+      const bill = resolved.is_internal ? null : resolved.bill_amount;
+      if (Number(item.cost) === cost && (item.bill_amount == null ? null : Number(item.bill_amount)) === bill) continue;
+
+      const { error: upErr } = await admin
+        .from('work_items')
+        .update({ cost, bill_amount: bill, updated_at: new Date().toISOString() })
+        .eq('id', item.id)
+        .eq('status', 'DRAFT');
+      if (!upErr) updated += 1;
+    }
+    return { updated, unresolved };
   },
 
   /**

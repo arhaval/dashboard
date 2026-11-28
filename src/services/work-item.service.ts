@@ -93,6 +93,10 @@ export const workItemService = {
       query = query.eq('status', filters.status);
     }
 
+    if (filters?.client_id) {
+      query = query.eq('client_id', filters.client_id);
+    }
+
     if (filters?.date_from) {
       query = query.gte('work_date', filters.date_from);
     }

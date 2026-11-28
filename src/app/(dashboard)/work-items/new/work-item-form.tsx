@@ -1,6 +1,7 @@
 /**
  * Work Item Form Component
- * Client component for creating work items
+ * İş girişi + kendi taslağını düzenleme (aynı form). Ücret kullanıcıya
+ * kayıttan önce gösterilir (RatePreview); hesap her zaman sunucuda.
  */
 
 'use client';
@@ -14,9 +15,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n';
 import type { WorkType, ContentLength, Client } from '@/types';
-import { createWorkItem } from './actions';
+import { createWorkItem, updateOwnWorkItem } from './actions';
+import { RatePreview } from './rate-preview';
+import { ClientPicker } from './client-picker';
+import { todayTR } from '@/lib/utils/dates';
 
-type FormData = {
+export type WorkItemFormValues = {
   work_type: WorkType;
   work_date: string;
   notes: string;
@@ -30,27 +34,45 @@ type FormData = {
   content_length: ContentLength | '';
 };
 
-export function WorkItemForm({ clients }: { clients: Client[] }) {
+/** Planlı yayından gelinirse ("Yayını gir") formun önceden dolu alanları. */
+export interface WorkItemPrefill {
+  planId: string;
+  work_type: WorkType;
+  title: string;
+  work_date: string;
+  client_id: string | null;
+}
+
+interface WorkItemFormProps {
+  clients: Client[];
+  prefill?: WorkItemPrefill;
+  /** Düzenleme modu: mevcut kaydın id'si ve değerleri. */
+  edit?: { id: string; values: WorkItemFormValues };
+}
+
+export function WorkItemForm({ clients, prefill, edit }: WorkItemFormProps) {
   const router = useRouter();
 
-  // Varsayılan müşteri: iç müşteri (Arhaval) varsa o, yoksa ilk müşteri.
-  const defaultClientId =
-    clients.find((c) => c.is_internal)?.id ?? clients[0]?.id ?? '';
+  // Firma BİLEREK seçilir: varsayılan yok. Tek firma varsa seçim anlamsız,
+  // o seçili gelir. Plandan gelindiyse planın firması (NULL = iç müşteri).
+  const internalId = clients.find((c) => c.is_internal)?.id ?? '';
+  const defaultClientId = clients.length === 1 ? clients[0].id : '';
 
-  const initialFormData: FormData = {
-    work_type: 'STREAM',
-    work_date: new Date().toISOString().split('T')[0],
+  const fromPlan = prefill?.work_type === 'STREAM';
+  const initialFormData: WorkItemFormValues = {
+    work_type: prefill?.work_type ?? 'STREAM',
+    work_date: prefill?.work_date ?? todayTR(),
     notes: '',
-    client_id: defaultClientId,
-    match_name: '',
+    client_id: prefill ? prefill.client_id ?? internalId : defaultClientId,
+    match_name: fromPlan ? prefill!.title : '',
     duration_minutes: '',
     map_count: '',
-    content_name: '',
+    content_name: prefill && !fromPlan ? prefill.title : '',
     content_length: '',
   };
 
-  const [formData, setFormData] = React.useState<FormData>(initialFormData);
-  const [errors, setErrors] = React.useState<Partial<Record<keyof FormData, string>>>({});
+  const [formData, setFormData] = React.useState<WorkItemFormValues>(edit?.values ?? initialFormData);
+  const [errors, setErrors] = React.useState<Partial<Record<keyof WorkItemFormValues, string>>>({});
   const [isLoading, setIsLoading] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
 
@@ -61,7 +83,7 @@ export function WorkItemForm({ clients }: { clients: Client[] }) {
     setFormData((prev) => ({ ...prev, [name]: value }));
 
     // Clear field error on change
-    if (errors[name as keyof FormData]) {
+    if (errors[name as keyof WorkItemFormValues]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
     if (serverError) {
@@ -70,10 +92,14 @@ export function WorkItemForm({ clients }: { clients: Client[] }) {
   };
 
   const validate = (): boolean => {
-    const newErrors: Partial<Record<keyof FormData, string>> = {};
+    const newErrors: Partial<Record<keyof WorkItemFormValues, string>> = {};
 
     if (!formData.work_date) {
       newErrors.work_date = tr.work.workDateRequired;
+    }
+
+    if (clients.length > 0 && !formData.client_id) {
+      newErrors.client_id = 'Kimin için yaptığını seç';
     }
 
     if (formData.work_type === 'STREAM') {
@@ -82,6 +108,9 @@ export function WorkItemForm({ clients }: { clients: Client[] }) {
       }
       if (!formData.duration_minutes || parseInt(formData.duration_minutes) < 1) {
         newErrors.duration_minutes = tr.work.durationRequired;
+      }
+      if (!formData.map_count || parseInt(formData.map_count) < 1) {
+        newErrors.map_count = 'Harita sayısı zorunlu';
       }
     }
 
@@ -109,7 +138,7 @@ export function WorkItemForm({ clients }: { clients: Client[] }) {
     setServerError(null);
 
     try {
-      const result = await createWorkItem({
+      const input = {
         work_type: formData.work_type,
         work_date: formData.work_date,
         notes: formData.notes || undefined,
@@ -126,7 +155,10 @@ export function WorkItemForm({ clients }: { clients: Client[] }) {
           formData.work_type !== 'STREAM' && formData.content_length
             ? (formData.content_length as ContentLength)
             : undefined,
-      });
+      };
+      const result = edit
+        ? await updateOwnWorkItem(edit.id, input)
+        : await createWorkItem(input, prefill?.planId);
 
       if (!result.success) {
         setServerError(result.error || tr.messages.error.failedToCreate);
@@ -188,37 +220,21 @@ export function WorkItemForm({ clients }: { clients: Client[] }) {
             </select>
           </div>
 
-          {/* Müşteri / İş ortağı — kimin için yapıldı. Fiyat buna göre belirlenir. */}
+          {/* Kimin için — varsayılansız, bilerek seçilir. Fiyat ve rapor buna göre. */}
           {clients.length > 0 && (
             <div className="space-y-2">
-              <Label htmlFor="client_id" required>
-                Kimin için
-              </Label>
-              <select
-                id="client_id"
-                name="client_id"
+              <Label required>Kimin için</Label>
+              <ClientPicker
+                clients={clients}
                 value={formData.client_id}
-                onChange={handleChange}
+                onChange={(id) => {
+                  setFormData((prev) => ({ ...prev, client_id: id }));
+                  setErrors((prev) => ({ ...prev, client_id: undefined }));
+                  setServerError(null);
+                }}
+                error={errors.client_id}
                 disabled={isLoading}
-                className={cn(
-                  'flex h-10 w-full',
-                  'rounded-[var(--radius-md)] border bg-[var(--color-bg-secondary)]',
-                  'px-3 py-2 text-sm',
-                  'text-[var(--color-text-primary)]',
-                  'border-[var(--color-border)] hover:border-[var(--color-border-hover)]',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]'
-                )}
-              >
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                    {c.is_internal ? ' (iç iş)' : ''}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-[var(--color-text-muted)]">
-                Bu iş kimin için? Fiyat seçime göre otomatik belirlenir.
-              </p>
+              />
             </div>
           )}
 
@@ -271,6 +287,7 @@ export function WorkItemForm({ clients }: { clients: Client[] }) {
                   name="duration_minutes"
                   type="number"
                   min="1"
+                  inputMode="numeric"
                   placeholder={tr.work.durationPlaceholder}
                   value={formData.duration_minutes}
                   onChange={handleChange}
@@ -285,21 +302,29 @@ export function WorkItemForm({ clients }: { clients: Client[] }) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="map_count">Harita sayısı</Label>
+                <Label htmlFor="map_count" required>
+                  Harita sayısı
+                </Label>
                 <Input
                   id="map_count"
                   name="map_count"
                   type="number"
                   min="1"
                   step="1"
+                  inputMode="numeric"
                   placeholder="Örn. 2"
                   value={formData.map_count}
                   onChange={handleChange}
+                  error={!!errors.map_count}
                   disabled={isLoading}
                 />
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  Fiyat harita sayısına göre belirlenir.
-                </p>
+                {errors.map_count ? (
+                  <p className="text-sm text-[var(--color-error)]">{errors.map_count}</p>
+                ) : (
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    Ücret harita başına hesaplanır.
+                  </p>
+                )}
               </div>
             </>
           )}
@@ -359,6 +384,15 @@ export function WorkItemForm({ clients }: { clients: Client[] }) {
             </>
           )}
 
+          {/* Ücret önizlemesi */}
+          <RatePreview
+            workType={formData.work_type}
+            clientId={formData.client_id}
+            clientName={clients.find((c) => c.id === formData.client_id)?.name}
+            mapCount={formData.map_count ? parseInt(formData.map_count) || null : null}
+            contentLength={formData.content_length || null}
+          />
+
           {/* Notes */}
           <div className="space-y-2">
             <Label htmlFor="notes">{tr.work.notesOptional}</Label>
@@ -383,9 +417,9 @@ export function WorkItemForm({ clients }: { clients: Client[] }) {
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row">
             <Button type="submit" isLoading={isLoading} disabled={isLoading}>
-              {tr.work.createItem}
+              {edit ? 'Değişiklikleri kaydet' : tr.work.createItem}
             </Button>
             <Button
               type="button"

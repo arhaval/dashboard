@@ -5,26 +5,28 @@
  * Supports server-side filtering via URL search params
  */
 
+import { FileText as PageIcon } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { Pager } from '@/components/ui/pager';
 import { paginate, parsePage } from '@/lib/paginate';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
-import { StatusFlow, WorkTypeDonut } from '@/components/charts/work-charts';
+import { SectionHead, WorkloadStrip, CapacityCard, BarsChart, shortTL } from '@/components/dashboard/widgets';
 import { workItemService, userService, paymentService } from '@/services';
 import { cn, formatDate, formatCurrency, getWorkTypeLabel } from '@/lib/utils';
 import { WORK_TYPES, WORK_STATUSES } from '@/constants';
 import { tr } from '@/lib/i18n';
-import { Plus, FileText, DollarSign } from 'lucide-react';
+import { Plus, FileText, DollarSign, CalendarDays, Wallet, CalendarClock } from 'lucide-react';
 import { StatusControl } from './status-control';
 import { WorkItemFilters } from './filters';
 import { CreatePaymentButton } from './create-payment-button';
 import { CostEditor } from './cost-editor';
 import { WorkItemDeleteButton } from './delete-button';
+import { MyWorkView } from './my-work-view';
 import type { WorkItem, WorkType, WorkStatus } from '@/types';
+import { currentMonthTR } from '@/lib/utils/dates';
 
 
 function getTypeBadgeStyles(type: string) {
@@ -257,6 +259,8 @@ interface PageProps {
     type?: string;
     user_id?: string;
     sayfa?: string;
+    ay?: string;
+    musteri?: string;
   }>;
 }
 
@@ -271,6 +275,20 @@ export default async function WorkItemsPage({ searchParams }: PageProps) {
   }
 
   const isAdmin = currentUser.role === 'ADMIN';
+
+  // Çalışanlar kendi sade görünümünü alır (ay/müşteri filtresi, hak ediş,
+  // taslağını düzelt/sil). Analitik ve onay araçları admin içindir.
+  if (!isAdmin) {
+    const myItems = await workItemService.getAll({ user_id: currentUser.id });
+    return (
+      <MyWorkView
+        items={myItems}
+        params={{ ay: params.ay, musteri: params.musteri, sayfa: params.sayfa }}
+        fullName={currentUser.full_name}
+        isPublisher={currentUser.role === 'PUBLISHER'}
+      />
+    );
+  }
 
   // Build filters from search params
   const filters: {
@@ -319,6 +337,11 @@ export default async function WorkItemsPage({ searchParams }: PageProps) {
   const voiceCount = allItems.filter((i) => i.work_type === 'VOICE').length;
   const editCount = allItems.filter((i) => i.work_type === 'EDIT').length;
   const totalCost = allItems.reduce((sum, i) => sum + (Number(i.cost) || 0), 0);
+  const unpaidTotal = allItems
+    .filter((i) => i.status === 'APPROVED')
+    .reduce((sum, i) => sum + (Number(i.cost) || 0), 0);
+  const thisMonth = currentMonthTR();
+  const thisMonthCount = allItems.filter((i) => i.work_date.startsWith(thisMonth)).length;
 
   // Top earners (by total cost) — admin only
   const earnerMap = new Map<string, { name: string; total: number; count: number }>();
@@ -340,126 +363,77 @@ export default async function WorkItemsPage({ searchParams }: PageProps) {
     .slice(0, 5);
 
   return (
-    <PageShell
+    <PageShell icon={PageIcon}
       title={tr.pages.workItems.title}
       description={tr.pages.workItems.subtitle}
       actions={
-        <Link href="/work-items/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            {tr.actions.addWorkItem}
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Link href="/work-items/planla">
+              <Button variant="outline">
+                <CalendarClock className="mr-2 h-4 w-4" />
+                Planla
+              </Button>
+            </Link>
+          )}
+          <Link href="/work-items/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              {tr.actions.addWorkItem}
+            </Button>
+          </Link>
+        </div>
       }
     >
-      {/* ── Stat Cards ── */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Toplam İş Kaydı"
-          value={stats.total.toString()}
-          description="Tüm zamanlar"
-          icon={FileText}
-          color="orange"
-        />
-        <StatCard
-          title="Taslak"
-          value={stats.draft.toString()}
-          description="Onay bekliyor"
-          icon={FileText}
-          color="yellow"
-        />
-        <StatCard
-          title="Onaylı"
-          value={stats.approved.toString()}
-          description="Ödemeye hazır"
-          icon={FileText}
-          color="blue"
-        />
-        <StatCard
-          title="Toplam Tutar"
-          value={formatCurrency(totalCost)}
-          description="Tüm ödemeler"
-          icon={DollarSign}
-          color="green"
+      {/* ── Genel bakış ── */}
+      <section>
+        <SectionHead title="Genel bakış" />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard title="Toplam iş kaydı" value={stats.total.toString()} description="Tüm zamanlar" icon={FileText} color="orange" />
+          <StatCard title="Bu ay" value={thisMonthCount.toString()} description="Bu ay girilen iş" icon={CalendarDays} color="purple" />
+          <StatCard title="Ödenmemiş" value={formatCurrency(unpaidTotal)} description={`${stats.approved} onaylı iş`} icon={Wallet} color="yellow" />
+          <StatCard title="Toplam tutar" value={formatCurrency(totalCost)} description="Tüm işler" icon={DollarSign} color="green" />
+        </div>
+      </section>
+
+      {/* ── Durum halkaları ── */}
+      <div className="mt-6">
+        <WorkloadStrip
+          title="Durum"
+          openLabel={`${stats.draft + stats.approved} açık iş`}
+          items={[
+            { label: 'Taslak', count: stats.draft, color: 'var(--color-text-secondary)', sub: 'Onay bekliyor' },
+            { label: 'Onaylı', count: stats.approved, color: 'var(--color-warning)', sub: 'Ödemeye hazır' },
+            { label: 'Ödendi', count: stats.paid, color: 'var(--color-success)', sub: 'Tamamlandı' },
+          ]}
         />
       </div>
 
-      {/* ── Analytics Strip ── */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        {/* Status Flow */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
-              Durum Dağılımı
-            </CardTitle>
-            <p className="text-xs text-[var(--color-text-muted)]">
-              DRAFT → APPROVED → PAID akışı
-            </p>
-          </CardHeader>
-          <CardContent>
-            <StatusFlow
-              draft={stats.draft}
-              approved={stats.approved}
-              paid={stats.paid}
-              total={stats.total}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Work Type Donut */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
-              İş Türü Dağılımı
-            </CardTitle>
-            <p className="text-xs text-[var(--color-text-muted)]">
-              Yayın / Ses / Kurgu oranları
-            </p>
-          </CardHeader>
-          <CardContent>
-            <WorkTypeDonut stream={streamCount} voice={voiceCount} edit={editCount} />
-          </CardContent>
-        </Card>
-
-        {/* Top Earners — admin only */}
+      {/* ── İş türü + kazananlar ── */}
+      <div className={`mt-6 grid gap-3 ${isAdmin && topEarners.length > 0 ? 'lg:grid-cols-2' : ''}`}>
+        <CapacityCard
+          title="İş türü dağılımı"
+          subtitle="Yayın / Seslendirme / Kurgu"
+          chip="Tüm zamanlar"
+          total={streamCount + voiceCount + editCount}
+          totalLabel="iş"
+          format={String}
+          segments={[
+            { label: 'Yayın', amount: streamCount, color: 'var(--color-accent)' },
+            { label: 'Seslendirme', amount: voiceCount, color: 'var(--color-warning)' },
+            { label: 'Kurgu', amount: editCount, color: 'var(--color-success)' },
+          ]}
+        />
         {isAdmin && topEarners.length > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
-                En Yüksek Kazanan
-              </CardTitle>
-              <p className="text-xs text-[var(--color-text-muted)]">
-                Toplam maliyet bazlı
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {topEarners.map((earner, idx) => (
-                  <div key={earner.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                        style={{ background: idx === 0 ? 'var(--color-accent)' : 'var(--color-text-muted)' }}
-                      >
-                        {idx + 1}
-                      </span>
-                      <div>
-                        <p className="text-xs font-medium text-[var(--color-text-primary)]">
-                          {earner.name}
-                        </p>
-                        <p className="text-xs text-[var(--color-text-muted)]">
-                          {earner.count} kayıt
-                        </p>
-                      </div>
-                    </div>
-                    <span className="font-mono text-xs font-semibold text-[var(--color-text-primary)]">
-                      {formatCurrency(earner.total)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <BarsChart
+            title="En çok kazananlar"
+            subtitle="Toplam iş tutarı · ortalamaya göre"
+            chip="Tüm zamanlar"
+            data={topEarners.map((e) => ({ label: e.name.split(' ')[0], value: e.total }))}
+            highlightIndex={0}
+            callout="Lider"
+            format={shortTL}
+          />
         )}
       </div>
 

@@ -5,11 +5,11 @@
 
 import { createClient } from '@/lib/supabase/server';
 import type { Transaction, TransactionFilters, TransactionType, CreateTransactionInput } from '@/types';
+import { currentMonthTR } from '@/lib/utils/dates';
 
 /** Get current month in YYYY-MM format */
 function getCurrentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return currentMonthTR();
 }
 
 /** Get the first day of the next month (for date range queries) */

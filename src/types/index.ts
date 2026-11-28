@@ -604,6 +604,7 @@ export interface WorkItemFilters {
   user_id?: string;
   work_type?: WorkType;
   status?: WorkStatus;
+  client_id?: string;
   date_from?: string;
   date_to?: string;
 }
@@ -911,10 +912,13 @@ export interface ContentPlan {
   work_item_id: string | null;
   platform: ContentPlatform | null;
   content_subtype: ContentSubtype | null;
+  /** Kimin için (Arhaval / dış ortak). null = iç iş. */
+  client_id: string | null;
   created_at: string;
   updated_at: string;
   // Joined
   assignee?: { id: string; full_name: string; avatar_url: string | null } | null;
+  client?: Pick<Client, 'id' | 'name' | 'is_internal'> | null;
 }
 
 export interface CreateContentPlanInput {
@@ -926,6 +930,7 @@ export interface CreateContentPlanInput {
   notes?: string | null;
   platform?: ContentPlatform | null;
   content_subtype?: ContentSubtype | null;
+  client_id?: string | null;
 }
 
 export interface ContentGoal {

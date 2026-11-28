@@ -56,7 +56,7 @@ export function CreatePaymentButton({ workItemId, userId }: CreatePaymentButtonP
           'h-7 rounded-[var(--radius-sm)] px-2',
           'text-xs font-medium',
           'bg-[var(--color-accent-muted)] text-[var(--color-accent)]',
-          'hover:bg-[var(--color-accent)] hover:text-white',
+          'hover:bg-[var(--color-text-primary)] hover:text-[var(--color-bg-primary)]',
           'transition-colors',
           'disabled:opacity-50 disabled:cursor-not-allowed'
         )}

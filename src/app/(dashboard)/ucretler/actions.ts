@@ -37,6 +37,15 @@ export async function upsertRateAction(input: UpsertRateCardInput): Promise<Acti
   return { success: true };
 }
 
+/** Taslak işlerin ücretini güncel fiyatlardan yeniden hesapla. */
+export async function repriceDraftsAction(): Promise<ActionResult & { updated?: number; unresolved?: number }> {
+  if (!(await verifyAdmin())) return { success: false, error: 'Yetkisiz' };
+  const res = await rateCardService.repriceDrafts();
+  revalidatePath('/work-items');
+  revalidatePath('/');
+  return { success: true, ...res };
+}
+
 export async function deleteRateAction(id: string): Promise<ActionResult> {
   if (!(await verifyAdmin())) return { success: false, error: 'Yetkisiz' };
   const ok = await rateCardService.delete(id);
