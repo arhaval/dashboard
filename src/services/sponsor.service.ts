@@ -308,6 +308,20 @@ export const sponsorService = {
     return {};
   },
 
+  /**
+   * Taksiti ödendi işaretle ama gelir YAZMA — para finansa daha önce elle
+   * girildiyse kullanılır (aksi halde gelir iki kez sayılırdı).
+   */
+  async markPaidWithoutPosting(paymentId: string, paidDate: string): Promise<{ error?: string }> {
+    const admin = createAdminClient();
+    const { error } = await admin
+      .from('sponsor_payments')
+      .update({ is_paid: true, paid_date: paidDate })
+      .eq('id', paymentId)
+      .eq('is_paid', false);
+    return error ? { error: error.message } : {};
+  },
+
   /** Mark an installment unpaid → remove the linked INCOME transaction. */
   async markUnpaid(paymentId: string): Promise<{ error?: string }> {
     const admin = createAdminClient();

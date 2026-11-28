@@ -4,6 +4,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import { INCOME_CODE_TO_CATEGORY } from '@/constants';
 
 // ── Tipler ──────────────────────────────────────────────────────────────────
 
@@ -150,7 +151,7 @@ export const cashFlowService = {
     // 3. Ana transactions defterine INCOME satırı yaz
     const { error: txErr } = await supabase.from('transactions').insert({
       type: 'INCOME',
-      category: income.category ?? 'Gelir Tahmini',
+      category: INCOME_CODE_TO_CATEGORY[income.category] ?? income.category ?? 'Diğer',
       amount: income.amount,
       description: `[Tahmin → Tahsil] ${income.title}${income.notes ? ' · ' + income.notes : ''}`,
       transaction_date: new Date().toISOString().split('T')[0],
@@ -180,7 +181,7 @@ export const cashFlowService = {
 
     const { error: txErr } = await supabase.from('transactions').insert({
       type: 'EXPENSE',
-      category: expense.category ?? 'Gider Tahmini',
+      category: expense.category ?? 'Diğer',
       amount: expense.amount,
       description: `[Tahmin → Ödendi] ${expense.title}${expense.notes ? ' · ' + expense.notes : ''}`,
       transaction_date: new Date().toISOString().split('T')[0],

@@ -1,7 +1,10 @@
 /**
- * Finance Page
- * Shows financial summary and transaction history — Admin only.
- * Features: monthly trend chart, category breakdown donut, StatCards, table.
+ * Finans — Admin only.
+ * Yöneticinin sırasıyla sorduğu üç soru:
+ *   1. Bu ay kâr mı zarar mı?          → PnlSection (ay / önceki ay / yıl)
+ *   2. Kime borçluyuz, bize kim borçlu? → DebtsSection (ekip, dış ortak, sponsor)
+ *   3. Para nereye gitti?               → trend + hareketler tablosu
+ * Ödemeler ve Nakit Akışı aynı başlık altında sekme olarak kalır.
  */
 
 import { PiggyBank as PageIcon } from 'lucide-react';
@@ -9,148 +12,24 @@ import { redirect } from 'next/navigation';
 import { PageShell } from '@/components/layout';
 import { Pager } from '@/components/ui/pager';
 import { paginate, parsePage } from '@/lib/paginate';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { StatCard } from '@/components/ui/stat-card';
-import { MonthlyTrendChart, CategoryDonut } from '@/components/charts/finance-charts';
+import { MonthlyTrendChart } from '@/components/charts/finance-charts';
+import { SectionHead } from '@/components/dashboard/widgets';
+import { TR_MONTHS } from '@/components/dashboard/utils';
 import { financeService, userService } from '@/services';
-import { getCurrentMonth, getNextMonthStart } from '@/services/finance.service';
-import { cn, formatDate, formatCurrency, getTransactionTypeLabel, getTransactionTypeBadgeClass } from '@/lib/utils';
-import { tr } from '@/lib/i18n';
+import { getNextMonthStart } from '@/services/finance.service';
+import { financeOverviewService } from '@/services/finance-overview.service';
+import { currentMonthTR } from '@/lib/utils/dates';
 import { TRANSACTION_TYPES } from '@/constants';
+import type { TransactionType } from '@/types';
 import { FinanceFilters } from './filters';
 import { FinanceHubTabs } from './finance-hub-tabs';
 import { FinanceMonthPicker } from './month-picker';
 import { FinanceExportButtons } from './export-buttons';
-import { TransactionDeleteButton } from './delete-button';
-import { TrendingUp, TrendingDown, Scale, Hash } from 'lucide-react';
-import type { Transaction, TransactionType } from '@/types';
+import { PnlSection } from './pnl-section';
+import { DebtsSection } from './debts-section';
+import { TransactionsTable } from './transactions-table';
 
-// ─────────────────────────────────────────────
-// Transaction Table
-// ─────────────────────────────────────────────
-
-function TransactionsTable({ transactions }: { transactions: Transaction[] }) {
-  if (transactions.length === 0) {
-    return (
-      <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] text-[var(--color-text-muted)]">
-        <p>{tr.table.noData}</p>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {/* Mobile: one card per transaction */}
-      <div className="space-y-3 md:hidden">
-        {transactions.map((transaction) => (
-          <div
-            key={transaction.id}
-            className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-[var(--color-text-primary)]">
-                  {transaction.category}
-                </p>
-                {transaction.description && (
-                  <p className="mt-0.5 truncate text-xs text-[var(--color-text-secondary)]">
-                    {transaction.description}
-                  </p>
-                )}
-                <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                  {formatDate(transaction.transaction_date)}
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', getTransactionTypeBadgeClass(transaction.type))}>
-                  {getTransactionTypeLabel(transaction.type)}
-                </span>
-                <span className={cn('font-mono text-sm font-semibold', transaction.type === 'INCOME' ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]')}>
-                  {transaction.type === 'INCOME' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                </span>
-              </div>
-            </div>
-            {!transaction.payment_id && (
-              <div className="mt-2 flex justify-end border-t border-[var(--color-border)] pt-2">
-                <TransactionDeleteButton transactionId={transaction.id} />
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Desktop: table */}
-      <div className="hidden overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] md:block" style={{ boxShadow: 'var(--shadow-card)' }}>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[520px]">
-          <thead>
-            <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] sm:px-4">
-                {tr.transaction.fields.date}
-              </th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] sm:px-4">
-                {tr.transaction.fields.type}
-              </th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] sm:px-4">
-                {tr.transaction.fields.category}
-              </th>
-              <th className="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] sm:table-cell sm:px-4">
-                {tr.transaction.fields.description}
-              </th>
-              <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] sm:px-4">
-                {tr.transaction.fields.amount}
-              </th>
-              <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] sm:px-4">
-                {tr.table.actions}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {transactions.map((transaction, index) => (
-              <tr
-                key={transaction.id}
-                className={cn(
-                  'border-b border-[var(--color-border)] last:border-b-0 transition-colors hover:bg-[var(--color-bg-tertiary)]',
-                  index % 2 === 0
-                    ? 'bg-[var(--color-table-row-even)]'
-                    : 'bg-[var(--color-table-row-odd)]'
-                )}
-              >
-                <td className="px-3 py-3 text-xs text-[var(--color-text-muted)] sm:px-4 sm:text-sm">
-                  {formatDate(transaction.transaction_date)}
-                </td>
-                <td className="px-3 py-3 sm:px-4">
-                  <span className={cn('inline-block rounded-full px-2 py-0.5 text-xs font-medium', getTransactionTypeBadgeClass(transaction.type))}>
-                    {getTransactionTypeLabel(transaction.type)}
-                  </span>
-                </td>
-                <td className="px-3 py-3 text-xs font-medium text-[var(--color-text-primary)] sm:px-4 sm:text-sm">
-                  {transaction.category}
-                </td>
-                <td className="hidden px-3 py-3 text-xs text-[var(--color-text-secondary)] sm:table-cell sm:px-4 sm:text-sm">
-                  {transaction.description || '—'}
-                </td>
-                <td className={cn('px-3 py-3 text-right font-mono text-xs font-semibold sm:px-4 sm:text-sm', transaction.type === 'INCOME' ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]')}>
-                  {transaction.type === 'INCOME' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                </td>
-                <td className="px-3 py-3 text-right sm:px-4">
-                  {!transaction.payment_id && (
-                    <TransactionDeleteButton transactionId={transaction.id} />
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      </div>
-    </>
-  );
-}
-
-// ─────────────────────────────────────────────
-// Page
-// ─────────────────────────────────────────────
+const TREND_MONTHS = 6;
 
 interface PageProps {
   searchParams: Promise<{
@@ -161,6 +40,11 @@ interface PageProps {
   }>;
 }
 
+function monthLabel(month: string) {
+  const [y, m] = month.split('-').map(Number);
+  return `${TR_MONTHS[m - 1]} ${y}`;
+}
+
 export default async function FinancePage({ searchParams }: PageProps) {
   const params = await searchParams;
 
@@ -168,172 +52,73 @@ export default async function FinancePage({ searchParams }: PageProps) {
   if (!currentUser) redirect('/login');
   if (currentUser.role !== 'ADMIN') redirect('/');
 
-  // Determine active month
-  const availableMonthsList = await financeService.getAvailableMonths();
-  const activeMonth =
-    params.month ||
-    (availableMonthsList.length > 0 ? availableMonthsList[0] : getCurrentMonth());
+  // Varsayılan: içinde bulunulan ay (Türkiye saatiyle) — "son kayıtlı ay" değil.
+  const thisMonth = currentMonthTR();
+  const recorded = await financeService.getAvailableMonths();
+  const months = recorded.includes(thisMonth) ? recorded : [thisMonth, ...recorded];
+  const activeMonth = params.month && /^\d{4}-\d{2}$/.test(params.month) ? params.month : thisMonth;
 
-  // Build filters
-  const filters: {
-    type?: TransactionType;
-    category?: string;
-    date_from?: string;
-    date_before?: string;
-  } = {
+  const filters: { type?: TransactionType; category?: string; date_from: string; date_before: string } = {
     date_from: `${activeMonth}-01`,
     date_before: getNextMonthStart(activeMonth),
   };
-
   if (params.type && (TRANSACTION_TYPES as readonly string[]).includes(params.type)) {
     filters.type = params.type as TransactionType;
   }
   if (params.category) filters.category = params.category;
 
-  // Fetch all data in parallel
-  const [transactions, stats, categories, trendData, expenseBreakdown, incomeBreakdown] =
-    await Promise.all([
-      financeService.getAll(filters),
-      financeService.getStatsByMonth(activeMonth),
-      financeService.getCategories(),
-      financeService.getMonthlyTrend(6),
-      financeService.getCategoryBreakdown(activeMonth, 'EXPENSE'),
-      financeService.getCategoryBreakdown(activeMonth, 'INCOME'),
-    ]);
+  const [pnl, payables, receivables, transactions, stats, categories, trend] = await Promise.all([
+    financeOverviewService.getPnl(activeMonth),
+    financeOverviewService.getPayables(),
+    financeOverviewService.getReceivables(),
+    financeService.getAll(filters),
+    financeService.getStatsByMonth(activeMonth),
+    financeService.getCategories(),
+    financeService.getMonthlyTrend(TREND_MONTHS),
+  ]);
 
-  // Yalnızca TABLO sayfalanıyor. Dışa aktarma ve grafikler tüm kayıtla
-  // çalışmaya devam ediyor — sayfalanmış listeyi dışa aktarmak, raporu tek
-  // sayfaya indirgemek olurdu.
+  // Yalnızca tablo sayfalanır; dışa aktarma ayın tüm kayıtlarıyla çalışır.
   const paged = paginate(transactions, parsePage(params.sayfa));
 
-  // Map trend data for the chart component
-  const chartTrendData = trendData.map((d) => ({
-    month: d.label,
-    income: d.income,
-    expense: d.expense,
-  }));
-
   return (
-    <PageShell icon={PageIcon}
-      title={tr.pages.finance.title}
-      description={tr.pages.finance.subtitle}
+    <PageShell
+      icon={PageIcon}
+      title="Finans"
+      description="Kâr/zarar, borçlar, alacaklar ve tüm hareketler"
       actions={
-        <div className="flex items-center gap-3">
-          <FinanceExportButtons
-            transactions={transactions}
-            stats={stats}
-            currentMonth={activeMonth}
-          />
-          <FinanceMonthPicker months={availableMonthsList} currentMonth={activeMonth} />
+        <div className="flex flex-wrap items-center gap-2">
+          <FinanceExportButtons transactions={transactions} stats={stats} currentMonth={activeMonth} />
+          <FinanceMonthPicker months={months} currentMonth={activeMonth} />
         </div>
       }
     >
       <FinanceHubTabs />
 
-      {/* ── Stat Cards ── */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Toplam Gelir"
-          value={formatCurrency(stats.totalIncome)}
-          description={activeMonth}
-          icon={TrendingUp}
-          color="green"
-        />
-        <StatCard
-          title="Toplam Gider"
-          value={formatCurrency(stats.totalExpenses)}
-          description={activeMonth}
-          icon={TrendingDown}
-          color="red"
-        />
-        <StatCard
-          title="Net Bakiye"
-          value={formatCurrency(stats.netBalance)}
-          description={stats.netBalance >= 0 ? 'Kârlı ay' : 'Zararlı ay'}
-          icon={Scale}
-          color={stats.netBalance >= 0 ? 'teal' : 'orange'}
-        />
-        <StatCard
-          title="İşlem Sayısı"
-          value={stats.transactionCount.toString()}
-          description="Bu ay toplam kayıt"
-          icon={Hash}
-          color="blue"
-        />
-      </div>
+      <div className="space-y-8">
+        <PnlSection pnl={pnl} monthLabel={monthLabel(activeMonth)} />
 
-      {/* ── Charts Row ── */}
-      <div className="mt-6 grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Monthly Trend — takes 2/3 width */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
-              Aylık Gelir / Gider Trendi
-            </CardTitle>
-            <p className="text-xs text-[var(--color-text-muted)]">Son 6 aylık karşılaştırma</p>
-          </CardHeader>
-          <CardContent>
-            <MonthlyTrendChart data={chartTrendData} />
-          </CardContent>
-        </Card>
+        <DebtsSection payables={payables} receivables={receivables} />
 
-        {/* Category Breakdown — takes 1/3 width */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
-              Gider Dağılımı
-            </CardTitle>
-            <p className="text-xs text-[var(--color-text-muted)]">
-              {activeMonth} — kategoriye göre
-            </p>
-          </CardHeader>
-          <CardContent>
-            <CategoryDonut
-              data={expenseBreakdown}
-              total={stats.totalExpenses}
-              label="Kategoriler"
-            />
-          </CardContent>
-        </Card>
-      </div>
+        <section>
+          <SectionHead title="Son 6 ay" chip="Gelir / gider" />
+          <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
+            <MonthlyTrendChart data={trend.map((d) => ({ month: d.label, income: d.income, expense: d.expense }))} />
+          </div>
+        </section>
 
-      {/* ── Gelir Dağılımı (eğer veri varsa) ── */}
-      {incomeBreakdown.length > 1 && (
-        <div className="mt-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-[var(--color-text-primary)]">
-                Gelir Dağılımı
-              </CardTitle>
-              <p className="text-xs text-[var(--color-text-muted)]">
-                {activeMonth} — kaynak bazlı
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="max-w-full sm:max-w-xs">
-                <CategoryDonut
-                  data={incomeBreakdown}
-                  total={stats.totalIncome}
-                  label="Gelir kaynakları"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* ── Filters + Table ── */}
-      <div className="mt-6">
-        <FinanceFilters
-          currentType={params.type}
-          currentCategory={params.category}
-          currentMonth={activeMonth}
-          categories={categories}
-        />
-        <div className="mt-4">
-          <TransactionsTable transactions={paged.rows} />
-          <Pager paged={paged} basePath="/finance" params={params} label="kayı" />
-        </div>
+        <section>
+          <SectionHead title={`Hareketler · ${monthLabel(activeMonth)}`} />
+          <FinanceFilters
+            currentType={params.type}
+            currentCategory={params.category}
+            currentMonth={activeMonth}
+            categories={categories}
+          />
+          <div className="mt-4">
+            <TransactionsTable transactions={paged.rows} />
+            <Pager paged={paged} basePath="/finance" params={params} label="kayı" />
+          </div>
+        </section>
       </div>
     </PageShell>
   );

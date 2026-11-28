@@ -15,24 +15,16 @@ import { tr } from '@/lib/i18n';
 import { Plus, X } from 'lucide-react';
 import { createRealizedTransaction } from './realized-actions';
 import type { User, TransactionType } from '@/types';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/constants';
 
 interface RealizedTransactionFormProps {
   users: User[];
 }
 
-const EXPENSE_CATEGORIES = [
-  { value: 'Ekip Ödemeleri', label: tr.transaction.categories.teamPayments },
-  { value: 'Avanslar', label: tr.transaction.categories.advances },
-  { value: 'Operasyon', label: tr.transaction.categories.operations },
-  { value: 'Ekipman', label: tr.transaction.categories.equipment },
-  { value: 'Diğer', label: tr.transaction.categories.other },
-];
-
-const INCOME_CATEGORIES = [
-  { value: 'Sponsorluk', label: tr.transaction.categories.sponsorship },
-  { value: 'Reklam Gelirleri', label: tr.transaction.categories.ads },
-  { value: 'Diğer', label: tr.transaction.categories.other },
-];
+// Kategoriler tek kaynaktan (constants) — değer = görünen ad.
+const toOptions = (list: readonly string[]) => list.map((c) => ({ value: c, label: c }));
+const EXPENSE_OPTIONS = toOptions(EXPENSE_CATEGORIES);
+const INCOME_OPTIONS = toOptions(INCOME_CATEGORIES);
 
 export function RealizedTransactionForm({ users }: RealizedTransactionFormProps) {
   const router = useRouter();
@@ -50,7 +42,7 @@ export function RealizedTransactionForm({ users }: RealizedTransactionFormProps)
   );
   const [userId, setUserId] = useState('');
 
-  const categories = type === 'EXPENSE' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  const categories = type === 'EXPENSE' ? EXPENSE_OPTIONS : INCOME_OPTIONS;
 
   const resetForm = () => {
     setType('EXPENSE');

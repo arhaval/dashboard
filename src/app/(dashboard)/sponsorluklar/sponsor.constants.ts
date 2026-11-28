@@ -63,4 +63,4 @@ export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
 };
 
 /** Finance category used when a paid installment posts income. */
-export const SPONSOR_INCOME_CATEGORY = 'SPONSORLUK';
+export const SPONSOR_INCOME_CATEGORY = 'Sponsorluk';

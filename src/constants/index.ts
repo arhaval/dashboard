@@ -62,8 +62,24 @@ export const EXPENSE_CATEGORIES = [
 export const INCOME_CATEGORIES = [
   'Sponsorluk',
   'Reklam Gelirleri',
+  'Ekstra İşler',
+  'Turnuva',
   'Diğer',
 ] as const;
+
+/** Dış ortaktan (Sangal vb.) tahsilatın finans kategorisi. */
+export const EXTERNAL_WORK_INCOME_CATEGORY = 'Ekstra İşler';
+
+/**
+ * Nakit Akışı'ndaki beklenen gelir kodları → finans kategorisi.
+ * Kod doğrudan deftere yazılınca raporlar bölünüyordu ("SPONSORLUK" ≠ "Sponsorluk").
+ */
+export const INCOME_CODE_TO_CATEGORY: Record<string, string> = {
+  SPONSORLUK: 'Sponsorluk',
+  REKLAM: 'Reklam Gelirleri',
+  TURNUVA: 'Turnuva',
+  DIGER: 'Diğer',
+};
 
 export const ALL_CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES] as const;
 
