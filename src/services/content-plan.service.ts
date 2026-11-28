@@ -10,9 +10,10 @@ import type { ContentPlan, CreateContentPlanInput, ContentPlanStatus } from '@/t
 const SELECT_QUERY = `
   id, title, content_type, planned_date,
   assigned_to, created_by, status, priority,
-  notes, work_item_id, platform, content_subtype,
+  notes, work_item_id, platform, content_subtype, client_id,
   created_at, updated_at,
-  assignee:users!content_plans_assigned_to_fkey(id, full_name, avatar_url)
+  assignee:users!content_plans_assigned_to_fkey(id, full_name, avatar_url),
+  client:clients(id, name, is_internal)
 `;
 
 export const contentPlanService = {
@@ -73,6 +74,7 @@ export const contentPlanService = {
         notes: input.notes ?? null,
         platform: input.platform ?? null,
         content_subtype: input.content_subtype ?? null,
+        client_id: input.client_id ?? null,
         created_by: createdBy,
         status: 'PLANNED',
       })
@@ -81,6 +83,41 @@ export const contentPlanService = {
 
     if (error) return null;
     return data as unknown as ContentPlan;
+  },
+
+  /**
+   * Açık planlar: gelecektekiler + son 30 günde tarihi geçip hâlâ girilmemiş
+   * olanlar (yayın yapıldı ama "Yayını gir" denmedi → hatırlatmaya devam).
+   * userId verilirse sadece o kişiye atananlar — RLS de admin dışını sınırlar.
+   */
+  async getUpcoming(userId?: string): Promise<ContentPlan[]> {
+    const supabase = await createClient();
+    const since = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+    let query = supabase
+      .from('content_plans')
+      .select(SELECT_QUERY)
+      .gte('planned_date', since)
+      .in('status', ['PLANNED', 'IN_PROGRESS'])
+      .order('planned_date', { ascending: true });
+    if (userId) query = query.eq('assigned_to', userId);
+    const { data } = await query;
+    return (data ?? []) as unknown as ContentPlan[];
+  },
+
+  async getById(id: string): Promise<ContentPlan | null> {
+    const supabase = await createClient();
+    const { data } = await supabase.from('content_plans').select(SELECT_QUERY).eq('id', id).maybeSingle();
+    return (data as unknown as ContentPlan) ?? null;
+  },
+
+  /** Plan yapıldı: girilen işe bağla ve tamamlandı işaretle. */
+  async completeWithWorkItem(id: string, workItemId: string): Promise<boolean> {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from('content_plans')
+      .update({ status: 'DONE', work_item_id: workItemId, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    return !error;
   },
 
   /** Update status */
